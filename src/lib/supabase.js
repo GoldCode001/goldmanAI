@@ -15,24 +15,6 @@ export async function loadConfig() {
   }
 }
 
-export async function initSupabase() {
-  if (!config) {
-    const loaded = await loadConfig();
-    if (!loaded) return false;
-  }
-
-  try {
-    if (!window.supabase || !window.supabase.createClient) {
-      throw new Error('Supabase library not found');
-    }
-    supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-    console.log('supabase initialized');
-    return true;
-  } catch (error) {
-    console.error('failed to initialize supabase:', error);
-    return false;
-  }
-}
 
 export async function checkAuth() {
   if (!supabase) {
