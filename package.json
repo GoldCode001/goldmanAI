@@ -1,10 +1,13 @@
 {
   "name": "ai-assistant-full",
   "version": "1.0.0",
-  "description": "AI Assistant web app with Supabase and Vercel",
-  "main": "index.js",
-  "scripts": {},
+  "description": "AI Assistant web app with Supabase",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.7"
+    "@supabase/supabase-js": "^2.39.7",
+    "express": "^4.19.2"
   }
 }
