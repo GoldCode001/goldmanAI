@@ -30,7 +30,18 @@ async function initSupabase() {
   }
 
   try {
-    supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+    let supabaseLib = null;
+    // Try to use npm package if available (for Vercel/node)
+    try {
+      supabaseLib = require('@supabase/supabase-js');
+    } catch (e) {
+      // fallback to CDN global
+      supabaseLib = window.supabase;
+    }
+    if (!supabaseLib || !supabaseLib.createClient) {
+      throw new Error('Supabase library not found');
+    }
+    supabase = supabaseLib.createClient(config.supabaseUrl, config.supabaseAnonKey);
     console.log('supabase initialized');
     return true;
   } catch (error) {

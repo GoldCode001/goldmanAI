@@ -1,0 +1,10 @@
+{
+  "name": "ai-assistant-full",
+  "version": "1.0.0",
+  "description": "AI Assistant web app with Supabase and Vercel",
+  "main": "index.js",
+  "scripts": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.7"
+  }
+}
