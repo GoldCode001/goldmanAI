@@ -9,46 +9,51 @@ import {
   handleSendMessage
 } from "../components/ui.js";
 
-import { loadConfig, checkAuth } from "./supabase.js";
+import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await loadConfig();
 
   const user = await checkAuth();
   user ? showMainApp() : showAuthScreen();
 
   /* -------- AUTH -------- */
 
-  document.getElementById("signinForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
-    try {
-      await signIn(
-        document.getElementById("signinEmail").value,
-        document.getElementById("signinPassword").value
-      );
-      showMainApp();
-    } catch (err) {
-      updateAuthStatus(err.message || "sign in failed", "error");
-    }
-  });
+  document.getElementById("signinForm")
+    ?.addEventListener("submit", async e => {
+      e.preventDefault();
+      try {
+        await signIn(
+          document.getElementById("signinEmail").value,
+          document.getElementById("signinPassword").value
+        );
+        showMainApp();
+      } catch (err) {
+        updateAuthStatus(err.message || "sign in failed", "error");
+      }
+    });
 
-  document.getElementById("signupForm")?.addEventListener("submit", async e => {
-    e.preventDefault();
+  document.getElementById("signupForm")
+    ?.addEventListener("submit", async e => {
+      e.preventDefault();
 
-    const email = signupEmail.value;
-    const pass = signupPassword.value;
-    const conf = signupConfirm.value;
+      const email = document.getElementById("signupEmail").value;
+      const pass = document.getElementById("signupPassword").value;
+      const conf = document.getElementById("signupConfirm").value;
 
-    if (pass !== conf) {
-      updateAuthStatus("passwords do not match", "error");
-      return;
-    }
+      if (pass !== conf) {
+        updateAuthStatus("passwords do not match", "error");
+        return;
+      }
 
-    await signUp(email, pass);
-    updateAuthStatus("account created", "success");
-    switchTab("signin");
-  });
+      try {
+        await signUp(email, pass);
+        updateAuthStatus("account created", "success");
+        switchTab("signin");
+      } catch (err) {
+        updateAuthStatus(err.message || "signup failed", "error");
+      }
+    });
 
   /* -------- CHAT -------- */
 
