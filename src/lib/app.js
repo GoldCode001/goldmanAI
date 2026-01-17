@@ -41,20 +41,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 
 function setupEventListeners() {
-  document.getElementById('signinForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  document.getElementById("signinForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-    const email = document.getElementById('signinEmail').value;
-    const password = document.getElementById('signinPassword').value;
+    const email = document.getElementById("signinEmail").value;
+    const password = document.getElementById("signinPassword").value;
 
     try {
-      updateAuthStatus('signing in...', '');
-      await signIn(email, password);
-      updateAuthStatus('signed in successfully!', 'success');
+        updateAuthStatus("signing in...", "");
+
+        await signIn(email, password);
+
+        // 🔑 re-check auth to get user
+        const user = await checkAuth();
+
+        if (!user) {
+        throw new Error("failed to load user after sign in");
+        }
+
+        showMainApp();
+        await loadUserData();
+
+        updateAuthStatus("signed in successfully!", "success");
     } catch (error) {
-      updateAuthStatus(error.message, 'error');
+        updateAuthStatus(error.message, "error");
     }
-  });
+    });
+
 
   document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
