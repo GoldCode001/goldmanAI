@@ -136,6 +136,13 @@ export function handleKeyDown(event) {
   }
 }
 
+export async function sendMessage() {
+  if (typeof handleSendMessage === "function") {
+    await handleSendMessage();
+  }
+}
+
+
 
 /* ---------- GLOBALS FOR HTML ---------- */
 
@@ -145,3 +152,4 @@ window.newChat = newChat;
 window.deleteCurrentChat = deleteCurrentChat;
 window.exportAllChats = exportAllChats;
 window.handlekeyDown = handleKeyDown;
+window.sendMessage = sendMessage;
