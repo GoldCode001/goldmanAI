@@ -2,100 +2,77 @@ import {
   showMainApp,
   showAuthScreen,
   updateAuthStatus,
-  loadUserData,
   switchTab,
-  handleKeyDown,
-  sendMessage,
   toggleSidebar,
-  newChat
+  newChat,
+  exportAllChats,
+  deleteCurrentChat
 } from "../components/ui.js";
-import { loadConfig, initSupabase, checkAuth } from './supabase.js';
-import { signIn, signUp, signOut } from './auth.js';
 
-
-window.toggleSidebar = toggleSidebar;
-window.newChat = newChat;
-//window.exportAllChats = exportAllChats;
-//window.deleteCurrentChat = deleteCurrentChat;
-window.handleKeyDown = handleKeyDown;
-window.sendMessage = sendMessage;
-
+import { handleSendMessage } from "./chat.js";
+import { loadConfig, checkAuth } from "./supabase.js";
+import { signIn, signUp, signOut } from "./auth.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("app initializing...");
 
   await loadConfig();
 
   const user = await checkAuth();
+  user ? showMainApp() : showAuthScreen();
 
-  if (user) {
-    showMainApp();
-    await loadUserData();
-  } else {
-    showAuthScreen();
-  }
+  // AUTH TABS
+  document.getElementById("signinTab")
+    ?.addEventListener("click", () => switchTab("signin"));
 
-  setupEventListeners();
-});
+  document.getElementById("signupTab")
+    ?.addEventListener("click", () => switchTab("signup"));
 
-
-
-function setupEventListeners() {
-  document.getElementById("signinForm")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-    const email = document.getElementById("signinEmail").value;
-    const password = document.getElementById("signinPassword").value;
-
-    try {
-        updateAuthStatus("signing in...", "");
-
-        await signIn(email, password);
-
-        // 🔑 re-check auth to get user
-        const user = await checkAuth();
-
-        if (!user) {
-        throw new Error("failed to load user after sign in");
-        }
-
-        showMainApp();
-        await loadUserData();
-
-        updateAuthStatus("signed in successfully!", "success");
-    } catch (error) {
-        updateAuthStatus(error.message, "error");
-    }
+  // AUTH FORMS
+  document.getElementById("signinForm")
+    ?.addEventListener("submit", async e => {
+      e.preventDefault();
+      await signIn(
+        signinEmail.value,
+        signinPassword.value
+      );
+      showMainApp();
     });
 
+  document.getElementById("signupForm")
+    ?.addEventListener("submit", async e => {
+      e.preventDefault();
+      if (signupPassword.value !== signupConfirm.value) {
+        updateAuthStatus("passwords do not match", "error");
+        return;
+      }
+      await signUp(signupEmail.value, signupPassword.value);
+      switchTab("signin");
+    });
 
-  document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // CHAT
+  document.getElementById("sendBtn")
+    ?.addEventListener("click", handleSendMessage);
 
-    const email = document.getElementById('signupEmail').value;
-    const password = document.getElementById('signupPassword').value;
-    const confirm = document.getElementById('signupConfirm').value;
+  document.getElementById("userInput")
+    ?.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    });
 
-    if (password !== confirm) {
-      updateAuthStatus('passwords do not match', 'error');
-      return;
-    }
+  document.getElementById("newChatBtn")
+    ?.addEventListener("click", newChat);
 
-    if (password.length < 6) {
-      updateAuthStatus('password must be at least 6 characters', 'error');
-      return;
-    }
+  document.getElementById("deleteChatBtn")
+    ?.addEventListener("click", deleteCurrentChat);
 
-    try {
-      updateAuthStatus('creating account...', '');
-      await signUp(email, password);
-      updateAuthStatus(
-        'account created! please check your email to verify.',
-        'success'
-      );
-      setTimeout(() => switchTab('signin'), 2000);
-    } catch (error) {
-      updateAuthStatus(error.message, 'error');
-    }
-  });
-}
+  document.getElementById("exportChatsBtn")
+    ?.addEventListener("click", exportAllChats);
+
+  document.getElementById("toggleSidebarBtn")
+    ?.addEventListener("click", toggleSidebar);
+
+  document.getElementById("signOutBtn")
+    ?.addEventListener("click", signOut);
+});

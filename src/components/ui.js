@@ -146,10 +146,10 @@ export async function sendMessage() {
 
 /* ---------- GLOBALS FOR HTML ---------- */
 
-window.switchTab = switchTab;
-window.toggleSidebar = toggleSidebar;
-window.newChat = newChat;
-window.deleteCurrentChat = deleteCurrentChat;
-window.exportAllChats = exportAllChats;
-window.handlekeyDown = handleKeyDown;
-window.sendMessage = sendMessage;
+/*window.switchTab = switchTab;
+/*window.toggleSidebar = toggleSidebar;
+/*window.newChat = newChat;
+/*window.deleteCurrentChat = deleteCurrentChat;
+/*window.exportAllChats = exportAllChats;
+/*window.handlekeyDown = handleKeyDown;
+/*window.sendMessage = sendMessage;*/
