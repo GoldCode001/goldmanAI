@@ -5,12 +5,10 @@ import {
   switchTab,
   toggleSidebar,
   newChat,
-  exportAllChats,
-  deleteCurrentChat,
   handleKeyDown,
   handleSendMessage
 } from "../components/ui.js";
-import { handleSendMessage } from "./chat.js";
+
 import { loadConfig, checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
@@ -18,27 +16,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadConfig();
 
   const user = await checkAuth();
-  if (user) {
-    showMainApp();
-  } else {
-    showAuthScreen();
-  }
+  user ? showMainApp() : showAuthScreen();
 
-  /* ---------- AUTH TABS ---------- */
-
-  document
-    .querySelector('[onclick="switchTab(\'signin\')"]')
-    ?.addEventListener("click", () => switchTab("signin"));
-
-  document
-    .querySelector('[onclick="switchTab(\'signup\')"]')
-    ?.addEventListener("click", () => switchTab("signup"));
-
-  /* ---------- AUTH FORMS ---------- */
+  /* -------- AUTH -------- */
 
   document.getElementById("signinForm")?.addEventListener("submit", async e => {
     e.preventDefault();
-
     try {
       await signIn(
         document.getElementById("signinEmail").value,
@@ -53,67 +36,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("signupForm")?.addEventListener("submit", async e => {
     e.preventDefault();
 
-    const email = document.getElementById("signupEmail").value;
-    const password = document.getElementById("signupPassword").value;
-    const confirm = document.getElementById("signupConfirm").value;
+    const email = signupEmail.value;
+    const pass = signupPassword.value;
+    const conf = signupConfirm.value;
 
-    if (password !== confirm) {
+    if (pass !== conf) {
       updateAuthStatus("passwords do not match", "error");
       return;
     }
 
-    try {
-      await signUp(email, password);
-      updateAuthStatus("account created, please sign in", "success");
-      switchTab("signin");
-    } catch (err) {
-      updateAuthStatus(err.message || "signup failed", "error");
-    }
+    await signUp(email, pass);
+    updateAuthStatus("account created", "success");
+    switchTab("signin");
   });
 
-  /* ---------- CHAT ---------- */
-
-  document
-    .getElementById("userInput")
-    ?.addEventListener("keydown", handleKeyDown);
-
-  document
-    .querySelector('button[onclick="sendMessage()"]')
-    ?.addEventListener("click", handleSendMessage);
-
-  /* ---------- SIDEBAR / ACTIONS ---------- */
-
-  document
-    .querySelector('button[onclick="newChat()"]')
-    ?.addEventListener("click", newChat);
-
-  document
-    .querySelector('button[onclick="deleteCurrentChat()"]')
-    ?.addEventListener("click", deleteCurrentChat);
-
-  document
-    .querySelector('button[onclick="exportAllChats()"]')
-    ?.addEventListener("click", exportAllChats);
-
-  document
-    .querySelectorAll('button[onclick="toggleSidebar()"]')
-    .forEach(btn =>
-      btn.addEventListener("click", toggleSidebar)
-    );
-
-  document
-    .querySelector('button[onclick="signOut()"]')
-    ?.addEventListener("click", signOut);
-
-  document.getElementById("sendBtn")
-  ?.addEventListener("click", handleSendMessage);
+  /* -------- CHAT -------- */
 
   document.getElementById("userInput")
-    ?.addEventListener("keydown", e => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSendMessage();
-      }
-    });
+    ?.addEventListener("keydown", handleKeyDown);
 
+  document.querySelector('button[onclick="sendMessage()"]')
+    ?.addEventListener("click", handleSendMessage);
+
+  /* -------- SIDEBAR -------- */
+
+  document.querySelectorAll('[onclick="toggleSidebar()"]')
+    .forEach(b => b.addEventListener("click", toggleSidebar));
+
+  document.querySelector('[onclick="newChat()"]')
+    ?.addEventListener("click", newChat);
+
+  document.querySelector('[onclick="signOut()"]')
+    ?.addEventListener("click", signOut);
 });
