@@ -1,13 +1,17 @@
+import {
+  showMainApp,
+  showAuthScreen,
+  updateAuthStatus,
+  loadUserData,
+  switchTab,
+  handleKeyDown,
+  sendMessage,
+  toggleSidebar,
+  newChat
+} from "../components/ui.js";
 import { loadConfig, initSupabase, checkAuth } from './supabase.js';
 import { signIn, signUp, signOut } from './auth.js';
-import {
-  toggleSidebar,
-  newChat,
-  //exportAllChats,
-  //deleteCurrentChat,
-  handleKeyDown,
-  sendMessage
-} from '../components/ui.js';
+
 
 window.toggleSidebar = toggleSidebar;
 window.newChat = newChat;
@@ -33,6 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   setupEventListeners();
 });
+
 
 
 function setupEventListeners() {
