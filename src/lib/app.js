@@ -4,7 +4,7 @@ import {
   toggleSidebar,
   newChat,
   exportAllChats,
-  deleteCurrentChat,
+  //deleteCurrentChat,
   handleKeyDown,
   sendMessage
 } from '../components/ui.js';
