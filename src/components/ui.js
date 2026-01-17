@@ -2,12 +2,12 @@
 
 export function showAuthScreen() {
   document.getElementById("authScreen")?.classList.remove("hidden");
-  document.getElementById("app")?.classList.add("hidden");
+  document.getElementById("mainApp")?.classList.add("hidden");
 }
 
 export function showMainApp() {
   document.getElementById("authScreen")?.classList.add("hidden");
-  document.getElementById("app")?.classList.remove("hidden");
+  document.getElementById("mainApp")?.classList.remove("hidden");
 }
 
 export function updateAuthStatus(message, type = "info") {
@@ -15,23 +15,23 @@ export function updateAuthStatus(message, type = "info") {
   if (!el) return;
 
   el.textContent = message;
-  el.className = `auth-status ${type}`;
+  el.className = `status ${type}`;
 }
 
 export function switchTab(tab) {
-  const signin = document.getElementById("signin");
-  const signup = document.getElementById("signup");
+  const signinForm = document.getElementById("signinForm");
+  const signupForm = document.getElementById("signupForm");
 
-  if (!signin || !signup) return;
+  if (!signinForm || !signupForm) return;
 
-  signin.classList.toggle("hidden", tab !== "signin");
-  signup.classList.toggle("hidden", tab !== "signup");
+  signinForm.classList.toggle("hidden", tab !== "signin");
+  signupForm.classList.toggle("hidden", tab !== "signup");
 }
 
 /* ---------- SIDEBAR ---------- */
 
 export function toggleSidebar() {
-  document.getElementById("sidebar")?.classList.toggle("collapsed");
+  document.querySelector(".sidebar")?.classList.toggle("collapsed");
 }
 
 export function newChat() {
@@ -64,17 +64,23 @@ export async function handleSendMessage() {
   appendMessage("user", text);
 
   try {
-    const res = await fetch("/chat", {
+    const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({
+        messages: [{ role: "user", content: text }]
+      })
     });
 
+    if (!res.ok) {
+      throw new Error("api error");
+    }
+
     const data = await res.json();
-    appendMessage("assistant", data.reply || "no response");
+    appendMessage("assistant", data.content || "no response");
   } catch (err) {
-    appendMessage("assistant", "error sending message");
     console.error(err);
+    appendMessage("assistant", "error contacting server");
   }
 }
 
