@@ -5,7 +5,6 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://zjgecayphpejznilaolg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZ2VjYXlwaHBlanpuaWxhb2xnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2Mzk2MTIsImV4cCI6MjA4NDIxNTYxMn0.SHPC9iGk4a5SGYLMYBAmbGj2tuK-KhFho2oVeSfqGz0";
 
-
 /* ========= CLIENT ========= */
 
 export const supabase = createClient(
@@ -20,7 +19,7 @@ let currentUser = null;
 export async function checkAuth() {
   const { data, error } = await supabase.auth.getUser();
 
-  // user simply not logged in
+  // user simply not logged in (normal)
   if (error && error.name === "AuthSessionMissingError") {
     return null;
   }
