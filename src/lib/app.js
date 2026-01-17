@@ -60,17 +60,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("userInput")
     ?.addEventListener("keydown", handleKeyDown);
 
-  document.querySelector('button[onclick="sendMessage()"]')
+  document.getElementById("sendBtn")
     ?.addEventListener("click", handleSendMessage);
 
   /* -------- SIDEBAR -------- */
 
-  document.querySelectorAll('[onclick="toggleSidebar()"]')
-    .forEach(b => b.addEventListener("click", toggleSidebar));
+  document.getElementById("toggleSidebarBtn")
+    ?.addEventListener("click", toggleSidebar);
 
-  document.querySelector('[onclick="newChat()"]')
+  document.getElementById("newChatBtn")
     ?.addEventListener("click", newChat);
 
-  document.querySelector('[onclick="signOut()"]')
+  document.getElementById("signOutBtn")
     ?.addEventListener("click", signOut);
 });
