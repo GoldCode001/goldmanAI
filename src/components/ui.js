@@ -127,6 +127,16 @@ export async function exportAllChats() {
   updateStatus("chats exported", "success");
 }
 
+export function handleKeyDown(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    if (typeof sendMessage === "function") {
+      sendMessage();
+    }
+  }
+}
+
+
 /* ---------- GLOBALS FOR HTML ---------- */
 
 window.switchTab = switchTab;
@@ -134,3 +144,4 @@ window.toggleSidebar = toggleSidebar;
 window.newChat = newChat;
 window.deleteCurrentChat = deleteCurrentChat;
 window.exportAllChats = exportAllChats;
+window.handlekeyDown = handleKeyDown;
