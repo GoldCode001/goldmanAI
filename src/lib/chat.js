@@ -1,23 +1,21 @@
-// chat functionality
+import { getApiEndpoint } from './supabase.js';
+import { createChat, saveMessage } from './database.js';
+import { updateStatus } from '../components/ui.js';
 
 let currentChatId = null;
 let chatMessages = [];
 let attachedFiles = [];
 
-async function sendAIMessage(text, files = []) {
+export async function sendAIMessage(text, files = []) {
     const endpoint = getApiEndpoint();
     const model = document.getElementById('modelSelect').value;
     const provider = document.getElementById('providerSelect').value;
-
     try {
         updateStatus('sending...', 'loading');
-
         // build prompt with file context
         let fullPrompt = text;
-        
         if (files.length > 0) {
             fullPrompt += '\n\n[attached files: ' + files.map(f => f.name).join(', ') + ']';
-            
             for (const file of files) {
                 if (!file.type.startsWith('image/')) {
                     const content = file.data.substring(0, 10000);
@@ -27,19 +25,13 @@ async function sendAIMessage(text, files = []) {
                 }
             }
         }
-
         const url = `${endpoint}/?text=${encodeURIComponent(fullPrompt)}&model=${model}&provider=${provider}`;
-        
         const response = await fetch(url);
-        
         if (!response.ok) {
             throw new Error(`http error: ${response.status}`);
         }
-
         const data = await response.text();
-        
         updateStatus('ready', 'success');
-        
         return data;
     } catch (error) {
         updateStatus('error: ' + error.message, 'error');
@@ -47,12 +39,10 @@ async function sendAIMessage(text, files = []) {
     }
 }
 
-async function handleSendMessage() {
+export async function handleSendMessage() {
     const input = document.getElementById('userInput');
     const text = input.value.trim();
-    
     if (!text && attachedFiles.length === 0) return;
-
     // check if we have a chat
     if (!currentChatId) {
         const chat = await createChat(text.substring(0, 50));

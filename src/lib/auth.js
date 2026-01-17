@@ -1,19 +1,17 @@
-// authentication functions
+import { getSupabase, getCurrentUser } from './supabase.js';
+import { showAuthScreen } from '../components/ui.js';
 
-async function signIn(email, password) {
+export async function signIn(email, password) {
+    const supabase = getSupabase();
     if (!supabase) {
         throw new Error('supabase not initialized. please configure it first.');
     }
-
     try {
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
         });
-
         if (error) throw error;
-
-        currentUser = data.user;
         return data;
     } catch (error) {
         console.error('sign in failed:', error);
@@ -21,19 +19,17 @@ async function signIn(email, password) {
     }
 }
 
-async function signUp(email, password) {
+export async function signUp(email, password) {
+    const supabase = getSupabase();
     if (!supabase) {
         throw new Error('supabase not initialized. please configure it first.');
     }
-
     try {
         const { data, error } = await supabase.auth.signUp({
             email,
             password
         });
-
         if (error) throw error;
-
         return data;
     } catch (error) {
         console.error('sign up failed:', error);
@@ -41,16 +37,12 @@ async function signUp(email, password) {
     }
 }
 
-async function signOut() {
+export async function signOut() {
+    const supabase = getSupabase();
     if (!supabase) return;
-
     try {
         const { error } = await supabase.auth.signOut();
-        
         if (error) throw error;
-
-        currentUser = null;
-        
         // redirect to auth screen
         showAuthScreen();
     } catch (error) {

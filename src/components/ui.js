@@ -1,16 +1,16 @@
 // UI interactions
 
-function showAuthScreen() {
+export function showAuthScreen() {
     document.getElementById('authScreen').classList.remove('hidden');
     document.getElementById('mainApp').classList.add('hidden');
 }
 
-function showMainApp() {
+export function showMainApp() {
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
 }
 
-function switchTab(tab) {
+export function switchTab(tab) {
     const signinForm = document.getElementById('signinForm');
     const signupForm = document.getElementById('signupForm');
     const tabs = document.querySelectorAll('.auth-tab');
@@ -28,27 +28,27 @@ function switchTab(tab) {
     }
 }
 
-function updateAuthStatus(message, type = '') {
+export function updateAuthStatus(message, type = '') {
     const status = document.getElementById('authStatus');
     status.textContent = message;
     status.className = 'status ' + type;
 }
 
-function updateStatus(message, type = '') {
+export function updateStatus(message, type = '') {
     const status = document.getElementById('status');
     status.textContent = message;
     status.className = 'status ' + type;
 }
 
-function toggleSidebar() {
+export function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
     sidebar.classList.toggle('open');
 }
 
-async function loadUserData() {
-    if (!currentUser) return;
+export async function loadUserData() {
+    if (!window.currentUser) return;
 
-    document.getElementById('userEmail').textContent = currentUser.email;
+    document.getElementById('userEmail').textContent = window.currentUser.email;
 
     await loadUserChats();
 
