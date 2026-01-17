@@ -4,83 +4,53 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ai assistant</title>
-  <link rel="stylesheet" href="src/styles/main.css" />
+
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="src/styles/main.css">
 </head>
 <body>
 
-<!-- AUTH SCREEN -->
 <div id="authScreen" class="auth-screen">
-  <div class="auth-container">
-    <div class="auth-box">
-      <h1>ai assistant</h1>
-      <p class="subtitle">sign in to continue</p>
+  <div class="auth-box">
+    <h1>ai assistant</h1>
 
-      <div class="auth-tabs">
-        <button id="signinTab" class="auth-tab active">sign in</button>
-        <button id="signupTab" class="auth-tab">sign up</button>
-      </div>
-
-      <form id="signinForm">
-        <input id="signinEmail" type="email" placeholder="email" required />
-        <input id="signinPassword" type="password" placeholder="password" required />
-        <button type="submit">sign in</button>
-      </form>
-
-      <form id="signupForm" class="hidden">
-        <input id="signupEmail" type="email" placeholder="email" required />
-        <input id="signupPassword" type="password" placeholder="password" required />
-        <input id="signupConfirm" type="password" placeholder="confirm password" required />
-        <button type="submit">create account</button>
-      </form>
-
-      <p id="authStatus" class="status"></p>
+    <div class="auth-tabs">
+      <button id="signinTab" class="active">sign in</button>
+      <button id="signupTab">sign up</button>
     </div>
+
+    <form id="signinForm">
+      <input id="signinEmail" type="email" placeholder="email" required>
+      <input id="signinPassword" type="password" placeholder="password" required>
+      <button type="submit">sign in</button>
+    </form>
+
+    <form id="signupForm" class="hidden">
+      <input id="signupEmail" type="email" placeholder="email" required>
+      <input id="signupPassword" type="password" placeholder="password" required>
+      <input id="signupConfirm" type="password" placeholder="confirm password" required>
+      <button type="submit">create account</button>
+    </form>
+
+    <p id="authStatus"></p>
   </div>
 </div>
 
-<!-- MAIN APP -->
-<div id="mainApp" class="app-container hidden">
-
+<div id="mainApp" class="app hidden">
   <aside class="sidebar">
-    <button id="toggleSidebarBtn">☰</button>
-
     <p id="userEmail"></p>
-    <button id="signOutBtn">sign out</button>
-
     <button id="newChatBtn">+ new chat</button>
-
-    <select id="modelSelect">
-      <option value="gpt-4">gpt-4</option>
-      <option value="gpt-4o">gpt-4o</option>
-    </select>
-
-    <select id="providerSelect">
-      <option value="Auto">auto</option>
-      <option value="DuckDuckGo">duckduckgo</option>
-    </select>
-
-    <div id="historyList"></div>
-
-    <button id="exportChatsBtn">export all</button>
+    <button id="signOutBtn">sign out</button>
   </aside>
 
-  <main class="chat-container">
-    <header>
-      <h1 id="chatTitle">new chat</h1>
-      <p id="chatSubtitle">start a conversation</p>
-      <button id="deleteChatBtn">🗑️</button>
-    </header>
-
+  <main class="chat">
     <div id="messages"></div>
 
-    <div class="input-area">
-      <textarea id="userInput" placeholder="ask me anything..."></textarea>
-      <input type="file" id="fileInput" multiple />
+    <div class="input-bar">
+      <textarea id="userInput" placeholder="ask something..."></textarea>
       <button id="sendBtn">send</button>
-      <p id="status">ready</p>
     </div>
   </main>
-
 </div>
 
 <script type="module" src="src/lib/app.js"></script>
