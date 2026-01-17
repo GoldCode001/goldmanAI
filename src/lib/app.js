@@ -17,22 +17,13 @@ window.handleKeyDown = handleKeyDown;
 window.sendMessage = sendMessage;
 
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('app initializing...');
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("app initializing...");
 
-  const configLoaded = await loadConfig();
-  if (!configLoaded) {
-    alert('failed to load config');
-    return;
-  }
-
-  const supabaseReady = await initSupabase();
-  if (!supabaseReady) {
-    alert('failed to initialize app. please refresh the page.');
-    return;
-  }
+  await loadConfig();
 
   const user = await checkAuth();
+
   if (user) {
     showMainApp();
     await loadUserData();
@@ -42,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupEventListeners();
 });
+
 
 function setupEventListeners() {
   document.getElementById('signinForm')?.addEventListener('submit', async (e) => {

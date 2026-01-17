@@ -42,17 +42,23 @@ export async function checkAuth() {
     if (!ok) return null;
   }
 
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
+  const { data, error } = await supabase.auth.getUser();
 
-    currentUser = user;
-    return user;
-  } catch (error) {
-    console.error('auth check failed:', error);
+  // THIS IS NORMAL — user just not logged in
+  if (error && error.name === "AuthSessionMissingError") {
     return null;
   }
+
+  if (error) {
+    console.error("auth check failed:", error);
+    return null;
+  }
+
+  currentUser = data.user;
+  window.currentUser = data.user;
+  return data.user;
 }
+
 
 export function getSupabase() {
   return supabase;
