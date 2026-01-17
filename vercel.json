@@ -1,10 +1,5 @@
 {
   "buildCommand": null,
   "outputDirectory": ".",
-  "framework": null,
-  "env": {
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "API_ENDPOINT": "@api-endpoint"
-  }
+  "framework": null
 }
