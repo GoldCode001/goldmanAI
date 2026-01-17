@@ -3,7 +3,7 @@ import { signIn, signUp, signOut } from './auth.js';
 import {
   toggleSidebar,
   newChat,
-  exportAllChats,
+  //exportAllChats,
   //deleteCurrentChat,
   handleKeyDown,
   sendMessage
@@ -11,7 +11,7 @@ import {
 
 window.toggleSidebar = toggleSidebar;
 window.newChat = newChat;
-window.exportAllChats = exportAllChats;
+//window.exportAllChats = exportAllChats;
 //window.deleteCurrentChat = deleteCurrentChat;
 window.handleKeyDown = handleKeyDown;
 window.sendMessage = sendMessage;
