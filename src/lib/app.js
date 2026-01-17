@@ -12,7 +12,7 @@ import {
 window.toggleSidebar = toggleSidebar;
 window.newChat = newChat;
 window.exportAllChats = exportAllChats;
-window.deleteCurrentChat = deleteCurrentChat;
+//window.deleteCurrentChat = deleteCurrentChat;
 window.handleKeyDown = handleKeyDown;
 window.sendMessage = sendMessage;
 
