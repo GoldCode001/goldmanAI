@@ -2,37 +2,34 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 let supabase = null;
 let currentUser = null;
-let config = null;
 
-export async function loadConfig() {
-  try {
-    const response = await fetch('/api/config');
-    config = await response.json();
-    return true;
-  } catch (error) {
-    console.error('failed to load config:', error);
-    return false;
+/*
+  EXPECTED:
+  These are injected at runtime, e.g. via Railway → index.html
+
+  window.SUPABASE_URL
+  window.SUPABASE_ANON_KEY
+*/
+
+function getEnv() {
+  const url = window.SUPABASE_URL;
+  const anonKey = window.SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    console.error("Supabase env vars missing on window");
+    return null;
   }
+
+  return { url, anonKey };
 }
 
 export async function initSupabase() {
   if (supabase) return true;
 
-  if (!config) {
-    const loaded = await loadConfig();
-    if (!loaded) return false;
-  }
+  const env = getEnv();
+  if (!env) return false;
 
-  if (!config.supabaseUrl || !config.supabaseAnonKey) {
-    console.error('missing supabase config');
-    return false;
-  }
-
-  supabase = createClient(
-    config.supabaseUrl,
-    config.supabaseAnonKey
-  );
-
+  supabase = createClient(env.url, env.anonKey);
   return true;
 }
 
@@ -44,7 +41,6 @@ export async function checkAuth() {
 
   const { data, error } = await supabase.auth.getUser();
 
-  // THIS IS NORMAL — user just not logged in
   if (error && error.name === "AuthSessionMissingError") {
     return null;
   }
@@ -59,7 +55,6 @@ export async function checkAuth() {
   return data.user;
 }
 
-
 export function getSupabase() {
   return supabase;
 }
@@ -69,6 +64,5 @@ export function getCurrentUser() {
 }
 
 export function getApiEndpoint() {
-  return "https://aibackend-production-a44f.up.railway.app"
+  return "https://aibackend-production-a44f.up.railway.app";
 }
-
