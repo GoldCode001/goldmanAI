@@ -206,3 +206,18 @@ function handleKeyDown(event) {
 async function sendMessage() {
     await handleSendMessage();
 }
+
+export function switchTab(tabName) {
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.style.display = "none";
+  });
+
+  const active = document.getElementById(tabName);
+  if (active) active.style.display = "block";
+}
+
+export function exportAllChats() {
+  console.log("exportAllChats called");
+}
+
+window.switchTab = switchTab;
