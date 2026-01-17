@@ -1,3 +1,5 @@
+import { handleSendMessage } from "../lib/chat.js";
+
 // UI interactions
 
 /* ---------- AUTH UI ---------- */
@@ -137,10 +139,9 @@ export function handleKeyDown(event) {
 }
 
 export async function sendMessage() {
-  if (typeof handleSendMessage === "function") {
-    await handleSendMessage();
-  }
+  await handleSendMessage();
 }
+
 
 
 
@@ -151,5 +152,88 @@ export async function sendMessage() {
 /*window.newChat = newChat;
 /*window.deleteCurrentChat = deleteCurrentChat;
 /*window.exportAllChats = exportAllChats;
-/*window.handlekeyDown = handleKeyDown;
+/*window.handlekeyDown = handleKeyDown;*/
 /*window.sendMessage = sendMessage;*/
+
+/* ---------- CHAT STATE ---------- */
+
+window.chatMessages = [];
+
+/* ---------- RENDER ---------- */
+
+export function renderMessages(messages) {
+  const container = document.getElementById("messages");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  for (const msg of messages) {
+    const div = document.createElement("div");
+    div.className = `message ${msg.role}`;
+    div.innerText = msg.content;
+    container.appendChild(div);
+  }
+
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ---------- SEND ---------- */
+
+export async function handleSendMessage() {
+  const input = document.getElementById("userInput");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+
+  // push user message
+  window.chatMessages.push({
+    role: "user",
+    content: text
+  });
+
+  renderMessages(window.chatMessages);
+
+  try {
+    const res = await fetch("https://aibackend-production-a44f.up.railway.app/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: window.chatMessages
+      })
+    });
+
+    const data = await res.json();
+
+    window.chatMessages.push({
+      role: "assistant",
+      content: data.content || "(empty response)"
+    });
+
+    renderMessages(window.chatMessages);
+  } catch (err) {
+    window.chatMessages.push({
+      role: "assistant",
+      content: "error contacting ai backend"
+    });
+
+    renderMessages(window.chatMessages);
+  }
+}
+
+/* ---------- INPUT ---------- */
+
+export function handleKeyDown(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSendMessage();
+  }
+}
+
+
+window.handleKeyDown = handleKeyDown;
+window.sendMessage = handleSendMessage;
+
+/* ---------- END ---------- */
