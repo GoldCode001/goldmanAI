@@ -1,7 +1,16 @@
 // supabase client
-let supabase = null;
-let currentUser = null;
-let config = null;
+if (typeof window !== 'undefined') {
+  if (!window.__supabase_singleton) {
+    window.__supabase_singleton = { supabase: null, currentUser: null, config: null };
+  }
+  var supabase = window.__supabase_singleton.supabase;
+  var currentUser = window.__supabase_singleton.currentUser;
+  var config = window.__supabase_singleton.config;
+} else {
+  var supabase = null;
+  var currentUser = null;
+  var config = null;
+}
 
 async function loadConfig() {
   try {
