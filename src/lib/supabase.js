@@ -69,5 +69,6 @@ export function getCurrentUser() {
 }
 
 export function getApiEndpoint() {
-  return config?.apiEndpoint || '';
+  return "https://aibackend-production-a44f.up.railway.app"
 }
+

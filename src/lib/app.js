@@ -6,73 +6,102 @@ import {
   toggleSidebar,
   newChat,
   exportAllChats,
-  deleteCurrentChat
+  deleteCurrentChat,
+  handleKeyDown,
+  handleSendMessage
 } from "../components/ui.js";
 
-import { handleSendMessage } from "./chat.js";
 import { loadConfig, checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
-
   await loadConfig();
 
   const user = await checkAuth();
-  user ? showMainApp() : showAuthScreen();
+  if (user) {
+    showMainApp();
+  } else {
+    showAuthScreen();
+  }
 
-  // AUTH TABS
-  document.getElementById("signinTab")
+  /* ---------- AUTH TABS ---------- */
+
+  document
+    .querySelector('[onclick="switchTab(\'signin\')"]')
     ?.addEventListener("click", () => switchTab("signin"));
 
-  document.getElementById("signupTab")
+  document
+    .querySelector('[onclick="switchTab(\'signup\')"]')
     ?.addEventListener("click", () => switchTab("signup"));
 
-  // AUTH FORMS
-  document.getElementById("signinForm")
-    ?.addEventListener("submit", async e => {
-      e.preventDefault();
+  /* ---------- AUTH FORMS ---------- */
+
+  document.getElementById("signinForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    try {
       await signIn(
-        signinEmail.value,
-        signinPassword.value
+        document.getElementById("signinEmail").value,
+        document.getElementById("signinPassword").value
       );
       showMainApp();
-    });
+    } catch (err) {
+      updateAuthStatus(err.message || "sign in failed", "error");
+    }
+  });
 
-  document.getElementById("signupForm")
-    ?.addEventListener("submit", async e => {
-      e.preventDefault();
-      if (signupPassword.value !== signupConfirm.value) {
-        updateAuthStatus("passwords do not match", "error");
-        return;
-      }
-      await signUp(signupEmail.value, signupPassword.value);
+  document.getElementById("signupForm")?.addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const email = document.getElementById("signupEmail").value;
+    const password = document.getElementById("signupPassword").value;
+    const confirm = document.getElementById("signupConfirm").value;
+
+    if (password !== confirm) {
+      updateAuthStatus("passwords do not match", "error");
+      return;
+    }
+
+    try {
+      await signUp(email, password);
+      updateAuthStatus("account created, please sign in", "success");
       switchTab("signin");
-    });
+    } catch (err) {
+      updateAuthStatus(err.message || "signup failed", "error");
+    }
+  });
 
-  // CHAT
-  document.getElementById("sendBtn")
+  /* ---------- CHAT ---------- */
+
+  document
+    .getElementById("userInput")
+    ?.addEventListener("keydown", handleKeyDown);
+
+  document
+    .querySelector('button[onclick="sendMessage()"]')
     ?.addEventListener("click", handleSendMessage);
 
-  document.getElementById("userInput")
-    ?.addEventListener("keydown", e => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSendMessage();
-      }
-    });
+  /* ---------- SIDEBAR / ACTIONS ---------- */
 
-  document.getElementById("newChatBtn")
+  document
+    .querySelector('button[onclick="newChat()"]')
     ?.addEventListener("click", newChat);
 
-  document.getElementById("deleteChatBtn")
+  document
+    .querySelector('button[onclick="deleteCurrentChat()"]')
     ?.addEventListener("click", deleteCurrentChat);
 
-  document.getElementById("exportChatsBtn")
+  document
+    .querySelector('button[onclick="exportAllChats()"]')
     ?.addEventListener("click", exportAllChats);
 
-  document.getElementById("toggleSidebarBtn")
-    ?.addEventListener("click", toggleSidebar);
+  document
+    .querySelectorAll('button[onclick="toggleSidebar()"]')
+    .forEach(btn =>
+      btn.addEventListener("click", toggleSidebar)
+    );
 
-  document.getElementById("signOutBtn")
+  document
+    .querySelector('button[onclick="signOut()"]')
     ?.addEventListener("click", signOut);
 });
