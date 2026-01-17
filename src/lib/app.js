@@ -1,12 +1,21 @@
 import { loadConfig, initSupabase, checkAuth } from './supabase.js';
 import { signIn, signUp, signOut } from './auth.js';
 import {
-  showMainApp,
-  showAuthScreen,
-  updateAuthStatus,
-  loadUserData,
-  switchTab
+  toggleSidebar,
+  newChat,
+  exportAllChats,
+  deleteCurrentChat,
+  handleKeyDown,
+  sendMessage
 } from '../components/ui.js';
+
+window.toggleSidebar = toggleSidebar;
+window.newChat = newChat;
+window.exportAllChats = exportAllChats;
+window.deleteCurrentChat = deleteCurrentChat;
+window.handleKeyDown = handleKeyDown;
+window.sendMessage = sendMessage;
+
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('app initializing...');
