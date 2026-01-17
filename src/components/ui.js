@@ -1,4 +1,4 @@
-/* ================= AUTH UI ================= */
+/* ================= UI CORE ================= */
 
 export function showAuthScreen() {
   document.getElementById("authScreen")?.classList.remove("hidden");
@@ -11,31 +11,9 @@ export function showMainApp() {
 }
 
 export function switchTab(tab) {
-  const signinForm = document.getElementById("signinForm");
-  const signupForm = document.getElementById("signupForm");
-  const tabs = document.querySelectorAll(".auth-tab");
-
-  tabs.forEach(t => t.classList.remove("active"));
-
-  if (tab === "signin") {
-    signinForm.classList.remove("hidden");
-    signupForm.classList.add("hidden");
-    tabs[0]?.classList.add("active");
-  } else {
-    signupForm.classList.remove("hidden");
-    signinForm.classList.add("hidden");
-    tabs[1]?.classList.add("active");
-  }
+  document.getElementById("signinForm")?.classList.toggle("hidden", tab !== "signin");
+  document.getElementById("signupForm")?.classList.toggle("hidden", tab !== "signup");
 }
-
-export function updateAuthStatus(msg, type = "") {
-  const el = document.getElementById("authStatus");
-  if (!el) return;
-  el.textContent = msg;
-  el.className = `status ${type}`;
-}
-
-/* ================= SIDEBAR ================= */
 
 export function toggleSidebar() {
   document.querySelector(".sidebar")?.classList.toggle("open");
@@ -43,10 +21,66 @@ export function toggleSidebar() {
 
 export function newChat() {
   window.chatMessages = [];
-  document.getElementById("messages").innerHTML = "";
+  renderMessages([]);
 }
 
 /* ================= CHAT ================= */
+
+window.chatMessages = [];
+
+export function renderMessages(messages) {
+  const container = document.getElementById("messages");
+  if (!container) return;
+
+  container.innerHTML = "";
+  messages.forEach(m => {
+    const div = document.createElement("div");
+    div.className = `message ${m.role}`;
+    div.textContent = m.content;
+    container.appendChild(div);
+  });
+
+  container.scrollTop = container.scrollHeight;
+}
+
+export async function handleSendMessage() {
+  const input = document.getElementById("userInput");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = "";
+
+  window.chatMessages.push({ role: "user", content: text });
+  renderMessages(window.chatMessages);
+
+  try {
+    const res = await fetch(
+      "https://aibackend-production-a44f.up.railway.app/api/chat",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: window.chatMessages })
+      }
+    );
+
+    const data = await res.json();
+
+    window.chatMessages.push({
+      role: "assistant",
+      content: data.content || "(empty response)"
+    });
+
+    renderMessages(window.chatMessages);
+  } catch {
+    window.chatMessages.push({
+      role: "assistant",
+      content: "AI backend error"
+    });
+    renderMessages(window.chatMessages);
+  }
+}
 
 export function handleKeyDown(e) {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -54,35 +88,3 @@ export function handleKeyDown(e) {
     handleSendMessage();
   }
 }
-
-export async function handleSendMessage() {
-  const input = document.getElementById("userInput");
-  const messagesDiv = document.getElementById("messages");
-
-  if (!input.value.trim()) return;
-
-  const userMsg = input.value;
-  input.value = "";
-
-  messagesDiv.innerHTML += `<div class="msg user">${userMsg}</div>`;
-
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [{ role: "user", content: userMsg }]
-    })
-  });
-
-  const data = await res.json();
-
-  messagesDiv.innerHTML += `<div class="msg ai">${data.content}</div>`;
-}
-
-/* ================= GLOBALS ================= */
-
-window.switchTab = switchTab;
-window.toggleSidebar = toggleSidebar;
-window.newChat = newChat;
-window.handleKeyDown = handleKeyDown;
-window.sendMessage = handleSendMessage;
