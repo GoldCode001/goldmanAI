@@ -10,34 +10,53 @@ export async function sendAIMessage(text, files = []) {
     const endpoint = getApiEndpoint();
     const model = document.getElementById('modelSelect').value;
     const provider = document.getElementById('providerSelect').value;
+
     try {
         updateStatus('sending...', 'loading');
-        // build prompt with file context
+
         let fullPrompt = text;
         if (files.length > 0) {
-            fullPrompt += '\n\n[attached files: ' + files.map(f => f.name).join(', ') + ']';
+            fullPrompt += '\n\nAttached files:\n';
             for (const file of files) {
                 if (!file.type.startsWith('image/')) {
-                    const content = file.data.substring(0, 10000);
-                    fullPrompt += `\n\nContent of ${file.name}:\n${content}`;
+                    fullPrompt += `\n${file.name}:\n${file.data.substring(0, 8000)}\n`;
                 } else {
-                    fullPrompt += `\n\n[Image: ${file.name}]`;
+                    fullPrompt += `\n[Image: ${file.name}]`;
                 }
             }
         }
-        const url = `${endpoint}/?text=${encodeURIComponent(fullPrompt)}&model=${model}&provider=${provider}`;
-        const response = await fetch(url);
+
+        const response = await fetch(`${endpoint}/v1/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model,
+                provider,
+                messages: [
+                    { role: 'user', content: fullPrompt }
+                ]
+            })
+        });
+
         if (!response.ok) {
-            throw new Error(`http error: ${response.status}`);
+            const err = await response.text();
+            throw new Error(err);
         }
-        const data = await response.text();
+
+        const data = await response.json();
+
         updateStatus('ready', 'success');
-        return data;
+
+        return data.choices?.[0]?.message?.content || 'no response';
+
     } catch (error) {
         updateStatus('error: ' + error.message, 'error');
         throw error;
     }
 }
+
 
 export async function handleSendMessage() {
     const input = document.getElementById('userInput');
