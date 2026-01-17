@@ -1,18 +1,10 @@
-// supabase client
-if (typeof window !== 'undefined') {
-  if (!window.__supabase_singleton) {
-    window.__supabase_singleton = { supabase: null, currentUser: null, config: null };
-  }
-  var supabase = window.__supabase_singleton.supabase;
-  var currentUser = window.__supabase_singleton.currentUser;
-  var config = window.__supabase_singleton.config;
-} else {
-  var supabase = null;
-  var currentUser = null;
-  var config = null;
-}
 
-async function loadConfig() {
+import { createClient } from '@supabase/supabase-js';
+let supabase = null;
+let currentUser = null;
+let config = null;
+
+export async function loadConfig() {
   try {
     const response = await fetch('/api/config');
     config = await response.json();
@@ -23,7 +15,7 @@ async function loadConfig() {
   }
 }
 
-async function initSupabase() {
+export async function initSupabase() {
   if (!config) {
     const loaded = await loadConfig();
     if (!loaded) return false;
@@ -42,7 +34,7 @@ async function initSupabase() {
   }
 }
 
-async function checkAuth() {
+export async function checkAuth() {
   if (!supabase) {
     if (!await initSupabase()) {
       return null;
@@ -62,14 +54,14 @@ async function checkAuth() {
   }
 }
 
-function getSupabase() {
+export function getSupabase() {
   return supabase;
 }
 
-function getCurrentUser() {
+export function getCurrentUser() {
   return currentUser;
 }
 
-function getApiEndpoint() {
+export function getApiEndpoint() {
   return config?.apiEndpoint || '';
 }

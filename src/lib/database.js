@@ -1,8 +1,9 @@
-// database operations
+import { getSupabase, getCurrentUser } from './supabase.js';
 
-async function createChat(title) {
+export async function createChat(title) {
+    const supabase = getSupabase();
+    const currentUser = getCurrentUser();
     if (!supabase || !currentUser) return null;
-
     try {
         const { data, error } = await supabase
             .from('chats')
@@ -16,9 +17,7 @@ async function createChat(title) {
             ])
             .select()
             .single();
-
         if (error) throw error;
-
         return data;
     } catch (error) {
         console.error('failed to create chat:', error);
@@ -26,9 +25,10 @@ async function createChat(title) {
     }
 }
 
-async function saveMessage(chatId, role, content, files = []) {
+export async function saveMessage(chatId, role, content, files = []) {
+    const supabase = getSupabase();
+    const currentUser = getCurrentUser();
     if (!supabase || !currentUser) return null;
-
     try {
         const { data, error } = await supabase
             .from('messages')
@@ -43,15 +43,12 @@ async function saveMessage(chatId, role, content, files = []) {
             ])
             .select()
             .single();
-
         if (error) throw error;
-
         // update chat's updated_at
         await supabase
             .from('chats')
             .update({ updated_at: new Date().toISOString() })
             .eq('id', chatId);
-
         return data;
     } catch (error) {
         console.error('failed to save message:', error);
