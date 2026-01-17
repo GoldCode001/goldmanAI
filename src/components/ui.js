@@ -1,61 +1,88 @@
-export let chatMessages = [];
+/* ---------- AUTH UI ---------- */
 
 export function showAuthScreen() {
-  authScreen.classList.remove("hidden");
-  mainApp.classList.add("hidden");
+  document.getElementById("authScreen")?.classList.remove("hidden");
+  document.getElementById("app")?.classList.add("hidden");
 }
 
 export function showMainApp() {
-  authScreen.classList.add("hidden");
-  mainApp.classList.remove("hidden");
-  if (window.currentUser) {
-    userEmail.textContent = window.currentUser.email;
-  }
+  document.getElementById("authScreen")?.classList.add("hidden");
+  document.getElementById("app")?.classList.remove("hidden");
+}
+
+export function updateAuthStatus(message, type = "info") {
+  const el = document.getElementById("authStatus");
+  if (!el) return;
+
+  el.textContent = message;
+  el.className = `auth-status ${type}`;
 }
 
 export function switchTab(tab) {
-  signinForm.classList.toggle("hidden", tab !== "signin");
-  signupForm.classList.toggle("hidden", tab !== "signup");
+  const signin = document.getElementById("signin");
+  const signup = document.getElementById("signup");
 
-  signinTab.classList.toggle("active", tab === "signin");
-  signupTab.classList.toggle("active", tab === "signup");
+  if (!signin || !signup) return;
+
+  signin.classList.toggle("hidden", tab !== "signin");
+  signup.classList.toggle("hidden", tab !== "signup");
 }
 
-export function resetChat() {
-  chatMessages = [];
-  messages.innerHTML = "";
+/* ---------- SIDEBAR ---------- */
+
+export function toggleSidebar() {
+  document.getElementById("sidebar")?.classList.toggle("collapsed");
+}
+
+export function newChat() {
+  const messages = document.getElementById("messages");
+  if (messages) messages.innerHTML = "";
+}
+
+/* ---------- CHAT ---------- */
+
+function appendMessage(role, text) {
+  const messages = document.getElementById("messages");
+  if (!messages) return;
+
+  const msg = document.createElement("div");
+  msg.className = `message ${role}`;
+  msg.textContent = text;
+
+  messages.appendChild(msg);
+  messages.scrollTop = messages.scrollHeight;
 }
 
 export async function handleSendMessage() {
-  const text = userInput.value.trim();
+  const input = document.getElementById("userInput");
+  if (!input) return;
+
+  const text = input.value.trim();
   if (!text) return;
 
-  userInput.value = "";
+  input.value = "";
+  appendMessage("user", text);
 
-  chatMessages.push({ role: "user", content: text });
-  render();
-
-  const res = await fetch(
-    "https://aibackend-production-a44f.up.railway.app/api/chat",
-    {
+  try {
+    const res = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatMessages })
-    }
-  );
+      body: JSON.stringify({ message: text })
+    });
 
-  const data = await res.json();
-  chatMessages.push({ role: "assistant", content: data.content || "" });
-  render();
+    const data = await res.json();
+    appendMessage("assistant", data.reply || "no response");
+  } catch (err) {
+    appendMessage("assistant", "error sending message");
+    console.error(err);
+  }
 }
 
-function render() {
-  messages.innerHTML = "";
-  for (const m of chatMessages) {
-    const div = document.createElement("div");
-    div.className = `message ${m.role}`;
-    div.textContent = m.content;
-    messages.appendChild(div);
+/* ---------- KEYBOARD ---------- */
+
+export function handleKeyDown(e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSendMessage();
   }
-  messages.scrollTop = messages.scrollHeight;
 }
