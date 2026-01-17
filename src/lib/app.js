@@ -10,7 +10,7 @@ import {
   handleKeyDown,
   handleSendMessage
 } from "../components/ui.js";
-
+import { handleSendMessage } from "./chat.js";
 import { loadConfig, checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
@@ -104,4 +104,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
     .querySelector('button[onclick="signOut()"]')
     ?.addEventListener("click", signOut);
+
+  document.getElementById("sendBtn")
+  ?.addEventListener("click", handleSendMessage);
+
+  document.getElementById("userInput")
+    ?.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    });
+
 });
