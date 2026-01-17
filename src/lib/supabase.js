@@ -1,52 +1,32 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-let supabase = null;
+/* ========= SUPABASE CONFIG ========= */
+
+const SUPABASE_URL = "https://zjgecayphpejznilaolg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZ2VjYXlwaHBlanpuaWxhb2xnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2Mzk2MTIsImV4cCI6MjA4NDIxNTYxMn0.SHPC9iGk4a5SGYLMYBAmbGj2tuK-KhFho2oVeSfqGz0";
+
+
+/* ========= CLIENT ========= */
+
+export const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
+
 let currentUser = null;
 
-/*
-  EXPECTED:
-  These are injected at runtime, e.g. via Railway → index.html
-
-  window.SUPABASE_URL
-  window.SUPABASE_ANON_KEY
-*/
-
-function getEnv() {
-  const url = window.SUPABASE_URL;
-  const anonKey = window.SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    console.error("Supabase env vars missing on window");
-    return null;
-  }
-
-  return { url, anonKey };
-}
-
-export async function initSupabase() {
-  if (supabase) return true;
-
-  const env = getEnv();
-  if (!env) return false;
-
-  supabase = createClient(env.url, env.anonKey);
-  return true;
-}
+/* ========= AUTH ========= */
 
 export async function checkAuth() {
-  if (!supabase) {
-    const ok = await initSupabase();
-    if (!ok) return null;
-  }
-
   const { data, error } = await supabase.auth.getUser();
 
+  // user simply not logged in
   if (error && error.name === "AuthSessionMissingError") {
     return null;
   }
 
   if (error) {
-    console.error("auth check failed:", error);
+    console.error("auth error:", error);
     return null;
   }
 
@@ -55,14 +35,6 @@ export async function checkAuth() {
   return data.user;
 }
 
-export function getSupabase() {
-  return supabase;
-}
-
 export function getCurrentUser() {
   return currentUser;
-}
-
-export function getApiEndpoint() {
-  return "https://aibackend-production-a44f.up.railway.app";
 }
