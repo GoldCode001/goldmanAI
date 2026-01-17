@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ai assistant</title>
+    <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+    <!-- auth screen -->
+    <div id="authScreen" class="auth-screen">
+        <div class="auth-container">
+            <div class="auth-box" style="max-width: 400px; margin: 0 auto;">
+                <h1>ai assistant</h1>
+                <p class="subtitle">sign in to continue</p>
+                
+                <div id="authTabs" class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchTab('signin')">sign in</button>
+                    <button class="auth-tab" onclick="switchTab('signup')">sign up</button>
+                </div>
+
+                <form id="signinForm" class="auth-form">
+                    <div class="form-group">
+                        <label>email</label>
+                        <input type="email" id="signinEmail" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>password</label>
+                        <input type="password" id="signinPassword" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">sign in</button>
+                </form>
+
+                <form id="signupForm" class="auth-form hidden">
+                    <div class="form-group">
+                        <label>email</label>
+                        <input type="email" id="signupEmail" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>password</label>
+                        <input type="password" id="signupPassword" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label>confirm password</label>
+                        <input type="password" id="signupConfirm" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">create account</button>
+                </form>
+
+                <div class="auth-footer">
+                    <p class="status" id="authStatus"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- main app -->
+    <div id="mainApp" class="app-container hidden">
+        <!-- sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>ai assistant</h2>
+                <button class="icon-btn" onclick="toggleSidebar()">☰</button>
+            </div>
+
+            <div class="user-profile">
+                <div class="avatar" id="userAvatar">👤</div>
+                <div class="user-info">
+                    <p class="user-email" id="userEmail">loading...</p>
+                    <button class="btn-link" onclick="signOut()">sign out</button>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="newChat()" style="width: 100%;">
+                + new chat
+            </button>
+
+            <div class="sidebar-section">
+                <label>model</label>
+                <select id="modelSelect">
+                    <option value="gpt-4">gpt-4</option>
+                    <option value="gpt-4o">gpt-4o</option>
+                    <option value="deepseek-r1">deepseek-r1</option>
+                    <option value="claude-sonnet">claude-sonnet</option>
+                    <option value="gemini-pro">gemini-pro</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section">
+                <label>provider</label>
+                <select id="providerSelect">
+                    <option value="Auto">auto</option>
+                    <option value="DuckDuckGo">duckduckgo</option>
+                    <option value="Bing">bing</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section">
+                <label>chat history</label>
+                <div class="history-list" id="historyList">
+                    <p class="empty-state">no chats yet</p>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-sm" onclick="exportAllChats()">export all</button>
+            </div>
+        </div>
+
+        <!-- chat area -->
+        <div class="chat-container">
+            <div class="chat-header">
+                <button class="icon-btn mobile-only" onclick="toggleSidebar()">☰</button>
+                <div class="chat-title">
+                    <h1 id="chatTitle">new chat</h1>
+                    <p class="chat-subtitle" id="chatSubtitle">start a conversation</p>
+                </div>
+                <button class="icon-btn" onclick="deleteCurrentChat()">🗑️</button>
+            </div>
+
+            <div class="messages" id="messages">
+                <div class="welcome-message">
+                    <div class="welcome-icon">🤖</div>
+                    <h2>hey! i'm your ai assistant</h2>
+                    <p>i can help you with:</p>
+                    <ul>
+                        <li>coding and debugging</li>
+                        <li>analyzing images and documents</li>
+                        <li>text tasks and writing</li>
+                        <li>answering questions</li>
+                        <li>pretty much anything else</li>
+                    </ul>
+                    <p class="hint">upload files using the 📎 button or just start chatting!</p>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="attached-files" id="attachedFiles"></div>
+                <div class="input-wrapper">
+                    <textarea 
+                        id="userInput" 
+                        placeholder="ask me anything..."
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                    ></textarea>
+                    <div class="input-controls">
+                        <label for="fileInput" class="icon-btn" title="attach file">
+                            📎
+                        </label>
+                        <input type="file" id="fileInput" class="file-input" multiple accept="image/*,.pdf,.doc,.docx,.txt,.md,.json,.csv">
+                        <button class="btn btn-primary" onclick="sendMessage()">send</button>
+                    </div>
+                </div>
+                <div class="input-footer">
+                    <span class="status" id="status">ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="src/lib/supabase.js"></script>
+    <script src="src/lib/auth.js"></script>
+    <script src="src/lib/database.js"></script>
+    <script src="src/lib/chat.js"></script>
+    <script src="src/components/ui.js"></script>
+    <script src="src/lib/app.js"></script>
+</body>
+</html>
