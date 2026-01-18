@@ -1,24 +1,116 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
+import { createClient } from "@supabase/supabase-js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+/* ========= SUPABASE ========= */
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+/* ========= HEALTH ========= */
+
 app.get("/", (req, res) => {
   res.send("backend alive");
 });
 
-app.post("/api/chat", async (req, res) => {
+/* ========= USER ========= */
+
+app.post("/api/user", async (req, res) => {
+  const { userId, email } = req.body;
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  const { data, error } = await supabase
+    .from("users")
+    .upsert({ id: userId, email })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+/* ========= CHAT CREATE ========= */
+
+app.post("/api/chat/new", async (req, res) => {
+  const { userId, title = "new chat" } = req.body;
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  const { data, error } = await supabase
+    .from("chats")
+    .insert({ user_id: userId, title })
+    .select()
+    .single();
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+/* ========= CHAT LIST ========= */
+
+app.get("/api/chat/list/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  const { data, error } = await supabase
+    .from("chats")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+/* ========= LOAD CHAT ========= */
+
+app.get("/api/chat/:chatId", async (req, res) => {
+  const { chatId } = req.params;
+
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .eq("chat_id", chatId)
+    .order("created_at");
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+/* ========= MESSAGE + AI ========= */
+
+app.post("/api/message", async (req, res) => {
+  const { chatId, role, content } = req.body;
+  if (!chatId || !role || !content) {
+    return res.status(400).json({ error: "missing fields" });
+  }
+
+  // save user message
+  await supabase.from("messages").insert({
+    chat_id: chatId,
+    role,
+    content
+  });
+
+  // only call AI on user message
+  if (role !== "user") {
+    return res.json({ ok: true });
+  }
+
+  // load full conversation
+  const { data: history } = await supabase
+    .from("messages")
+    .select("role, content")
+    .eq("chat_id", chatId)
+    .order("created_at");
+
   try {
-    const { messages } = req.body;
-
-    if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: "messages required" });
-    }
-
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -26,39 +118,37 @@ app.post("/api/chat", async (req, res) => {
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-
-          // REQUIRED by OpenRouter
           "HTTP-Referer": "https://goldmanai.app",
           "X-Title": "Goldman AI"
         },
         body: JSON.stringify({
           model: "openai/gpt-4o-mini",
-          messages
+          messages: history
         })
       }
     );
 
     const data = await response.json();
+    const reply = data.choices[0].message.content;
 
-    if (!response.ok) {
-      console.error("OpenRouter error:", data);
-      return res.status(500).json({
-        error: "invalid openrouter response",
-        raw: data
-      });
-    }
-
-    res.json({
-      content: data.choices[0].message.content
+    // save assistant message
+    await supabase.from("messages").insert({
+      chat_id: chatId,
+      role: "assistant",
+      content: reply
     });
 
+    res.json({ content: reply });
+
   } catch (err) {
-    console.error("Server crash:", err);
-    res.status(500).json({ error: "backend error" });
+    console.error(err);
+    res.status(500).json({ error: "ai failed" });
   }
 });
 
+/* ========= PORT ========= */
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  
+  console.log("backend running on", PORT);
 });

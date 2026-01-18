@@ -4,100 +4,170 @@ import {
   updateAuthStatus,
   switchTab,
   toggleSidebar,
-  newChat,
-  handleKeyDown,
-  handleSendMessage
+  renderMessages,
+  renderChatList,
+  clearChatUI,
+  handleKeyDown
 } from "../components/ui.js";
 
+import { initAssistantFace } from "./assistantFace.js";
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
-document.addEventListener("DOMContentLoaded", async () => {
-  /* -------- AUTH CHECK -------- */
+const API = "https://aibackend-production-a44f.up.railway.app";
 
-  let user = null;
-  try {
-    user = await checkAuth();
-  } catch (err) {
-    console.error("auth check failed", err);
+window.currentChatId = null;
+window.chatCache = [];
+
+/* ================= BOOT ================= */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const user = await checkAuth();
+
+  if (!user) {
+    showAuthScreen();
+    return;
   }
 
-  user ? showMainApp() : showAuthScreen();
+  showMainApp();
+  await ensureUser(user);
+  await loadChats(user.id);
 
-  /* -------- TAB SWITCHING -------- */
-
-  document.getElementById("signinTab")
-    ?.addEventListener("click", () => switchTab("signin"));
-
-  document.getElementById("signupTab")
-    ?.addEventListener("click", () => switchTab("signup"));
-
-  /* -------- SIGN IN -------- */
-
-  document.getElementById("signinForm")
-    ?.addEventListener("submit", async e => {
-      e.preventDefault();
-
-      const email = document.getElementById("signinEmail")?.value;
-      const password = document.getElementById("signinPassword")?.value;
-
-      try {
-        await signIn(email, password);
-        showMainApp();
-      } catch (err) {
-        updateAuthStatus(err.message || "sign in failed", "error");
-      }
-    });
-
-  /* -------- SIGN UP -------- */
-
-  document.getElementById("signupForm")
-    ?.addEventListener("submit", async e => {
-      e.preventDefault();
-
-      const email = document.getElementById("signupEmail")?.value;
-      const password = document.getElementById("signupPassword")?.value;
-      const confirm = document.getElementById("signupConfirm")?.value;
-
-      if (password !== confirm) {
-        updateAuthStatus("passwords do not match", "error");
-        return;
-      }
-
-      try {
-        await signUp(email, password);
-        updateAuthStatus("account created", "success");
-        switchTab("signin");
-      } catch (err) {
-        updateAuthStatus(err.message || "signup failed", "error");
-      }
-    });
-
-  /* -------- CHAT INPUT -------- */
-
-  document.getElementById("userInput")
-    ?.addEventListener("keydown", handleKeyDown);
-
-  document.getElementById("sendBtn")
-    ?.addEventListener("click", handleSendMessage);
-
-  /* -------- SIDEBAR -------- */
-
-  document.getElementById("toggleSidebarBtn")
-    ?.addEventListener("click", toggleSidebar);
-
-  document.getElementById("newChatBtn")
-    ?.addEventListener("click", newChat);
-
-  /* -------- SIGN OUT -------- */
-
-  document.getElementById("signOutBtn")
-    ?.addEventListener("click", async () => {
-      try {
-        await signOut();
-        showAuthScreen();
-      } catch (err) {
-        console.error("sign out failed", err);
-      }
-    });
+  bindEvents();
+  initAssistantFace();
 });
+
+/* ================= EVENTS ================= */
+
+function bindEvents() {
+  document.getElementById("signinForm")?.addEventListener("submit", onSignIn);
+  document.getElementById("signupForm")?.addEventListener("submit", onSignUp);
+
+  document.getElementById("sendBtn")?.addEventListener("click", sendMessage);
+  document.getElementById("userInput")?.addEventListener("keydown", handleKeyDown);
+
+  document.getElementById("newChatBtn")?.addEventListener("click", createNewChat);
+  document.getElementById("signOutBtn")?.addEventListener("click", signOut);
+  document.getElementById("toggleSidebarBtn")?.addEventListener("click", toggleSidebar);
+}
+
+/* ================= AUTH ================= */
+
+async function onSignIn(e) {
+  e.preventDefault();
+  try {
+    await signIn(signinEmail.value, signinPassword.value);
+    location.reload();
+  } catch (err) {
+    updateAuthStatus(err.message, "error");
+  }
+}
+
+async function onSignUp(e) {
+  e.preventDefault();
+  if (signupPassword.value !== signupConfirm.value) {
+    updateAuthStatus("passwords do not match", "error");
+    return;
+  }
+  await signUp(signupEmail.value, signupPassword.value);
+  switchTab("signin");
+}
+
+/* ================= CHAT ================= */
+
+async function loadChats(userId) {
+  const res = await fetch(`${API}/api/chat/list/${userId}`);
+  const chats = await res.json();
+
+  window.chatCache = chats;
+
+  if (!chats.length) {
+    await createNewChat();
+    return;
+  }
+
+  window.currentChatId = chats[0].id;
+  renderChatList(chats, window.currentChatId);
+  await loadChatById(window.currentChatId);
+}
+
+window.loadChatById = async function (chatId) {
+  window.currentChatId = chatId;
+  clearChatUI();
+
+  const res = await fetch(`${API}/api/chat/${chatId}`);
+  const messages = await res.json();
+
+  renderMessages(messages);
+  renderChatList(window.chatCache, chatId);
+};
+
+async function createNewChat() {
+  const res = await fetch(`${API}/api/chat/new`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: window.currentUser.id })
+  });
+
+  const chat = await res.json();
+  window.chatCache.unshift(chat);
+  window.currentChatId = chat.id;
+
+  renderChatList(window.chatCache, chat.id);
+  clearChatUI();
+}
+
+async function sendMessage() {
+  const input = document.getElementById("userInput");
+  const text = input.value.trim();
+  if (!text || !window.currentChatId) return;
+
+  input.value = "";
+
+  await fetch(`${API}/api/message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chatId: window.currentChatId,
+      role: "user",
+      content: text
+    })
+  });
+
+  const aiRes = await fetch(`${API}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ role: "user", content: text }]
+    })
+  });
+
+  const aiData = await aiRes.json();
+
+  await fetch(`${API}/api/message`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chatId: window.currentChatId,
+      role: "assistant",
+      content: aiData.content
+    })
+  });
+
+  await loadChatById(window.currentChatId);
+}
+
+/* ================= USER ================= */
+
+async function ensureUser(user) {
+  window.currentUser = user;
+
+  await fetch(`${API}/api/user`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: user.id,
+      email: user.email
+    })
+  });
+}

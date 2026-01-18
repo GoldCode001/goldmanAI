@@ -71,3 +71,52 @@ button {
   padding: 10px;
   gap: 10px;
 }
+
+
+/* assistant face */
+
+.assistant-face {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  z-index: 1000;
+  transition: all 0.35s ease;
+}
+
+.assistant-face svg {
+  stroke: #ccc;
+  fill: #ccc;
+  transition: all 0.35s ease;
+}
+
+/* expanded state */
+body.expanded .assistant-face {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(2.2);
+}
+
+/* hide sidebar when expanded */
+body.expanded #sidebar {
+  display: none;
+}
+
+/* hide chat UI unless expanded */
+#app {
+  display: none;
+}
+
+body.expanded #app {
+  display: flex;
+}
+
+/* auth still wins */
+#authScreen {
+  display: none;
+}
+
+body.auth #authScreen {
+  display: flex;
+}
