@@ -10,7 +10,7 @@ import {
   handleKeyDown
 } from "../components/ui.js";
 
-import { initAssistantFace } from "../assistantFace.js";
+import { initAssistantFace } from "../components/assistantFace.js";
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 
