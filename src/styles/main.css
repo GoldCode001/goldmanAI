@@ -9,7 +9,10 @@ body {
   color: #e5e5e5;
 }
 
-.hidden { display: none; }
+.hidden {
+  display: none !important;
+}
+
 
 .auth-screen {
   height: 100vh;

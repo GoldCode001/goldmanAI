@@ -64,7 +64,7 @@ export async function handleSendMessage() {
   appendMessage("user", text);
 
   try {
-    const res = await fetch("/api/chat", {
+    const res = await fetch("https://aibackend-production-a44f.up.railway.app/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
