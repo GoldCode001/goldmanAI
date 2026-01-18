@@ -1,4 +1,4 @@
-/* ---------- AUTH UI ---------- */
+/* ================= AUTH UI ================= */
 
 export function showAuthScreen() {
   document.getElementById("authScreen")?.classList.remove("hidden");
@@ -10,85 +10,71 @@ export function showMainApp() {
   document.getElementById("mainApp")?.classList.remove("hidden");
 }
 
-export function updateAuthStatus(message, type = "info") {
+export function updateAuthStatus(msg, type = "info") {
   const el = document.getElementById("authStatus");
   if (!el) return;
-
-  el.textContent = message;
+  el.textContent = msg;
   el.className = `status ${type}`;
 }
 
 export function switchTab(tab) {
-  const signinForm = document.getElementById("signinForm");
-  const signupForm = document.getElementById("signupForm");
-
-  if (!signinForm || !signupForm) return;
-
-  signinForm.classList.toggle("hidden", tab !== "signin");
-  signupForm.classList.toggle("hidden", tab !== "signup");
+  document.getElementById("signinForm")?.classList.toggle("hidden", tab !== "signin");
+  document.getElementById("signupForm")?.classList.toggle("hidden", tab !== "signup");
 }
 
-/* ---------- SIDEBAR ---------- */
+/* ================= SIDEBAR ================= */
+
+export function renderChatList(chats, activeId) {
+  const list = document.getElementById("historyList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  chats.forEach(chat => {
+    const item = document.createElement("div");
+    item.className = "chat-item" + (chat.id === activeId ? " active" : "");
+    item.textContent = chat.title || "new chat";
+
+    item.onclick = () => {
+      window.loadChatById(chat.id);
+    };
+
+    list.appendChild(item);
+  });
+}
 
 export function toggleSidebar() {
   document.querySelector(".sidebar")?.classList.toggle("collapsed");
 }
 
-export function newChat() {
-  const messages = document.getElementById("messages");
-  if (messages) messages.innerHTML = "";
+/* ================= CHAT UI ================= */
+
+export function renderMessages(messages) {
+  const container = document.getElementById("messages");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  messages.forEach(m => {
+    const div = document.createElement("div");
+    div.className = `message ${m.role}`;
+    div.textContent = m.content;
+    container.appendChild(div);
+  });
+
+  container.scrollTop = container.scrollHeight;
 }
 
-/* ---------- CHAT ---------- */
-
-function appendMessage(role, text) {
-  const messages = document.getElementById("messages");
-  if (!messages) return;
-
-  const msg = document.createElement("div");
-  msg.className = `message ${role}`;
-  msg.textContent = text;
-
-  messages.appendChild(msg);
-  messages.scrollTop = messages.scrollHeight;
+export function clearChatUI() {
+  const container = document.getElementById("messages");
+  if (container) container.innerHTML = "";
 }
 
-export async function handleSendMessage() {
-  const input = document.getElementById("userInput");
-  if (!input) return;
-
-  const text = input.value.trim();
-  if (!text) return;
-
-  input.value = "";
-  appendMessage("user", text);
-
-  try {
-    const res = await fetch("https://aibackend-production-a44f.up.railway.app/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: [{ role: "user", content: text }]
-      })
-    });
-
-    if (!res.ok) {
-      throw new Error("api error");
-    }
-
-    const data = await res.json();
-    appendMessage("assistant", data.content || "no response");
-  } catch (err) {
-    console.error(err);
-    appendMessage("assistant", "error contacting server");
-  }
-}
-
-/* ---------- KEYBOARD ---------- */
+/* ================= INPUT ================= */
 
 export function handleKeyDown(e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    handleSendMessage();
+    document.getElementById("sendBtn")?.click();
   }
 }
