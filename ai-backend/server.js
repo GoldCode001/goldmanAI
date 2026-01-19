@@ -152,3 +152,11 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("backend running on", PORT);
 });
+
+/* ========= DEBUG ========= */
+
+app.get("/api/_debug_supabase", async (req, res) => {
+  const { data, error } = await supabase.from("users").select("*").limit(1);
+  if (error) return res.status(500).json({ error });
+  res.json({ ok: true, data });
+});
