@@ -1,3 +1,5 @@
+console.log("APP JS LOADED");
+
 import {
   showMainApp,
   showAuthScreen,
