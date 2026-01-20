@@ -66,15 +66,25 @@
     <button id="closeSettings" class="close-settings">✕</button>
     <p id="userEmail" class="user-email"></p>
 
-    <!-- Conversation History -->
+    <!-- Chat List Section -->
+    <div class="chat-list-section">
+      <div class="section-header">
+        <h3>Chats</h3>
+        <button id="newChatBtn" class="new-chat-icon-btn" title="New Chat">+</button>
+      </div>
+      <div id="chatListContainer" class="chat-list">
+        <p class="no-chats">No chats yet</p>
+      </div>
+    </div>
+
+    <!-- Current Conversation History -->
     <div class="conversation-history">
-      <h3>Conversation History</h3>
+      <h3>Current Conversation</h3>
       <div id="historyContainer" class="history-container">
         <p class="no-history">No messages yet. Start talking!</p>
       </div>
     </div>
 
-    <button id="newChatBtn" class="panel-btn">+ New Chat</button>
     <button id="signOutBtn" class="panel-btn">Sign Out</button>
   </aside>
 </div>

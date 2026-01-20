@@ -77,7 +77,8 @@ async function openSettings() {
   const panel = document.getElementById("settingsPanel");
   if (panel) {
     panel.classList.remove("hidden");
-    // Load conversation history when opening settings
+    // Load both chat list and conversation history
+    await renderChatListUI();
     await loadConversationHistory();
   }
 }
@@ -88,6 +89,44 @@ function closeSettings() {
     panel.classList.add("hidden");
   }
 }
+
+/**
+ * Render chat list in settings panel
+ */
+async function renderChatListUI() {
+  const container = document.getElementById("chatListContainer");
+  if (!container) return;
+
+  if (!window.chatCache || window.chatCache.length === 0) {
+    container.innerHTML = '<p class="no-chats">No chats yet</p>';
+    return;
+  }
+
+  container.innerHTML = window.chatCache.map(chat => {
+    const date = new Date(chat.created_at).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const isActive = chat.id === window.currentChatId;
+
+    return `
+      <div class="chat-item ${isActive ? 'active' : ''}" onclick="switchChat('${chat.id}')">
+        <div class="chat-item-title">${escapeHtml(chat.title || 'New Chat')}</div>
+        <div class="chat-item-date">${date}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Switch to a different chat
+ */
+window.switchChat = async function(chatId) {
+  window.currentChatId = chatId;
+  await loadConversationHistory();
+  await renderChatListUI();
+};
 
 /**
  * Load and display conversation history
@@ -201,8 +240,9 @@ async function createNewChat() {
   window.chatCache.unshift(chat);
   window.currentChatId = chat.id;
 
-  renderChatList(window.chatCache, chat.id);
-  clearChatUI();
+  // Refresh UI
+  await renderChatListUI();
+  await loadConversationHistory();
 }
 
 async function sendMessage(text) {
@@ -249,6 +289,9 @@ async function sendMessage(text) {
     // Hide transcript after speaking
     hideTranscript();
 
+    // Generate chat title after 3rd message
+    await maybeGenerateChatTitle();
+
   } catch (err) {
     console.error('sendMessage error:', err);
     showTranscript(`Error: ${err.message}`);
@@ -256,6 +299,52 @@ async function sendMessage(text) {
       stopSpeaking(); // Reset to idle
       hideTranscript();
     }, 3000);
+  }
+}
+
+/**
+ * Generate chat title if this is the 3rd message
+ */
+async function maybeGenerateChatTitle() {
+  try {
+    // Check if current chat still has default title
+    const currentChat = window.chatCache.find(c => c.id === window.currentChatId);
+    if (!currentChat || (currentChat.title && currentChat.title !== 'new chat')) {
+      return; // Already has a custom title
+    }
+
+    // Get message count
+    const res = await fetch(`${API}/api/chat/${window.currentChatId}`);
+    const messages = await res.json();
+
+    // Generate title after 3rd message (user message #2)
+    if (messages.length >= 3) {
+      console.log('Generating chat title...');
+
+      const titleRes = await fetch(`${API}/api/chat/generate-title`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId: window.currentChatId })
+      });
+
+      const { title } = await titleRes.json();
+      console.log('Generated title:', title);
+
+      // Update chat cache
+      const chatIndex = window.chatCache.findIndex(c => c.id === window.currentChatId);
+      if (chatIndex !== -1) {
+        window.chatCache[chatIndex].title = title;
+      }
+
+      // Refresh chat list if settings panel is open
+      const panel = document.getElementById("settingsPanel");
+      if (panel && !panel.classList.contains('hidden')) {
+        await renderChatListUI();
+      }
+    }
+  } catch (err) {
+    console.error('Failed to generate chat title:', err);
+    // Non-critical, don't show error to user
   }
 }
 

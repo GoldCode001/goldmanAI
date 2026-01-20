@@ -328,6 +328,109 @@ button:hover {
   border-color: #555;
 }
 
+/* ==================== CHAT LIST ==================== */
+
+.chat-list-section {
+  margin: 24px 0 16px 0;
+  border-bottom: 1px solid #222;
+  padding-bottom: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.new-chat-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.new-chat-icon-btn:hover {
+  background: #222;
+  border-color: #555;
+}
+
+.chat-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chat-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+.no-chats {
+  color: #555;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+  margin: 0;
+}
+
+.chat-item {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chat-item:hover {
+  background: #222;
+  border-color: #333;
+}
+
+.chat-item.active {
+  background: #222;
+  border-color: #4CAF50;
+}
+
+.chat-item-title {
+  font-size: 13px;
+  color: #ccc;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-date {
+  font-size: 10px;
+  color: #666;
+}
+
 /* ==================== CONVERSATION HISTORY ==================== */
 
 .conversation-history {
