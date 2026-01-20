@@ -117,6 +117,22 @@ app.post("/api/message", async (req, res) => {
   try {
     console.log('Calling OpenRouter with history:', history);
 
+    // Add system prompt for expressive behavior
+    const messagesWithSystem = [
+      {
+        role: "system",
+        content: `You are PAL, a playful and expressive AI assistant with a personality. You can:
+- Laugh when something is genuinely funny (use "hahaha" or "hehe")
+- Sing short snippets when appropriate (use musical notes ♪ ♫)
+- Be enthusiastic with exclamation marks!
+- Use emojis occasionally to express emotion
+- Keep responses conversational and warm
+
+When you find something hilarious, actually laugh! When the user asks you to sing or a song reference comes up, sing a line or two. Be natural and expressive like a real friend.`
+      },
+      ...history
+    ];
+
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -129,7 +145,7 @@ app.post("/api/message", async (req, res) => {
         },
         body: JSON.stringify({
           model: "openai/gpt-4o-mini",
-          messages: history
+          messages: messagesWithSystem
         })
       }
     );
@@ -278,7 +294,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
-/* ========= TEXT-TO-SPEECH (ElevenLabs) ========= */
+/* ========= TEXT-TO-SPEECH (Deepgram Aura) ========= */
 
 app.post("/api/tts", async (req, res) => {
   try {
@@ -287,32 +303,31 @@ app.post("/api/tts", async (req, res) => {
       return res.status(400).json({ error: "text required" });
     }
 
-    const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Default calm voice
-    const API_KEY = process.env.ELEVENLABS_API_KEY;
+    const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
 
-    if (!API_KEY) {
-      console.error('ELEVENLABS_API_KEY not set');
+    if (!DEEPGRAM_API_KEY) {
+      console.error('DEEPGRAM_API_KEY not set');
       return res.status(500).json({ error: 'TTS not configured' });
     }
 
-    console.log('Calling ElevenLabs TTS for text:', text.substring(0, 50));
+    console.log('Calling Deepgram Aura TTS for text:', text.substring(0, 50));
 
-    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+    // Deepgram Aura TTS API - supports laughter and singing!
+    const response = await fetch('https://api.deepgram.com/v1/speak?model=aura-athena-en', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'xi-api-key': API_KEY
+        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_multilingual_v2'
+        text: text
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`ElevenLabs API failed: ${response.status} - ${errorText}`);
+      console.error('Deepgram TTS error:', response.status, errorText);
+      throw new Error(`Deepgram TTS failed: ${response.status} - ${errorText}`);
     }
 
     // Stream the audio back to client
@@ -320,7 +335,7 @@ app.post("/api/tts", async (req, res) => {
     res.set('Content-Type', 'audio/mpeg');
     res.send(Buffer.from(audioBuffer));
 
-    console.log('TTS audio generated successfully');
+    console.log('Deepgram TTS audio generated successfully');
 
   } catch (err) {
     console.error('TTS error:', err);

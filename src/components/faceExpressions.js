@@ -184,14 +184,20 @@ export function lookCenter() {
 export function expressFromText(text) {
   const lower = text.toLowerCase();
 
+  // Detect singing (musical notes)
+  if (lower.match(/♪|♫/) || lower.includes('la la') || lower.includes('tra la')) {
+    setExpression('excited');
+    return 'excited';
+  }
+
   // Detect playful/joking
-  if (lower.includes('haha') || lower.includes('lol') || lower.match(/😜|😛|😝/)) {
+  if (lower.includes('hehe') || lower.includes('haha') || lower.includes('lol') || lower.match(/😜|😛|😝/)) {
     setExpression('playful');
     return 'playful';
   }
 
   // Detect laughter
-  if (lower.match(/hahaha|😂|🤣/) || lower.includes('hilarious')) {
+  if (lower.match(/hahaha|hehehehe|😂|🤣/) || lower.includes('hilarious')) {
     setExpression('laugh');
     return 'laugh';
   }
