@@ -3,10 +3,11 @@
  */
 
 let blinkInterval = null;
+let lookAroundInterval = null;
 let currentExpression = 'neutral';
 
 /**
- * Initialize automatic blinking
+ * Initialize automatic blinking and random eye movements
  */
 export function startBlinking() {
   if (blinkInterval) return;
@@ -16,15 +17,32 @@ export function startBlinking() {
     const delay = 3000 + Math.random() * 2000;
     setTimeout(blink, delay);
   }, 5000);
+
+  // Look around randomly every 2-4 seconds
+  lookAroundInterval = setInterval(() => {
+    const randomX = 30 + Math.random() * 40; // 30-70 range
+    const randomY = 30 + Math.random() * 40;
+    lookAt(randomX, randomY);
+
+    // Return to center after 1-2 seconds
+    setTimeout(() => {
+      lookCenter();
+    }, 1000 + Math.random() * 1000);
+  }, 2000 + Math.random() * 2000);
 }
 
 /**
- * Stop automatic blinking
+ * Stop automatic blinking and eye movements
  */
 export function stopBlinking() {
   if (blinkInterval) {
     clearInterval(blinkInterval);
     blinkInterval = null;
+  }
+
+  if (lookAroundInterval) {
+    clearInterval(lookAroundInterval);
+    lookAroundInterval = null;
   }
 }
 
@@ -130,9 +148,13 @@ export function lookAt(x, y) {
 
   if (!leftPupil || !rightPupil) return;
 
-  // Calculate pupil offset (max 3px from center)
-  const offsetX = (x - 50) * 0.06;
-  const offsetY = (y - 50) * 0.06;
+  // Calculate pupil offset (max 4px from center for more visible movement)
+  const offsetX = Math.max(-4, Math.min(4, (x - 50) * 0.08));
+  const offsetY = Math.max(-4, Math.min(4, (y - 50) * 0.08));
+
+  // Smooth transition using CSS
+  leftPupil.style.transition = 'cx 0.3s ease, cy 0.3s ease';
+  rightPupil.style.transition = 'cx 0.3s ease, cy 0.3s ease';
 
   leftPupil.setAttribute('cx', 35 + offsetX);
   leftPupil.setAttribute('cy', 45 + offsetY);
