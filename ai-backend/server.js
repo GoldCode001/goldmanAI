@@ -173,6 +173,68 @@ app.listen(PORT, () => {
   console.log("backend running on", PORT);
 });
 
+/* ========= GENERATE CHAT TITLE ========= */
+
+app.post("/api/chat/generate-title", async (req, res) => {
+  try {
+    const { chatId } = req.body;
+    if (!chatId) {
+      return res.status(400).json({ error: "chatId required" });
+    }
+
+    // Get first 3 messages from chat
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("content")
+      .eq("chat_id", chatId)
+      .order("created_at")
+      .limit(3);
+
+    if (!messages || messages.length === 0) {
+      return res.json({ title: "New Chat" });
+    }
+
+    // Use AI to generate a short title (3-5 words max)
+    const context = messages.map(m => m.content).join("\n");
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Generate a short, descriptive 3-5 word title for this conversation. Be concise and capture the main topic. Respond with ONLY the title, no quotes or extra text."
+          },
+          {
+            role: "user",
+            content: `Conversation:\n${context}`
+          }
+        ]
+      })
+    });
+
+    const data = await response.json();
+    const title = data.choices[0].message.content.trim();
+
+    // Update chat title in database
+    await supabase
+      .from("chats")
+      .update({ title })
+      .eq("id", chatId);
+
+    res.json({ title });
+
+  } catch (err) {
+    console.error('Title generation error:', err);
+    res.status(500).json({ error: 'Failed to generate title' });
+  }
+});
+
 /* ========= WHISPER TRANSCRIPTION ========= */
 
 app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
