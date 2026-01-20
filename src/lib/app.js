@@ -23,6 +23,12 @@ import {
   hideTranscript
 } from "../components/assistantFace.js";
 
+import {
+  startBlinking,
+  setExpression,
+  expressFromText
+} from "../components/faceExpressions.js";
+
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { VoiceActivityDetector } from "./voiceActivityDetection.js";
@@ -55,6 +61,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize face with tap-to-talk handler
   initAssistantFace(handleFaceTap);
+
+  // Start blinking animation
+  startBlinking();
 });
 
 /* ================= EVENTS ================= */
@@ -283,8 +292,17 @@ async function sendMessage(text) {
     // Show AI response as transcript
     showTranscript(`PAL: ${aiResponse}`);
 
+    // Set facial expression based on response sentiment
+    const emotion = expressFromText(aiResponse);
+    console.log('Detected emotion:', emotion);
+
     // Speak the AI response
     await speakResponse(aiResponse);
+
+    // Return to neutral after speaking
+    setTimeout(() => {
+      setExpression('neutral');
+    }, 1000);
 
     // Hide transcript after speaking
     hideTranscript();
