@@ -2,11 +2,15 @@ import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
+import multer from "multer";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Setup multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
 
 /* ========= SUPABASE ========= */
 
@@ -151,6 +155,40 @@ app.post("/api/message", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("backend running on", PORT);
+});
+
+/* ========= WHISPER TRANSCRIPTION ========= */
+
+app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No audio file provided" });
+    }
+
+    // Create FormData for Whisper API
+    const formData = new FormData();
+    formData.append('file', new Blob([req.file.buffer]), 'audio.webm');
+    formData.append('model', 'whisper-1');
+
+    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Whisper API failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    res.json({ text: data.text });
+
+  } catch (err) {
+    console.error('Transcription error:', err);
+    res.status(500).json({ error: 'Transcription failed' });
+  }
 });
 
 /* ========= DEBUG ========= */
