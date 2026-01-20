@@ -12,7 +12,17 @@ import {
   handleKeyDown
 } from "../components/ui.js";
 
-import { initAssistantFace, startSpeaking, stopSpeaking, updateMouth } from "../components/assistantFace.js";
+import {
+  initAssistantFace,
+  startSpeaking,
+  stopSpeaking,
+  updateMouth,
+  startRecording,
+  stopRecording,
+  showTranscript,
+  hideTranscript
+} from "../components/assistantFace.js";
+
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { AudioRecorder } from "./audioRecorder.js";
@@ -43,7 +53,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadChats(user.id);
 
   bindEvents();
-  initAssistantFace();
+
+  // Initialize face with tap-to-talk handler
+  initAssistantFace(handleFaceTap);
 });
 
 /* ================= EVENTS ================= */
@@ -52,15 +64,28 @@ function bindEvents() {
   document.getElementById("signinForm")?.addEventListener("submit", onSignIn);
   document.getElementById("signupForm")?.addEventListener("submit", onSignUp);
 
-  document.getElementById("sendBtn")?.addEventListener("click", () => sendMessage());
-  document.getElementById("userInput")?.addEventListener("keydown", handleKeyDown);
-
   document.getElementById("newChatBtn")?.addEventListener("click", createNewChat);
   document.getElementById("signOutBtn")?.addEventListener("click", signOut);
-  document.getElementById("toggleSidebarBtn")?.addEventListener("click", toggleSidebar);
 
-  // Voice button
-  document.getElementById("voiceBtn")?.addEventListener("click", toggleVoiceRecording);
+  // Settings panel
+  document.getElementById("settingsBtn")?.addEventListener("click", openSettings);
+  document.getElementById("closeSettings")?.addEventListener("click", closeSettings);
+}
+
+/* ================= SETTINGS ================= */
+
+function openSettings() {
+  const panel = document.getElementById("settingsPanel");
+  if (panel) {
+    panel.classList.remove("hidden");
+  }
+}
+
+function closeSettings() {
+  const panel = document.getElementById("settingsPanel");
+  if (panel) {
+    panel.classList.add("hidden");
+  }
 }
 
 /* ================= AUTH ================= */
@@ -100,7 +125,6 @@ async function loadChats(userId) {
 
   window.currentChatId = chats[0].id;
   renderChatList(chats, window.currentChatId);
-  await loadChatById(window.currentChatId);
 }
 
 window.loadChatById = async function (chatId) {
@@ -129,14 +153,14 @@ async function createNewChat() {
   clearChatUI();
 }
 
-async function sendMessage(textOverride = null) {
-  const input = document.getElementById("userInput");
-  const text = textOverride || input.value.trim();
+async function sendMessage(text) {
   if (!text || !window.currentChatId) return;
 
-  input.value = "";
+  // Show user's message as transcript
+  showTranscript(`You: ${text}`);
 
-  await fetch(`${API}/api/message`, {
+  // Send user message - backend handles AI response automatically
+  const res = await fetch(`${API}/api/message`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -146,37 +170,29 @@ async function sendMessage(textOverride = null) {
     })
   });
 
-  const aiRes = await fetch(`${API}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [{ role: "user", content: text }]
-    })
-  });
+  const data = await res.json();
+  const aiResponse = data.content; // Backend returns AI response
 
-  const aiData = await aiRes.json();
-  const aiResponse = aiData.content;
-
-  await fetch(`${API}/api/message`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chatId: window.currentChatId,
-      role: "assistant",
-      content: aiResponse
-    })
-  });
+  // Show AI response as transcript
+  showTranscript(`PAL: ${aiResponse}`);
 
   // Speak the AI response
   await speakResponse(aiResponse);
 
-  await loadChatById(window.currentChatId);
+  // Hide transcript after speaking
+  hideTranscript();
 }
 
 /* ================= USER ================= */
 
 async function ensureUser(user) {
   window.currentUser = user;
+
+  // Update email display
+  const emailEl = document.getElementById("userEmail");
+  if (emailEl) {
+    emailEl.textContent = user.email;
+  }
 
   await fetch(`${API}/api/user`, {
     method: "POST",
@@ -188,59 +204,62 @@ async function ensureUser(user) {
   });
 }
 
-/* ================= VOICE ================= */
+/* ================= VOICE (PAL-Style: Tap to Talk) ================= */
 
 /**
- * Toggle voice recording on/off
+ * Handle face tap - toggle recording
  */
-async function toggleVoiceRecording() {
+async function handleFaceTap() {
   if (!audioRecorder) {
     audioRecorder = new AudioRecorder();
     await audioRecorder.init();
   }
 
   if (isRecording) {
-    // Stop recording and transcribe
-    const audioBlob = await audioRecorder.stopRecording();
-    isRecording = false;
-    updateVoiceButton(false);
-
-    // Show loading state
-    const input = document.getElementById("userInput");
-    input.placeholder = "Transcribing...";
-
-    try {
-      // Transcribe audio
-      const text = await transcribeAudio(audioBlob);
-
-      if (text) {
-        // Send transcribed message
-        await sendMessage(text);
-      }
-    } catch (err) {
-      console.error('Voice recording failed:', err);
-      alert('Voice transcription failed. Please try again.');
-    } finally {
-      input.placeholder = "ask something...";
-    }
+    // Stop recording and process
+    await stopVoiceRecording();
   } else {
     // Start recording
-    audioRecorder.startRecording();
-    isRecording = true;
-    updateVoiceButton(true);
+    startVoiceRecording();
   }
 }
 
 /**
- * Update voice button UI state
+ * Start voice recording
  */
-function updateVoiceButton(recording) {
-  const btn = document.getElementById("voiceBtn");
-  if (!btn) return;
+function startVoiceRecording() {
+  if (!audioRecorder) return;
 
-  btn.textContent = recording ? "⏹️" : "🎤";
-  btn.classList.toggle("recording", recording);
-  btn.title = recording ? "Stop recording" : "Start voice recording";
+  audioRecorder.startRecording();
+  isRecording = true;
+  startRecording(); // Update face animation
+}
+
+/**
+ * Stop voice recording and transcribe
+ */
+async function stopVoiceRecording() {
+  if (!audioRecorder) return;
+
+  const audioBlob = await audioRecorder.stopRecording();
+  isRecording = false;
+  stopRecording(); // Update face animation
+
+  try {
+    // Transcribe audio
+    const text = await transcribeAudio(audioBlob);
+
+    if (text) {
+      // Send transcribed message
+      await sendMessage(text);
+    } else {
+      // No transcription, reset to idle
+      stopSpeaking();
+    }
+  } catch (err) {
+    console.error('Voice recording failed:', err);
+    stopSpeaking(); // Reset to idle on error
+  }
 }
 
 /**
