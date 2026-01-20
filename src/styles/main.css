@@ -328,6 +328,98 @@ button:hover {
   border-color: #555;
 }
 
+/* ==================== CONVERSATION HISTORY ==================== */
+
+.conversation-history {
+  margin: 24px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.conversation-history h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  max-height: 400px;
+}
+
+.history-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-container::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.history-container::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.history-container::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+.no-history {
+  color: #555;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+}
+
+.history-message {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border-left: 3px solid #333;
+}
+
+.history-message.user {
+  border-left-color: #666;
+}
+
+.history-message.assistant {
+  border-left-color: #4CAF50;
+}
+
+.history-message .role {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.history-message .content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ccc;
+  word-wrap: break-word;
+}
+
+.history-message .timestamp {
+  font-size: 10px;
+  color: #555;
+  margin-top: 6px;
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 768px) {

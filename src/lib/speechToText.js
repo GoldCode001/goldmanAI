@@ -13,18 +13,13 @@ const CONFIDENCE_THRESHOLD = 0.8;
 export async function transcribeAudio(audioBlob) {
   console.log('Starting transcription...');
 
-  // Try Web Speech API first (instant, free)
-  const webSpeechResult = await tryWebSpeech(audioBlob);
-
-  if (webSpeechResult.confidence >= CONFIDENCE_THRESHOLD) {
-    console.log('Web Speech API success:', webSpeechResult.text);
-    return webSpeechResult.text;
-  }
-
-  console.log('Web Speech confidence low, falling back to Whisper');
-
-  // Fallback to Whisper API
+  // Skip Web Speech API for now - it doesn't work with recorded blobs
+  // Go directly to Whisper which processes the audio file correctly
+  console.log('Using Whisper API for transcription');
   return await transcribeWithWhisper(audioBlob);
+
+  // Note: Web Speech API can't process recorded audio blobs
+  // It only listens to live microphone, so we always use Whisper
 }
 
 /**
