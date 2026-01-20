@@ -1,11 +1,11 @@
 let isSpeaking = false;
 let isRecording = false;
 let mouthPath = null;
-let isDragging = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let faceX = 0;
-let faceY = 0;
+let faceX = 50; // % of screen
+let faceY = 50; // % of screen
+let targetX = 50;
+let targetY = 50;
+let movementInterval = null;
 
 export function initAssistantFace(onTap) {
   const face = document.getElementById("assistantFace");
@@ -17,86 +17,104 @@ export function initAssistantFace(onTap) {
   // Set initial idle state
   face.classList.add("idle");
 
-  // Make face draggable
-  face.addEventListener("mousedown", (e) => {
-    if (e.target.closest('svg')) {
-      isDragging = true;
-      face.classList.add("dragging");
-
-      const rect = face.getBoundingClientRect();
-      dragStartX = e.clientX - rect.left;
-      dragStartY = e.clientY - rect.top;
-
-      e.preventDefault();
-    }
+  // Click/tap to toggle listening
+  face.addEventListener("click", (e) => {
+    if (onTap) onTap();
   });
 
-  document.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
+  // Start autonomous movement
+  startAutonomousMovement();
 
-    const newX = e.clientX - dragStartX;
-    const newY = e.clientY - dragStartY;
+  // Track cursor for eye following
+  document.addEventListener("mousemove", handleCursorMove);
 
-    // Keep face within viewport bounds
-    const maxX = window.innerWidth - face.offsetWidth;
-    const maxY = window.innerHeight - face.offsetHeight;
+  // Track touch for mobile eye following
+  document.addEventListener("touchmove", handleTouchMove);
+}
 
-    faceX = Math.max(0, Math.min(newX, maxX));
-    faceY = Math.max(0, Math.min(newY, maxY));
+/**
+ * Start smooth autonomous movement around the screen
+ */
+function startAutonomousMovement() {
+  const face = document.getElementById("assistantFace");
+  if (!face) return;
 
-    face.style.left = faceX + 'px';
-    face.style.top = faceY + 'px';
-    face.style.transform = 'none';
+  // Move to random positions every 5-8 seconds
+  const changeTarget = () => {
+    // Random position within viewport (20-80% to avoid edges)
+    targetX = 20 + Math.random() * 60;
+    targetY = 20 + Math.random() * 60;
+  };
+
+  // Update position smoothly using animation frame
+  const updatePosition = () => {
+    // Smooth interpolation (ease toward target)
+    const speed = 0.02; // Lower = smoother
+    faceX += (targetX - faceX) * speed;
+    faceY += (targetY - faceY) * speed;
+
+    // Apply position
+    face.style.left = `${faceX}%`;
+    face.style.top = `${faceY}%`;
+
+    requestAnimationFrame(updatePosition);
+  };
+
+  // Start movement loop
+  changeTarget(); // Set initial target
+  updatePosition(); // Start animation loop
+
+  // Change target periodically
+  movementInterval = setInterval(changeTarget, 5000 + Math.random() * 3000);
+}
+
+/**
+ * Handle cursor movement for eye tracking
+ */
+function handleCursorMove(e) {
+  const face = document.getElementById("assistantFace");
+  if (!face) return;
+
+  const rect = face.getBoundingClientRect();
+  const faceCenterX = rect.left + rect.width / 2;
+  const faceCenterY = rect.top + rect.height / 2;
+
+  // Calculate angle to cursor
+  const deltaX = e.clientX - faceCenterX;
+  const deltaY = e.clientY - faceCenterY;
+
+  // Convert to 0-100 range for lookAt function
+  const normalizedX = 50 + (deltaX / window.innerWidth) * 100;
+  const normalizedY = 50 + (deltaY / window.innerHeight) * 100;
+
+  // Import lookAt from faceExpressions
+  import('./faceExpressions.js').then(({ lookAt }) => {
+    lookAt(normalizedX, normalizedY);
   });
+}
 
-  document.addEventListener("mouseup", () => {
-    if (isDragging) {
-      isDragging = false;
-      face.classList.remove("dragging");
+/**
+ * Handle touch movement for eye tracking on mobile
+ */
+function handleTouchMove(e) {
+  if (e.touches.length === 0) return;
 
-      // If barely moved, treat as a tap
-      if (Math.abs(faceX) < 10 && Math.abs(faceY) < 10) {
-        if (onTap) onTap();
-      }
-    }
-  });
+  const face = document.getElementById("assistantFace");
+  if (!face) return;
 
-  // Touch support for mobile
-  face.addEventListener("touchstart", (e) => {
-    isDragging = true;
-    face.classList.add("dragging");
+  const touch = e.touches[0];
+  const rect = face.getBoundingClientRect();
+  const faceCenterX = rect.left + rect.width / 2;
+  const faceCenterY = rect.top + rect.height / 2;
 
-    const touch = e.touches[0];
-    const rect = face.getBoundingClientRect();
-    dragStartX = touch.clientX - rect.left;
-    dragStartY = touch.clientY - rect.top;
+  const deltaX = touch.clientX - faceCenterX;
+  const deltaY = touch.clientY - faceCenterY;
 
-    e.preventDefault();
-  });
+  const normalizedX = 50 + (deltaX / window.innerWidth) * 100;
+  const normalizedY = 50 + (deltaY / window.innerHeight) * 100;
 
-  document.addEventListener("touchmove", (e) => {
-    if (!isDragging) return;
-
-    const touch = e.touches[0];
-    const newX = touch.clientX - dragStartX;
-    const newY = touch.clientY - dragStartY;
-
-    const maxX = window.innerWidth - face.offsetWidth;
-    const maxY = window.innerHeight - face.offsetHeight;
-
-    faceX = Math.max(0, Math.min(newX, maxX));
-    faceY = Math.max(0, Math.min(newY, maxY));
-
-    face.style.left = faceX + 'px';
-    face.style.top = faceY + 'px';
-    face.style.transform = 'none';
-  });
-
-  document.addEventListener("touchend", () => {
-    if (isDragging) {
-      isDragging = false;
-      face.classList.remove("dragging");
-    }
+  import('./faceExpressions.js').then(({ lookAt }) => {
+    lookAt(normalizedX, normalizedY);
   });
 }
 
