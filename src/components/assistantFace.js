@@ -32,7 +32,7 @@ export function startRecording() {
   }
 
   if (statusText) {
-    statusText.textContent = "Listening...";
+    statusText.textContent = "Listening... (tap to stop)";
   }
 
   console.log('Face started recording');

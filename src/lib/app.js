@@ -25,8 +25,7 @@ import {
 
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
-import { AudioRecorder } from "./audioRecorder.js";
-import { transcribeAudio } from "./speechToText.js";
+import { VoiceActivityDetector } from "./voiceActivityDetection.js";
 import { speak, playAudio } from "./textToSpeech.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
@@ -35,8 +34,8 @@ window.currentChatId = null;
 window.chatCache = [];
 
 // Voice state
-let audioRecorder = null;
-let isRecording = false;
+let vad = null;
+let isListening = false;
 
 /* ================= BOOT ================= */
 
@@ -74,10 +73,12 @@ function bindEvents() {
 
 /* ================= SETTINGS ================= */
 
-function openSettings() {
+async function openSettings() {
   const panel = document.getElementById("settingsPanel");
   if (panel) {
     panel.classList.remove("hidden");
+    // Load conversation history when opening settings
+    await loadConversationHistory();
   }
 }
 
@@ -86,6 +87,57 @@ function closeSettings() {
   if (panel) {
     panel.classList.add("hidden");
   }
+}
+
+/**
+ * Load and display conversation history
+ */
+async function loadConversationHistory() {
+  const container = document.getElementById("historyContainer");
+  if (!container || !window.currentChatId) return;
+
+  try {
+    const res = await fetch(`${API}/api/chat/${window.currentChatId}`);
+    const messages = await res.json();
+
+    if (!messages || messages.length === 0) {
+      container.innerHTML = '<p class="no-history">No messages yet. Start talking!</p>';
+      return;
+    }
+
+    // Render messages
+    container.innerHTML = messages.map(msg => {
+      const timestamp = new Date(msg.created_at).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      return `
+        <div class="history-message ${msg.role}">
+          <div class="role">${msg.role === 'user' ? 'You' : 'PAL'}</div>
+          <div class="content">${escapeHtml(msg.content)}</div>
+          <div class="timestamp">${timestamp}</div>
+        </div>
+      `;
+    }).join('');
+
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+
+  } catch (err) {
+    console.error('Failed to load conversation history:', err);
+    container.innerHTML = '<p class="no-history">Failed to load history.</p>';
+  }
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 /* ================= AUTH ================= */
@@ -159,28 +211,52 @@ async function sendMessage(text) {
   // Show user's message as transcript
   showTranscript(`You: ${text}`);
 
-  // Send user message - backend handles AI response automatically
-  const res = await fetch(`${API}/api/message`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chatId: window.currentChatId,
-      role: "user",
-      content: text
-    })
-  });
+  try {
+    // Send user message - backend handles AI response automatically
+    console.log('Sending message to backend:', text);
 
-  const data = await res.json();
-  const aiResponse = data.content; // Backend returns AI response
+    const res = await fetch(`${API}/api/message`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chatId: window.currentChatId,
+        role: "user",
+        content: text
+      })
+    });
 
-  // Show AI response as transcript
-  showTranscript(`PAL: ${aiResponse}`);
+    console.log('Response status:', res.status);
 
-  // Speak the AI response
-  await speakResponse(aiResponse);
+    if (!res.ok) {
+      throw new Error(`Backend error: ${res.status}`);
+    }
 
-  // Hide transcript after speaking
-  hideTranscript();
+    const data = await res.json();
+    console.log('Backend response:', data);
+
+    const aiResponse = data.content; // Backend returns AI response
+
+    if (!aiResponse) {
+      throw new Error('No AI response received');
+    }
+
+    // Show AI response as transcript
+    showTranscript(`PAL: ${aiResponse}`);
+
+    // Speak the AI response
+    await speakResponse(aiResponse);
+
+    // Hide transcript after speaking
+    hideTranscript();
+
+  } catch (err) {
+    console.error('sendMessage error:', err);
+    showTranscript(`Error: ${err.message}`);
+    setTimeout(() => {
+      stopSpeaking(); // Reset to idle
+      hideTranscript();
+    }, 3000);
+  }
 }
 
 /* ================= USER ================= */
@@ -204,62 +280,77 @@ async function ensureUser(user) {
   });
 }
 
-/* ================= VOICE (PAL-Style: Tap to Talk) ================= */
+/* ================= VOICE (PAL-Style: Continuous Listening with VAD) ================= */
 
 /**
- * Handle face tap - toggle recording
+ * Handle face tap - toggle listening mode
  */
 async function handleFaceTap() {
-  if (!audioRecorder) {
-    audioRecorder = new AudioRecorder();
-    await audioRecorder.init();
-  }
-
-  if (isRecording) {
-    // Stop recording and process
-    await stopVoiceRecording();
+  if (isListening) {
+    // Stop listening mode
+    stopListening();
   } else {
-    // Start recording
-    startVoiceRecording();
+    // Start listening mode
+    startListening();
   }
 }
 
 /**
- * Start voice recording
+ * Start continuous listening with VAD
  */
-function startVoiceRecording() {
-  if (!audioRecorder) return;
+function startListening() {
+  if (!vad) {
+    // Initialize VAD with callbacks
+    vad = new VoiceActivityDetector(
+      // onTranscript callback - when user stops speaking
+      async (text) => {
+        console.log('User said:', text);
 
-  audioRecorder.startRecording();
-  isRecording = true;
-  startRecording(); // Update face animation
+        // Show what user said
+        showTranscript(`You: ${text}`);
+
+        // Send to AI
+        await sendMessage(text);
+
+        // Stay in listening mode for follow-up
+        if (isListening) {
+          startRecording(); // Visual indicator we're still listening
+        }
+      },
+      // onError callback
+      (error) => {
+        console.error('VAD error:', error);
+        showTranscript(`Error: ${error}`);
+        setTimeout(() => {
+          stopListening();
+          hideTranscript();
+        }, 3000);
+      }
+    );
+  }
+
+  const started = vad.start();
+
+  if (started) {
+    isListening = true;
+    startRecording(); // Update face animation
+    console.log('Started continuous listening mode');
+  } else {
+    stopSpeaking(); // Reset to idle if failed
+  }
 }
 
 /**
- * Stop voice recording and transcribe
+ * Stop listening mode
  */
-async function stopVoiceRecording() {
-  if (!audioRecorder) return;
-
-  const audioBlob = await audioRecorder.stopRecording();
-  isRecording = false;
-  stopRecording(); // Update face animation
-
-  try {
-    // Transcribe audio
-    const text = await transcribeAudio(audioBlob);
-
-    if (text) {
-      // Send transcribed message
-      await sendMessage(text);
-    } else {
-      // No transcription, reset to idle
-      stopSpeaking();
-    }
-  } catch (err) {
-    console.error('Voice recording failed:', err);
-    stopSpeaking(); // Reset to idle on error
+function stopListening() {
+  if (vad) {
+    vad.stop();
   }
+
+  isListening = false;
+  stopSpeaking(); // Reset face to idle
+  console.log('Stopped listening mode');
 }
 
 /**
