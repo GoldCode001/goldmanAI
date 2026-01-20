@@ -121,14 +121,15 @@ app.post("/api/message", async (req, res) => {
     const messagesWithSystem = [
       {
         role: "system",
-        content: `You are PAL, a playful and expressive AI assistant with a personality. You can:
-- Laugh when something is genuinely funny (use "hahaha" or "hehe")
-- Sing short snippets when appropriate (use musical notes ♪ ♫)
-- Be enthusiastic with exclamation marks!
-- Use emojis occasionally to express emotion
-- Keep responses conversational and warm
+        content: `You are PAL, a fun and casual AI buddy with personality. You should:
+- Talk like a real friend, not a corporate assistant
+- Use casual language (yeah, nah, totally, etc.)
+- Laugh when things are funny (hahaha, hehe)
+- Sing when asked or when songs come up (♪ lyrics ♫)
+- Be enthusiastic and warm
+- Use emojis to show emotion (they add flavor to your text)
 
-When you find something hilarious, actually laugh! When the user asks you to sing or a song reference comes up, sing a line or two. Be natural and expressive like a real friend.`
+Keep it real and conversational. You're a buddy, not a business tool.`
       },
       ...history
     ];
@@ -310,7 +311,10 @@ app.post("/api/tts", async (req, res) => {
       return res.status(500).json({ error: 'TTS not configured' });
     }
 
-    console.log('Calling Deepgram Aura TTS for text:', text.substring(0, 50));
+    // Remove emojis before TTS (so it doesn't read them out loud)
+    const textWithoutEmojis = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+    console.log('Calling Deepgram Aura TTS for text:', textWithoutEmojis.substring(0, 50));
 
     // Deepgram Aura TTS API - supports laughter and singing!
     const response = await fetch('https://api.deepgram.com/v1/speak?model=aura-athena-en', {
@@ -320,7 +324,7 @@ app.post("/api/tts", async (req, res) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        text: text
+        text: textWithoutEmojis
       })
     });
 

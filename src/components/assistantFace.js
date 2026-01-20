@@ -1,11 +1,6 @@
 let isSpeaking = false;
 let isRecording = false;
 let mouthPath = null;
-let faceX = 50; // % of screen
-let faceY = 50; // % of screen
-let targetX = 50;
-let targetY = 50;
-let movementInterval = null;
 
 export function initAssistantFace(onTap) {
   const face = document.getElementById("assistantFace");
@@ -22,50 +17,11 @@ export function initAssistantFace(onTap) {
     if (onTap) onTap();
   });
 
-  // Start autonomous movement
-  startAutonomousMovement();
-
-  // Track cursor for eye following
+  // Track cursor for eye following only
   document.addEventListener("mousemove", handleCursorMove);
 
   // Track touch for mobile eye following
   document.addEventListener("touchmove", handleTouchMove);
-}
-
-/**
- * Start smooth autonomous movement around the screen
- */
-function startAutonomousMovement() {
-  const face = document.getElementById("assistantFace");
-  if (!face) return;
-
-  // Move to random positions every 5-8 seconds
-  const changeTarget = () => {
-    // Random position within viewport (20-80% to avoid edges)
-    targetX = 20 + Math.random() * 60;
-    targetY = 20 + Math.random() * 60;
-  };
-
-  // Update position smoothly using animation frame
-  const updatePosition = () => {
-    // Smooth interpolation (ease toward target)
-    const speed = 0.02; // Lower = smoother
-    faceX += (targetX - faceX) * speed;
-    faceY += (targetY - faceY) * speed;
-
-    // Apply position
-    face.style.left = `${faceX}%`;
-    face.style.top = `${faceY}%`;
-
-    requestAnimationFrame(updatePosition);
-  };
-
-  // Start movement loop
-  changeTarget(); // Set initial target
-  updatePosition(); // Start animation loop
-
-  // Change target periodically
-  movementInterval = setInterval(changeTarget, 5000 + Math.random() * 3000);
 }
 
 /**
@@ -206,14 +162,22 @@ export function stopSpeaking() {
 export function updateMouth(amplitude) {
   if (!mouthPath || !isSpeaking) return;
 
-  // Original path: M35 70 Q60 90 85 70
-  // Animate the control point Y value based on amplitude
-  const baseY = 70;
-  const minControlY = 85; // Less open
-  const maxControlY = 95; // More open
-  const controlY = minControlY + (amplitude * (maxControlY - minControlY));
+  // More dynamic mouth shapes based on amplitude
+  const threshold = 0.3;
 
-  mouthPath.setAttribute('d', `M35 ${baseY} Q60 ${controlY} 85 ${baseY}`);
+  if (amplitude > threshold) {
+    // Wide open - rounded rectangle shape
+    const openness = Math.min(amplitude * 1.5, 1);
+    const height = 15 + (openness * 10);
+    mouthPath.setAttribute('d', `M35 75 Q35 ${75 + height/2} 45 ${75 + height/2} L75 ${75 + height/2} Q85 ${75 + height/2} 85 75 Q85 ${75 - height/2} 75 ${75 - height/2} L45 ${75 - height/2} Q35 ${75 - height/2} 35 75`);
+  } else if (amplitude > 0.1) {
+    // Medium - ellipse shape
+    const controlY = 85 + (amplitude * 15);
+    mouthPath.setAttribute('d', `M35 75 Q60 ${controlY} 85 75`);
+  } else {
+    // Closed - gentle smile
+    mouthPath.setAttribute('d', 'M35 75 Q60 85 85 75');
+  }
 }
 
 /**
