@@ -217,26 +217,31 @@ app.post("/api/tts", async (req, res) => {
     }
 
     const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Default calm voice
+    const API_KEY = process.env.ELEVENLABS_API_KEY;
+
+    if (!API_KEY) {
+      console.error('ELEVENLABS_API_KEY not set');
+      return res.status(500).json({ error: 'TTS not configured' });
+    }
+
+    console.log('Calling ElevenLabs TTS for text:', text.substring(0, 50));
 
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
       method: 'POST',
       headers: {
-        'Accept': 'audio/mpeg',
         'Content-Type': 'application/json',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY
+        'xi-api-key': API_KEY
       },
       body: JSON.stringify({
         text: text,
-        model_id: 'eleven_monolingual_v1',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5
-        }
+        model_id: 'eleven_multilingual_v2'
       })
     });
 
     if (!response.ok) {
-      throw new Error(`ElevenLabs API failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('ElevenLabs API error:', response.status, errorText);
+      throw new Error(`ElevenLabs API failed: ${response.status} - ${errorText}`);
     }
 
     // Stream the audio back to client
@@ -244,9 +249,11 @@ app.post("/api/tts", async (req, res) => {
     res.set('Content-Type', 'audio/mpeg');
     res.send(Buffer.from(audioBuffer));
 
+    console.log('TTS audio generated successfully');
+
   } catch (err) {
     console.error('TTS error:', err);
-    res.status(500).json({ error: 'TTS failed' });
+    res.status(500).json({ error: 'TTS failed', details: err.message });
   }
 });
 
