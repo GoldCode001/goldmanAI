@@ -235,7 +235,7 @@ app.post("/api/chat/generate-title", async (req, res) => {
   }
 });
 
-/* ========= WHISPER TRANSCRIPTION ========= */
+/* ========= DEEPGRAM TRANSCRIPTION ========= */
 
 app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   try {
@@ -243,29 +243,38 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: "No audio file provided" });
     }
 
-    // Create FormData for Whisper API
-    const formData = new FormData();
-    formData.append('file', new Blob([req.file.buffer]), 'audio.webm');
-    formData.append('model', 'whisper-1');
+    const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
 
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    if (!DEEPGRAM_API_KEY) {
+      console.error('DEEPGRAM_API_KEY not set');
+      return res.status(500).json({ error: 'Transcription not configured' });
+    }
+
+    // Deepgram API endpoint
+    const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
+        'Content-Type': 'audio/webm'
       },
-      body: formData
+      body: req.file.buffer
     });
 
     if (!response.ok) {
-      throw new Error(`Whisper API failed: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Deepgram API error:', response.status, errorText);
+      throw new Error(`Deepgram API failed: ${response.status}`);
     }
 
     const data = await response.json();
-    res.json({ text: data.text });
+    const transcript = data.results?.channels[0]?.alternatives[0]?.transcript || '';
+
+    console.log('Deepgram transcription:', transcript);
+    res.json({ text: transcript });
 
   } catch (err) {
     console.error('Transcription error:', err);
-    res.status(500).json({ error: 'Transcription failed' });
+    res.status(500).json({ error: 'Transcription failed', details: err.message });
   }
 });
 
