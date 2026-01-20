@@ -3,16 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ai assistant</title>
+  <title>PAL</title>
 
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="src/styles/main.css">
 </head>
 <body>
 
+<!-- Auth Screen -->
 <div id="authScreen" class="auth-screen">
   <div class="auth-box">
-    <h1>ai assistant</h1>
+    <h1>PAL</h1>
 
     <div class="auth-tabs">
       <button id="signinTab" class="active">sign in</button>
@@ -36,36 +37,43 @@
   </div>
 </div>
 
-<!-- Assistant Face -->
-<div id="assistantFace" class="assistant-face">
-  <svg width="120" height="120" viewBox="0 0 120 120">
-    <!-- eyes -->
-    <circle cx="40" cy="45" r="6" />
-    <circle cx="80" cy="45" r="6" />
-    <!-- smile -->
-    <path d="M35 70 Q60 90 85 70" fill="none" stroke-width="4" stroke-linecap="round" />
-  </svg>
-</div>
+<!-- PAL Interface (Voice-First) -->
+<div id="mainApp" class="pal-interface hidden">
+  <!-- Assistant Face (Center, Always Visible) -->
+  <div id="assistantFace" class="assistant-face">
+    <svg width="200" height="200" viewBox="0 0 120 120">
+      <!-- eyes -->
+      <circle cx="40" cy="45" r="6" />
+      <circle cx="80" cy="45" r="6" />
+      <!-- smile -->
+      <path d="M35 70 Q60 90 85 70" fill="none" stroke-width="4" stroke-linecap="round" />
+    </svg>
 
+    <!-- Status text below face -->
+    <p id="statusText" class="status-text">Tap to talk</p>
+  </div>
 
-<div id="mainApp" class="app hidden">
-  <aside class="sidebar">
-    <p id="userEmail"></p>
-    <button id="newChatBtn">+ new chat</button>
-    <button id="signOutBtn">sign out</button>
+  <!-- Transcript Overlay (Only shows when needed) -->
+  <div id="transcriptOverlay" class="transcript-overlay hidden">
+    <p id="transcriptText"></p>
+  </div>
+
+  <!-- Settings Button (Top Right Corner) -->
+  <button id="settingsBtn" class="settings-btn">⚙️</button>
+
+  <!-- Settings Panel (Slides in from right) -->
+  <aside id="settingsPanel" class="settings-panel hidden">
+    <button id="closeSettings" class="close-settings">✕</button>
+    <p id="userEmail" class="user-email"></p>
+    <button id="newChatBtn" class="panel-btn">+ New Chat</button>
+    <button id="signOutBtn" class="panel-btn">Sign Out</button>
   </aside>
-
-  <main class="chat">
-    <div id="messages"></div>
-
-    <div class="input-bar">
-      <button id="voiceBtn" class="voice-btn" title="Start voice recording">🎤</button>
-      <textarea id="userInput" placeholder="ask something..."></textarea>
-      <button id="sendBtn">send</button>
-    </div>
-  </main>
 </div>
 
+<script>
+  // Set ElevenLabs API key for TTS
+  window.ELEVENLABS_API_KEY = 'sk_c45cc1bd3b396ca5277a1bc62c005d216140371f44c23f5f';
+</script>
 <script type="module" src="src/lib/app.js"></script>
 </body>
 </html>
