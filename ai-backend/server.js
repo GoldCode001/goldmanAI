@@ -207,6 +207,49 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
+/* ========= TEXT-TO-SPEECH (ElevenLabs) ========= */
+
+app.post("/api/tts", async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: "text required" });
+    }
+
+    const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Default calm voice
+
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'audio/mpeg',
+        'Content-Type': 'application/json',
+        'xi-api-key': process.env.ELEVENLABS_API_KEY
+      },
+      body: JSON.stringify({
+        text: text,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5
+        }
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`ElevenLabs API failed: ${response.statusText}`);
+    }
+
+    // Stream the audio back to client
+    const audioBuffer = await response.arrayBuffer();
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(Buffer.from(audioBuffer));
+
+  } catch (err) {
+    console.error('TTS error:', err);
+    res.status(500).json({ error: 'TTS failed' });
+  }
+});
+
 /* ========= DEBUG ========= */
 
 app.get("/api/_debug_supabase", async (req, res) => {
