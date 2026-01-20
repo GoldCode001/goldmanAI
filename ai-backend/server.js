@@ -115,6 +115,8 @@ app.post("/api/message", async (req, res) => {
     .order("created_at");
 
   try {
+    console.log('Calling OpenRouter with history:', history);
+
     const response = await fetch(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -132,8 +134,22 @@ app.post("/api/message", async (req, res) => {
       }
     );
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenRouter error:', response.status, errorText);
+      return res.status(500).json({ error: `AI API failed: ${response.status}` });
+    }
+
     const data = await response.json();
+    console.log('OpenRouter response:', data);
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error('Unexpected OpenRouter response format:', data);
+      return res.status(500).json({ error: 'Invalid AI response format' });
+    }
+
     const reply = data.choices[0].message.content;
+    console.log('AI reply:', reply);
 
     // save assistant message
     await supabase.from("messages").insert({
@@ -145,8 +161,8 @@ app.post("/api/message", async (req, res) => {
     res.json({ content: reply });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "ai failed" });
+    console.error('AI processing error:', err);
+    res.status(500).json({ error: `ai failed: ${err.message}` });
   }
 });
 
