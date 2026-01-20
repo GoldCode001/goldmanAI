@@ -1,42 +1,26 @@
 /**
- * TextToSpeech - Convert text to speech using ElevenLabs API
+ * TextToSpeech - Convert text to speech via backend (secure)
  */
 
-// Get API key from environment or window (set by build process)
-const ELEVENLABS_API_KEY = window.ELEVENLABS_API_KEY || import.meta.env?.VITE_ELEVENLABS_API_KEY || '';
-const VOICE_ID = 'pNInz6obpgDQGcFmaJgB'; // Default calm voice
-
-// Check if API key is configured
-if (!ELEVENLABS_API_KEY) {
-  console.warn('ElevenLabs API key not configured. TTS will not work.');
-}
+const API = "https://aibackend-production-a44f.up.railway.app";
 
 /**
- * Convert text to speech using ElevenLabs
+ * Convert text to speech using backend TTS endpoint
  * @param {string} text - Text to convert to speech
  * @returns {Promise<string>} Audio URL (blob URL)
  */
 export async function speak(text) {
   try {
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
+    const res = await fetch(`${API}/api/tts`, {
       method: 'POST',
       headers: {
-        'Accept': 'audio/mpeg',
-        'Content-Type': 'application/json',
-        'xi-api-key': ELEVENLABS_API_KEY
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        text: text,
-        model_id: 'eleven_monolingual_v1',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5
-        }
-      })
+      body: JSON.stringify({ text })
     });
 
     if (!res.ok) {
-      throw new Error(`ElevenLabs API failed: ${res.statusText}`);
+      throw new Error(`TTS API failed: ${res.statusText}`);
     }
 
     const audioBlob = await res.blob();
