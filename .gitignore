@@ -1,8 +1,70 @@
-# Ignore environment variables
+# Environment variables (NEVER commit these!)
 .env
+.env.local
+.env.*.local
+ai-backend/.env
 
-# Ignore node modules
+# API Keys (security)
+**/config/keys.js
+**/config/secrets.js
+
+# Node modules
 node_modules/
+ai-backend/node_modules/
 
-# Ignore README file
-README.md
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (as requested - ignore all .md except README)
+*.md
+
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Package manager
+.pnpm-debug.log*
+.yarn/
+.yarnrc.yml
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Production builds
+*.production.js
+*.production.css
