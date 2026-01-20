@@ -41,12 +41,34 @@
 <div id="mainApp" class="pal-interface hidden">
   <!-- Assistant Face (Center, Always Visible) -->
   <div id="assistantFace" class="assistant-face">
-    <svg width="200" height="200" viewBox="0 0 120 120">
-      <!-- eyes -->
-      <circle cx="40" cy="45" r="6" />
-      <circle cx="80" cy="45" r="6" />
-      <!-- smile -->
-      <path d="M35 70 Q60 90 85 70" fill="none" stroke-width="4" stroke-linecap="round" />
+    <svg width="300" height="300" viewBox="0 0 120 120">
+      <!-- Left eye -->
+      <g id="leftEye">
+        <circle id="leftEyeBall" cx="35" cy="45" r="8" fill="#fff" stroke="none" />
+        <circle id="leftPupil" cx="35" cy="45" r="4" fill="#333" stroke="none" />
+        <ellipse id="leftEyelid" cx="35" cy="45" rx="10" ry="0" fill="none" stroke-width="3" stroke-linecap="round" opacity="0" />
+      </g>
+
+      <!-- Right eye -->
+      <g id="rightEye">
+        <circle id="rightEyeBall" cx="85" cy="45" r="8" fill="#fff" stroke="none" />
+        <circle id="rightPupil" cx="85" cy="45" r="4" fill="#333" stroke="none" />
+        <ellipse id="rightEyelid" cx="85" cy="45" rx="10" ry="0" fill="none" stroke-width="3" stroke-linecap="round" opacity="0" />
+      </g>
+
+      <!-- Mouth (will morph for different expressions) -->
+      <path id="mouth" d="M35 75 Q60 90 85 75" fill="none" stroke-width="4" stroke-linecap="round" />
+
+      <!-- Tongue (hidden by default) -->
+      <ellipse id="tongue" cx="60" cy="85" rx="8" ry="6" fill="#ff69b4" opacity="0" />
+
+      <!-- Teeth for laugh (hidden by default) -->
+      <g id="teeth" opacity="0">
+        <rect x="48" y="75" width="4" height="8" fill="#fff" rx="2" />
+        <rect x="54" y="75" width="4" height="8" fill="#fff" rx="2" />
+        <rect x="60" y="75" width="4" height="8" fill="#fff" rx="2" />
+        <rect x="66" y="75" width="4" height="8" fill="#fff" rx="2" />
+      </g>
     </svg>
 
     <!-- Status text below face -->

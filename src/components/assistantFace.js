@@ -1,20 +1,102 @@
 let isSpeaking = false;
 let isRecording = false;
 let mouthPath = null;
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let faceX = 0;
+let faceY = 0;
 
 export function initAssistantFace(onTap) {
   const face = document.getElementById("assistantFace");
   if (!face) return;
 
   // Get mouth path element for animation
-  mouthPath = face.querySelector("path");
+  mouthPath = face.querySelector("#mouth");
 
   // Set initial idle state
   face.classList.add("idle");
 
-  // Tap to talk
-  face.addEventListener("click", () => {
-    if (onTap) onTap();
+  // Make face draggable
+  face.addEventListener("mousedown", (e) => {
+    if (e.target.closest('svg')) {
+      isDragging = true;
+      face.classList.add("dragging");
+
+      const rect = face.getBoundingClientRect();
+      dragStartX = e.clientX - rect.left;
+      dragStartY = e.clientY - rect.top;
+
+      e.preventDefault();
+    }
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+
+    const newX = e.clientX - dragStartX;
+    const newY = e.clientY - dragStartY;
+
+    // Keep face within viewport bounds
+    const maxX = window.innerWidth - face.offsetWidth;
+    const maxY = window.innerHeight - face.offsetHeight;
+
+    faceX = Math.max(0, Math.min(newX, maxX));
+    faceY = Math.max(0, Math.min(newY, maxY));
+
+    face.style.left = faceX + 'px';
+    face.style.top = faceY + 'px';
+    face.style.transform = 'none';
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isDragging) {
+      isDragging = false;
+      face.classList.remove("dragging");
+
+      // If barely moved, treat as a tap
+      if (Math.abs(faceX) < 10 && Math.abs(faceY) < 10) {
+        if (onTap) onTap();
+      }
+    }
+  });
+
+  // Touch support for mobile
+  face.addEventListener("touchstart", (e) => {
+    isDragging = true;
+    face.classList.add("dragging");
+
+    const touch = e.touches[0];
+    const rect = face.getBoundingClientRect();
+    dragStartX = touch.clientX - rect.left;
+    dragStartY = touch.clientY - rect.top;
+
+    e.preventDefault();
+  });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!isDragging) return;
+
+    const touch = e.touches[0];
+    const newX = touch.clientX - dragStartX;
+    const newY = touch.clientY - dragStartY;
+
+    const maxX = window.innerWidth - face.offsetWidth;
+    const maxY = window.innerHeight - face.offsetHeight;
+
+    faceX = Math.max(0, Math.min(newX, maxX));
+    faceY = Math.max(0, Math.min(newY, maxY));
+
+    face.style.left = faceX + 'px';
+    face.style.top = faceY + 'px';
+    face.style.transform = 'none';
+  });
+
+  document.addEventListener("touchend", () => {
+    if (isDragging) {
+      isDragging = false;
+      face.classList.remove("dragging");
+    }
   });
 }
 
