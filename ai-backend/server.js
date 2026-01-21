@@ -311,7 +311,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
-/* ========= TEXT-TO-SPEECH (Cartesia Sonic) ========= */
+/* ========= TEXT-TO-SPEECH (Cartesia Sonic - Streaming) ========= */
 
 app.post("/api/tts", async (req, res) => {
   try {
@@ -357,17 +357,33 @@ app.post("/api/tts", async (req, res) => {
       throw new Error(`Cartesia TTS failed: ${response.status} - ${errorText}`);
     }
 
-    const buffer = await response.arrayBuffer();
+    // Set headers for streaming response
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Stream the audio back
-    res.set('Content-Type', 'audio/wav');
-    res.send(Buffer.from(buffer));
+    // Pipe the response body stream directly to the client response
+    if (response.body) {
+      response.body.pipe(res);
+      
+      response.body.on('end', () => {
+        console.log('TTS streaming completed');
+      });
 
-    console.log('Cartesia TTS audio generated successfully');
+      response.body.on('error', (err) => {
+        console.error('Stream error:', err);
+        res.end();
+      });
+    } else {
+      throw new Error('No response body from Cartesia');
+    }
 
   } catch (err) {
     console.error('TTS error:', err);
-    res.status(500).json({ error: 'TTS failed', details: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'TTS failed', details: err.message });
+    } else {
+      res.end();
+    }
   }
 });
 
