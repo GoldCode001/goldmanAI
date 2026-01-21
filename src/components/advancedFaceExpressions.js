@@ -271,24 +271,25 @@ export function expressFromText(text) {
  * @param {number} amplitude - Audio amplitude (0-1)
  */
 export function animateSpeechMouth(amplitude) {
-  // We don't want to override the shape completely, just stretch it vertically
-  // But for PAL, "opening" usually means morphing to a taller shape.
-  // Since we are using paths, we can't easily "scale" just the path string without complex logic.
-  // Instead, we can use SVG transform scale on the mouth element, OR morph to a "speaking" version of the current expression.
-  
-  // Simple approach: Scale the mouth element vertically based on amplitude
   const mouth = document.getElementById('mouth');
-  if (!mouth) return;
+  const face = document.querySelector('.assistant-face svg');
+  
+  if (!mouth || !face) return;
 
   // Map amplitude 0-1 to scale 1-3
   const scaleY = 1 + (amplitude * 3);
   
-  // We need to scale from the center of the mouth. 
-  // Center is approx 100, 140.
-  // anime.js transform origin is relative to element bounding box usually, but for SVG it's tricky.
-  // Let's try setting transform-origin via CSS or JS style.
+  // Mouth animation
   mouth.style.transformOrigin = "100px 140px";
   mouth.style.transform = `scaleY(${scaleY})`;
+
+  // Squash and stretch the whole face based on loudness
+  // Louder = taller/thinner (stretch)
+  // Quieter = wider/shorter (squash)
+  const stretch = 1 + (amplitude * 0.1);
+  const squash = 1 - (amplitude * 0.05);
+  
+  face.style.transform = `scale(${squash}, ${stretch})`;
 }
 
 // Dummy exports for compatibility
