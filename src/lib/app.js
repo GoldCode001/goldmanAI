@@ -27,7 +27,7 @@ import {
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { VoiceActivityDetector } from "./voiceActivityDetection.js";
-import { speak, playAudio, sing } from "./textToSpeech.js";
+import { speak, playAudio, sing, stopAudio } from "./textToSpeech.js";
 import {
   shouldShowInline,
   extractInlineContent,
@@ -432,6 +432,8 @@ function startListening() {
         // Ignore if AI is currently speaking (prevent overlapping responses)
         if (isAISpeaking) {
           console.log('AI is speaking, ignoring user input');
+          // Actually, we should allow interruption here too if they kept talking
+          // But for now, the onSpeechStart handles the interruption of playback
           return;
         }
 
@@ -454,6 +456,13 @@ function startListening() {
           stopListening();
           hideTranscript();
         }, 3000);
+      },
+      // onSpeechStart callback - when user STARTS speaking
+      () => {
+        console.log('User started speaking - interrupting AI');
+        stopSpeaking(); // Stop face animation
+        stopAudio();    // Stop audio playback immediately
+        isAISpeaking = false; // Reset flag so we can process new input
       }
     );
   }

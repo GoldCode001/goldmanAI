@@ -171,7 +171,7 @@ Be the most human-like, natural audio companion possible.`
           "X-Title": "Goldman AI"
         },
         body: JSON.stringify({
-          model: "openai/gpt-4o-mini",
+          model: "openai/gpt-4o", // Upgraded from gpt-4o-mini for better personality
           messages: messagesWithSystem
         })
       }
@@ -349,11 +349,11 @@ app.post("/api/tts", async (req, res) => {
         },
         body: JSON.stringify({
           text: enhanced,
-          model_id: "eleven_turbo_v2_5", // The fastest, most expressive model
+          model_id: "eleven_multilingual_v2", // Better prosody/quality than turbo
           voice_settings: {
-            stability: 0.3,       // Lower = more emotion/range (better for shouting/singing)
+            stability: 0.4,       // Slightly higher stability for better quality, still expressive
             similarity_boost: 0.8,
-            style: 0.5,           // Higher = more exaggerated style
+            style: 0.6,           // High style for expressiveness
             use_speaker_boost: true
           }
         }),
