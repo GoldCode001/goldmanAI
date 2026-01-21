@@ -150,40 +150,22 @@ button:hover {
 
 /* Idle breathing animation */
 .assistant-face.idle svg {
-  animation: idle-breath 4s ease-in-out infinite;
-}
-
-@keyframes idle-breath {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03); }
+  /* animation: idle-breath 4s ease-in-out infinite; */
+  animation: none !important;
 }
 
 /* Speaking animation */
 .assistant-face.speaking svg {
-  animation: speaking-pulse 0.6s ease-in-out infinite;
-}
-
-@keyframes speaking-pulse {
-  0%, 100% {
-    transform: scale(1);
-    filter: none !important;
-  }
-  50% {
-    transform: scale(1.08);
-    filter: none !important;
-  }
+  /* animation: speaking-pulse 0.6s ease-in-out infinite; */
+  animation: none !important;
 }
 
 /* Recording state */
 .assistant-face.recording svg {
   stroke: #00bcd4;
   fill: #00bcd4;
-  animation: recording-pulse 1s ease-in-out infinite;
-}
-
-@keyframes recording-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  /* animation: recording-pulse 1s ease-in-out infinite; */
+  animation: none !important;
 }
 
 /* Mouth animation during speech */
