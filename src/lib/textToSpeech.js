@@ -76,6 +76,20 @@ export async function sing(prompt) {
   }
 }
 
+let currentAudio = null;
+
+/**
+ * Stop currently playing audio
+ */
+export function stopAudio() {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+    console.log('Audio playback stopped by user');
+  }
+}
+
 /**
  * Play audio and track amplitude for animation
  * @param {string} audioUrl - Audio blob URL
@@ -83,8 +97,12 @@ export async function sing(prompt) {
  * @returns {Promise<void>} Resolves when audio finishes playing
  */
 export async function playAudio(audioUrl, onAmplitudeUpdate) {
+  // Stop any existing audio first
+  stopAudio();
+
   return new Promise((resolve, reject) => {
     const audio = new Audio(audioUrl);
+    currentAudio = audio;
 
     // Create audio context for amplitude analysis
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -134,6 +152,9 @@ export async function playAudio(audioUrl, onAmplitudeUpdate) {
     audio.onended = () => {
       console.log('Audio playback ended');
       onAmplitudeUpdate(0); // Reset amplitude
+      if (currentAudio === audio) {
+        currentAudio = null;
+      }
       resolve();
     };
 

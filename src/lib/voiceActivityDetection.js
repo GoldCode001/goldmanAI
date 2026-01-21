@@ -6,7 +6,7 @@
 const API = "https://aibackend-production-a44f.up.railway.app";
 
 export class VoiceActivityDetector {
-  constructor(onTranscript, onError) {
+  constructor(onTranscript, onError, onSpeechStart) {
     this.mediaRecorder = null;
     this.audioStream = null;
     this.audioContext = null;
@@ -14,6 +14,7 @@ export class VoiceActivityDetector {
     this.isListening = false;
     this.onTranscript = onTranscript;
     this.onError = onError;
+    this.onSpeechStart = onSpeechStart;
     this.audioChunks = [];
     this.silenceTimer = null;
     this.isSpeaking = false;
@@ -114,6 +115,9 @@ export class VoiceActivityDetector {
           if (!this.isSpeaking) {
             console.log('VAD: Speech started');
             this.isSpeaking = true;
+            if (this.onSpeechStart) {
+              this.onSpeechStart();
+            }
           }
 
           // Clear any pending silence timer
@@ -124,7 +128,7 @@ export class VoiceActivityDetector {
         } else {
           // Silence detected
           if (this.isSpeaking && !this.silenceTimer && !this.isProcessing) {
-            // Start silence timer (wait 1.5 seconds of silence before processing)
+            // Start silence timer (wait 2 seconds of silence before processing)
             this.silenceTimer = setTimeout(() => {
               console.log('VAD: Silence confirmed, processing audio');
               this.isSpeaking = false;
@@ -141,7 +145,7 @@ export class VoiceActivityDetector {
                   }
                 }, 100);
               }
-            }, 1500); // 1.5 second silence threshold
+            }, 2000); // 2.0 second silence threshold (increased from 1.5s)
           }
         }
       }, 100);
