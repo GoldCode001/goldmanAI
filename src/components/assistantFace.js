@@ -1,13 +1,29 @@
+/**
+ * Assistant Face Controller - Uses advanced expressions system
+ */
+
+import {
+  setExpression,
+  lookAt,
+  lookCenter,
+  startBlinking,
+  stopBlinking,
+  expressFromText,
+  animateSpeechMouth
+} from './advancedFaceExpressions.js';
+
 let isSpeaking = false;
 let isRecording = false;
-let mouthPath = null;
 
 export function initAssistantFace(onTap) {
   const face = document.getElementById("assistantFace");
   if (!face) return;
 
-  // Get mouth path element for animation
-  mouthPath = face.querySelector("#mouth");
+  // Set initial neutral expression
+  setExpression('neutral');
+
+  // Start automatic blinking and looking around
+  startBlinking();
 
   // Set initial idle state
   face.classList.add("idle");
@@ -17,7 +33,7 @@ export function initAssistantFace(onTap) {
     if (onTap) onTap();
   });
 
-  // Track cursor for eye following only
+  // Track cursor for eye following
   document.addEventListener("mousemove", handleCursorMove);
 
   // Track touch for mobile eye following
@@ -35,18 +51,13 @@ function handleCursorMove(e) {
   const faceCenterX = rect.left + rect.width / 2;
   const faceCenterY = rect.top + rect.height / 2;
 
-  // Calculate angle to cursor
   const deltaX = e.clientX - faceCenterX;
   const deltaY = e.clientY - faceCenterY;
 
-  // Convert to 0-100 range for lookAt function
   const normalizedX = 50 + (deltaX / window.innerWidth) * 100;
   const normalizedY = 50 + (deltaY / window.innerHeight) * 100;
 
-  // Import lookAt from faceExpressions
-  import('./faceExpressions.js').then(({ lookAt }) => {
-    lookAt(normalizedX, normalizedY);
-  });
+  lookAt(normalizedX, normalizedY);
 }
 
 /**
@@ -69,9 +80,7 @@ function handleTouchMove(e) {
   const normalizedX = 50 + (deltaX / window.innerWidth) * 100;
   const normalizedY = 50 + (deltaY / window.innerHeight) * 100;
 
-  import('./faceExpressions.js').then(({ lookAt }) => {
-    lookAt(normalizedX, normalizedY);
-  });
+  lookAt(normalizedX, normalizedY);
 }
 
 /**
@@ -91,6 +100,8 @@ export function startRecording() {
     statusText.textContent = "Listening... (tap to stop)";
   }
 
+  // Show curious/attentive expression
+  setExpression('neutral');
   console.log('Face started recording');
 }
 
@@ -151,7 +162,8 @@ export function stopSpeaking() {
     statusText.textContent = "Tap to talk";
   }
 
-  resetMouth();
+  // Return to neutral expression
+  setExpression('neutral');
   console.log('Face stopped speaking');
 }
 
@@ -160,32 +172,16 @@ export function stopSpeaking() {
  * @param {number} amplitude - Normalized amplitude (0-1)
  */
 export function updateMouth(amplitude) {
-  if (!mouthPath || !isSpeaking) return;
-
-  // More dynamic mouth shapes based on amplitude
-  const threshold = 0.3;
-
-  if (amplitude > threshold) {
-    // Wide open - rounded rectangle shape
-    const openness = Math.min(amplitude * 1.5, 1);
-    const height = 15 + (openness * 10);
-    mouthPath.setAttribute('d', `M35 75 Q35 ${75 + height/2} 45 ${75 + height/2} L75 ${75 + height/2} Q85 ${75 + height/2} 85 75 Q85 ${75 - height/2} 75 ${75 - height/2} L45 ${75 - height/2} Q35 ${75 - height/2} 35 75`);
-  } else if (amplitude > 0.1) {
-    // Medium - ellipse shape
-    const controlY = 85 + (amplitude * 15);
-    mouthPath.setAttribute('d', `M35 75 Q60 ${controlY} 85 75`);
-  } else {
-    // Closed - gentle smile
-    mouthPath.setAttribute('d', 'M35 75 Q60 85 85 75');
-  }
+  if (!isSpeaking) return;
+  animateSpeechMouth(amplitude);
 }
 
 /**
- * Reset mouth to default smile
+ * Set expression based on AI text sentiment
+ * @param {string} text - AI response text
  */
-function resetMouth() {
-  if (!mouthPath) return;
-  mouthPath.setAttribute('d', 'M35 70 Q60 90 85 70');
+export function setExpressionFromText(text) {
+  return expressFromText(text);
 }
 
 /**
@@ -209,6 +205,6 @@ export function hideTranscript() {
   if (overlay) {
     setTimeout(() => {
       overlay.classList.add("hidden");
-    }, 3000); // Hide after 3 seconds
+    }, 3000);
   }
 }

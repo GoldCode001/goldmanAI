@@ -42,32 +42,43 @@
   <!-- Assistant Face (Center, Always Visible) -->
   <div id="assistantFace" class="assistant-face">
     <svg width="300" height="300" viewBox="0 0 120 120">
+      <!-- Left eyebrow -->
+      <path id="leftEyebrow" d="M25 35 Q35 33 45 35" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" />
+
+      <!-- Right eyebrow -->
+      <path id="rightEyebrow" d="M75 35 Q85 33 95 35" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" />
+
       <!-- Left eye -->
       <g id="leftEye">
-        <circle id="leftEyeBall" cx="35" cy="45" r="8" fill="#fff" stroke="none" />
-        <circle id="leftPupil" cx="35" cy="45" r="4" fill="#333" stroke="none" />
-        <ellipse id="leftEyelid" cx="35" cy="45" rx="10" ry="0" fill="none" stroke-width="3" stroke-linecap="round" opacity="0" />
+        <ellipse id="leftEyeShape" cx="35" cy="45" rx="10" ry="12" fill="#fff" stroke="#333" stroke-width="2" />
+        <circle id="leftPupil" cx="35" cy="45" r="5" fill="#333" />
+        <circle id="leftShine" cx="37" cy="43" r="2" fill="#fff" />
       </g>
 
       <!-- Right eye -->
       <g id="rightEye">
-        <circle id="rightEyeBall" cx="85" cy="45" r="8" fill="#fff" stroke="none" />
-        <circle id="rightPupil" cx="85" cy="45" r="4" fill="#333" stroke="none" />
-        <ellipse id="rightEyelid" cx="85" cy="45" rx="10" ry="0" fill="none" stroke-width="3" stroke-linecap="round" opacity="0" />
+        <ellipse id="rightEyeShape" cx="85" cy="45" rx="10" ry="12" fill="#fff" stroke="#333" stroke-width="2" />
+        <circle id="rightPupil" cx="85" cy="45" r="5" fill="#333" />
+        <circle id="rightShine" cx="87" cy="43" r="2" fill="#fff" />
       </g>
 
       <!-- Mouth (will morph for different expressions) -->
-      <path id="mouth" d="M35 75 Q60 90 85 75" fill="none" stroke-width="4" stroke-linecap="round" />
+      <g id="mouthGroup">
+        <path id="mouth" d="M35 75 Q60 85 85 75" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round" />
 
-      <!-- Tongue (hidden by default) -->
-      <ellipse id="tongue" cx="60" cy="85" rx="8" ry="6" fill="#ff69b4" opacity="0" />
+        <!-- Mouth fill for open expressions -->
+        <path id="mouthFill" d="" fill="#1a1a1a" opacity="0" />
 
-      <!-- Teeth for laugh (hidden by default) -->
-      <g id="teeth" opacity="0">
-        <rect x="48" y="75" width="4" height="8" fill="#fff" rx="2" />
-        <rect x="54" y="75" width="4" height="8" fill="#fff" rx="2" />
-        <rect x="60" y="75" width="4" height="8" fill="#fff" rx="2" />
-        <rect x="66" y="75" width="4" height="8" fill="#fff" rx="2" />
+        <!-- Teeth for laugh/smile -->
+        <g id="teeth" opacity="0">
+          <rect x="48" y="72" width="5" height="10" fill="#fff" rx="2" />
+          <rect x="55" y="72" width="5" height="10" fill="#fff" rx="2" />
+          <rect x="62" y="72" width="5" height="10" fill="#fff" rx="2" />
+          <rect x="69" y="72" width="5" height="10" fill="#fff" rx="2" />
+        </g>
+
+        <!-- Tongue (for playful) -->
+        <ellipse id="tongue" cx="60" cy="88" rx="10" ry="7" fill="#ff69b4" opacity="0" />
       </g>
     </svg>
 
