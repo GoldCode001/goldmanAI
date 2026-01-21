@@ -335,6 +335,7 @@ app.post("/api/tts", async (req, res) => {
 
     // Step 1: Enhance text (Keep this, it helps with formatting)
     const enhanced = enhanceForSpeech(text);
+    const textToSpeak = text; // Bypass enhancement for natural voice
     
     console.log('Calling ElevenLabs TTS for:', enhanced.substring(0, 50));
 
@@ -348,12 +349,12 @@ app.post("/api/tts", async (req, res) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: enhanced,
+          text: textToSpeak,
           model_id: "eleven_multilingual_v2", // Better prosody/quality than turbo
           voice_settings: {
-            stability: 0.5,       // Balanced for natural conversation (not too erratic, not robotic)
-            similarity_boost: 0.75,
-            style: 0.0,           // Lower style for more natural, less exaggerated delivery
+            stability: 0.45,      // Lower stability for more natural variation (was 0.5)
+            similarity_boost: 0.75, // Keep identity strong
+            style: 0.0,           // Keep style low to avoid "performance" artifacting
             use_speaker_boost: true
           }
         }),
