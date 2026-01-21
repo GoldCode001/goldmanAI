@@ -45,20 +45,20 @@
   <!-- Assistant Face (Center, Always Visible) -->
   <div id="assistantFace" class="assistant-face">
     <svg width="100%" height="100%" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet" style="max-width: 500px; max-height: 500px;">
-      <!-- Left eyebrow (curved arc) -->
+      <!-- Left eyebrow -->
       <path id="leftEyebrow" d="M 50 60 Q 65 55 80 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
 
-      <!-- Right eyebrow (curved arc) -->
+      <!-- Right eyebrow -->
       <path id="rightEyebrow" d="M 120 60 Q 135 55 150 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
 
-      <!-- Left eye (white oval) -->
-      <ellipse id="leftEye" cx="65" cy="85" rx="18" ry="22" fill="#fff" />
+      <!-- Left eye (Vertical Pill/Stadium) -->
+      <rect id="leftEye" x="55" y="70" width="20" height="40" rx="10" fill="#fff" />
 
-      <!-- Right eye (white oval) -->
-      <ellipse id="rightEye" cx="135" cy="85" rx="18" ry="22" fill="#fff" />
+      <!-- Right eye (Vertical Pill/Stadium) -->
+      <rect id="rightEye" x="125" y="70" width="20" height="40" rx="10" fill="#fff" />
 
-      <!-- Mouth (oval that opens vertically like PAL) -->
-      <ellipse id="mouth" cx="100" cy="140" rx="30" ry="8" fill="#fff" />
+      <!-- Mouth (Morphable Path - Default Neutral Smile) -->
+      <path id="mouth" d="M 70 140 Q 100 155 130 140" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
     </svg>
 
     <!-- Status text below face -->
