@@ -37,6 +37,7 @@ window.chatCache = [];
 // Voice state
 let vad = null;
 let isListening = false;
+let isAISpeaking = false; // Prevent overlapping AI responses
 
 /* ================= BOOT ================= */
 
@@ -400,6 +401,12 @@ function startListening() {
       async (text) => {
         console.log('User said:', text);
 
+        // Ignore if AI is currently speaking (prevent overlapping responses)
+        if (isAISpeaking) {
+          console.log('AI is speaking, ignoring user input');
+          return;
+        }
+
         // Show what user said
         showTranscript(`You: ${text}`);
 
@@ -452,6 +459,8 @@ function stopListening() {
  */
 async function speakResponse(text) {
   try {
+    isAISpeaking = true;
+
     // Generate speech audio
     const audioUrl = await speak(text);
 
@@ -469,5 +478,7 @@ async function speakResponse(text) {
     console.error('TTS failed:', err);
     // Don't block the UI if TTS fails
     stopSpeaking();
+  } finally {
+    isAISpeaking = false;
   }
 }

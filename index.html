@@ -44,44 +44,28 @@
 <div id="mainApp" class="pal-interface hidden">
   <!-- Assistant Face (Center, Always Visible) -->
   <div id="assistantFace" class="assistant-face">
-    <svg width="300" height="300" viewBox="0 0 120 120">
-      <!-- Left eyebrow -->
-      <path id="leftEyebrow" d="M25 35 Q35 33 45 35" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" />
+    <svg width="300" height="300" viewBox="0 0 200 200">
+      <!-- Background (screen) -->
+      <rect x="0" y="0" width="200" height="200" fill="#0a0a0a" />
 
-      <!-- Right eyebrow -->
-      <path id="rightEyebrow" d="M75 35 Q85 33 95 35" fill="none" stroke="#333" stroke-width="3" stroke-linecap="round" />
+      <!-- Left eyebrow (curved arc) -->
+      <path id="leftEyebrow" d="M 50 60 Q 65 55 80 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
 
-      <!-- Left eye -->
-      <g id="leftEye">
-        <ellipse id="leftEyeShape" cx="35" cy="45" rx="10" ry="12" fill="#fff" stroke="#333" stroke-width="2" />
-        <circle id="leftPupil" cx="35" cy="45" r="5" fill="#333" />
-        <circle id="leftShine" cx="37" cy="43" r="2" fill="#fff" />
-      </g>
+      <!-- Right eyebrow (curved arc) -->
+      <path id="rightEyebrow" d="M 120 60 Q 135 55 150 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
 
-      <!-- Right eye -->
-      <g id="rightEye">
-        <ellipse id="rightEyeShape" cx="85" cy="45" rx="10" ry="12" fill="#fff" stroke="#333" stroke-width="2" />
-        <circle id="rightPupil" cx="85" cy="45" r="5" fill="#333" />
-        <circle id="rightShine" cx="87" cy="43" r="2" fill="#fff" />
-      </g>
+      <!-- Left eye (white oval) -->
+      <ellipse id="leftEye" cx="65" cy="85" rx="18" ry="22" fill="#fff" />
 
-      <!-- Mouth (will morph for different expressions) -->
+      <!-- Right eye (white oval) -->
+      <ellipse id="rightEye" cx="135" cy="85" rx="18" ry="22" fill="#fff" />
+
+      <!-- Mouth (rounded rectangle that opens vertically) -->
       <g id="mouthGroup">
-        <path id="mouth" d="M35 75 Q60 85 85 75" fill="none" stroke="#333" stroke-width="4" stroke-linecap="round" />
-
-        <!-- Mouth fill for open expressions -->
-        <path id="mouthFill" d="M60 75 L60 75" fill="#1a1a1a" opacity="0" />
-
-        <!-- Teeth for laugh/smile -->
-        <g id="teeth" opacity="0">
-          <rect x="48" y="72" width="5" height="10" fill="#fff" rx="2" />
-          <rect x="55" y="72" width="5" height="10" fill="#fff" rx="2" />
-          <rect x="62" y="72" width="5" height="10" fill="#fff" rx="2" />
-          <rect x="69" y="72" width="5" height="10" fill="#fff" rx="2" />
-        </g>
-
-        <!-- Tongue (for playful) -->
-        <ellipse id="tongue" cx="60" cy="88" rx="10" ry="7" fill="#ff69b4" opacity="0" />
+        <!-- Mouth outline -->
+        <rect id="mouth" x="70" y="135" width="60" height="8" rx="4" ry="4" fill="#fff" />
+        <!-- Inner mouth (black, expands when speaking) -->
+        <rect id="mouthInner" x="72" y="137" width="56" height="4" rx="2" ry="2" fill="#0a0a0a" />
       </g>
     </svg>
 
