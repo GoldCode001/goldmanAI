@@ -1,6 +1,6 @@
 /**
  * Voice Activity Detection (VAD) using Whisper
- * Records audio in chunks and transcribes using Whisper API for better accuracy
+ * Accumulates audio until silence is detected, then transcribes complete utterance
  */
 
 const API = "https://aibackend-production-a44f.up.railway.app";
@@ -9,12 +9,16 @@ export class VoiceActivityDetector {
   constructor(onTranscript, onError) {
     this.mediaRecorder = null;
     this.audioStream = null;
+    this.audioContext = null;
+    this.analyser = null;
     this.isListening = false;
     this.onTranscript = onTranscript;
     this.onError = onError;
     this.audioChunks = [];
-    this.recordingTimer = null;
-    this.silenceDetector = null;
+    this.silenceTimer = null;
+    this.isSpeaking = false;
+    this.isProcessing = false; // Prevent overlapping responses
+    this.silenceCheckInterval = null;
   }
 
   /**
@@ -31,6 +35,16 @@ export class VoiceActivityDetector {
         }
       });
 
+      // Create audio context for silence detection
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = this.audioContext.createMediaStreamSource(this.audioStream);
+      this.analyser = this.audioContext.createAnalyser();
+      source.connect(this.analyser);
+
+      this.analyser.fftSize = 2048;
+      const bufferLength = this.analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
       // Create media recorder
       this.mediaRecorder = new MediaRecorder(this.audioStream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -45,44 +59,94 @@ export class VoiceActivityDetector {
       };
 
       this.mediaRecorder.onstop = async () => {
-        if (this.audioChunks.length === 0) {
-          console.log('VAD: No audio recorded');
-          if (this.isListening) {
-            this.startRecordingChunk();
-          }
+        if (this.audioChunks.length === 0 || this.isProcessing) {
+          console.log('VAD: No audio or already processing');
+          this.audioChunks = [];
           return;
         }
 
-        // Create blob from chunks
+        // Create blob from all accumulated chunks
         const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
         this.audioChunks = [];
+
+        // Prevent overlapping requests
+        this.isProcessing = true;
 
         // Transcribe using Whisper
         try {
           const text = await this.transcribeAudio(audioBlob);
 
           if (text && text.trim()) {
-            console.log('VAD: Transcribed:', text);
+            console.log('VAD: Complete transcription:', text);
             this.onTranscript(text.trim());
           } else {
-            console.log('VAD: No speech detected in chunk');
+            console.log('VAD: No speech detected');
           }
         } catch (err) {
           console.error('VAD: Transcription failed:', err);
           // Don't call onError for transcription failures - just log and continue
-        }
-
-        // Continue listening if still active
-        if (this.isListening) {
-          this.startRecordingChunk();
+        } finally {
+          this.isProcessing = false;
         }
       };
 
-      // Start recording first chunk
+      // Start continuous recording
       this.isListening = true;
-      this.startRecordingChunk();
+      this.mediaRecorder.start();
 
-      console.log('VAD: Started listening with Whisper');
+      // Check for silence every 100ms
+      this.silenceCheckInterval = setInterval(() => {
+        this.analyser.getByteTimeDomainData(dataArray);
+
+        // Calculate audio level (0-255, 128 = silence)
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const value = Math.abs(dataArray[i] - 128);
+          sum += value;
+        }
+        const average = sum / bufferLength;
+
+        const SPEECH_THRESHOLD = 5; // Adjust this value (higher = need louder speech)
+        const isSpeechDetected = average > SPEECH_THRESHOLD;
+
+        if (isSpeechDetected) {
+          // User is speaking
+          if (!this.isSpeaking) {
+            console.log('VAD: Speech started');
+            this.isSpeaking = true;
+          }
+
+          // Clear any pending silence timer
+          if (this.silenceTimer) {
+            clearTimeout(this.silenceTimer);
+            this.silenceTimer = null;
+          }
+        } else {
+          // Silence detected
+          if (this.isSpeaking && !this.silenceTimer && !this.isProcessing) {
+            // Start silence timer (wait 1.5 seconds of silence before processing)
+            this.silenceTimer = setTimeout(() => {
+              console.log('VAD: Silence confirmed, processing audio');
+              this.isSpeaking = false;
+
+              // Stop and process accumulated audio
+              if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
+                this.mediaRecorder.stop();
+
+                // Restart recording immediately for next utterance
+                setTimeout(() => {
+                  if (this.isListening && this.mediaRecorder) {
+                    this.audioChunks = [];
+                    this.mediaRecorder.start();
+                  }
+                }, 100);
+              }
+            }, 1500); // 1.5 second silence threshold
+          }
+        }
+      }, 100);
+
+      console.log('VAD: Started continuous listening with silence detection');
       return true;
 
     } catch (err) {
@@ -90,23 +154,6 @@ export class VoiceActivityDetector {
       this.onError('Microphone access denied or unavailable');
       return false;
     }
-  }
-
-  /**
-   * Start recording a chunk (3-second intervals)
-   */
-  startRecordingChunk() {
-    if (!this.mediaRecorder || !this.isListening) return;
-
-    this.audioChunks = [];
-    this.mediaRecorder.start();
-
-    // Record for 3 seconds then process
-    this.recordingTimer = setTimeout(() => {
-      if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
-        this.mediaRecorder.stop();
-      }
-    }, 3000); // 3-second chunks for responsive detection
   }
 
   /**
@@ -135,10 +182,17 @@ export class VoiceActivityDetector {
   stop() {
     console.log('VAD: Stopping');
     this.isListening = false;
+    this.isSpeaking = false;
+    this.isProcessing = false;
 
-    if (this.recordingTimer) {
-      clearTimeout(this.recordingTimer);
-      this.recordingTimer = null;
+    if (this.silenceCheckInterval) {
+      clearInterval(this.silenceCheckInterval);
+      this.silenceCheckInterval = null;
+    }
+
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
     }
 
     if (this.mediaRecorder && this.mediaRecorder.state === 'recording') {
@@ -148,6 +202,11 @@ export class VoiceActivityDetector {
     if (this.audioStream) {
       this.audioStream.getTracks().forEach(track => track.stop());
       this.audioStream = null;
+    }
+
+    if (this.audioContext) {
+      this.audioContext.close();
+      this.audioContext = null;
     }
 
     this.audioChunks = [];
