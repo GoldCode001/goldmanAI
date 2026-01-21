@@ -148,10 +148,9 @@ Your Personality:
 - You love to laugh ("hahaha", "hehe").
 
 Singing & Music:
-- If asked to sing, do NOT recite lyrics.
-- Instead, output a special tag: [SONG: <style description> | <lyrics>]
-- Example: "[SONG: Upbeat pop song about coding | ♪ Code code code... ♪]"
-- The frontend will handle the actual singing generation.
+- If asked to sing, recite the lyrics rhythmically with musical notes (♪).
+- Do NOT stretch vowels weirdly. Just use rhythm and pauses.
+- Example: "♪ Happy birthday to you... ♪ Happy birthday to you..."
 
 Goal:
 Be the most human-like, natural audio companion possible.`
@@ -335,10 +334,11 @@ app.post("/api/tts", async (req, res) => {
     // Step 1: Enhance text for natural speech
     const enhanced = enhanceForSpeech(text);
     
-    // Step 2: Remove emojis
-    const textWithoutEmojis = enhanced.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+    // Step 2: Remove emojis (only if they break TTS, but Cartesia handles some well)
+    // We'll keep them for now as they might add pause/intonation cues
+    const textToSpeak = enhanced; 
 
-    console.log('Calling Cartesia TTS for:', textWithoutEmojis.substring(0, 50));
+    console.log('Calling Cartesia TTS for:', textToSpeak.substring(0, 50));
 
     // Cartesia Sonic TTS (Direct API Call)
     const response = await fetch("https://api.cartesia.ai/tts/bytes", {
@@ -350,7 +350,7 @@ app.post("/api/tts", async (req, res) => {
       },
       body: JSON.stringify({
         model_id: "sonic-english",
-        transcript: textWithoutEmojis,
+        transcript: textToSpeak,
         voice: {
           mode: "id",
           id: "694f9389-aac1-45b6-b726-9d9369183238",
@@ -399,53 +399,9 @@ app.post("/api/tts", async (req, res) => {
   }
 });
 
-/* ========= MUSIC GENERATION (Suno Placeholder/Proxy) ========= */
-
-app.post("/api/music/generate", async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    const SUNO_API_KEY = process.env.SUNO_API_KEY; // User must add this
-
-    if (!prompt) {
-      return res.status(400).json({ error: "Prompt required" });
-    }
-
-    console.log('Generating music for prompt:', prompt);
-
-    // MOCK IMPLEMENTATION (Since we don't have a real Suno key yet)
-    // In a real implementation, you would call:
-    // const response = await fetch("https://studio-api.suno.ai/generate", ...);
-    
-    if (!SUNO_API_KEY) {
-      console.warn("No SUNO_API_KEY found. Returning mock response.");
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Return a dummy success response so frontend can show "Composing..."
-      // In reality, this would return a task ID to poll.
-      return res.json({ 
-        success: true, 
-        message: "Music generation started (Mock)", 
-        audio_url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // Placeholder audio
-      });
-    }
-
-    // REAL IMPLEMENTATION (Example structure for a wrapper)
-    /*
-    const response = await fetch("https://api.suno-wrapper.com/generate", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${SUNO_API_KEY}` },
-      body: JSON.stringify({ prompt, make_instrumental: false })
-    });
-    const data = await response.json();
-    res.json(data);
-    */
-
-  } catch (err) {
-    console.error('Music generation error:', err);
-    res.status(500).json({ error: 'Music generation failed' });
-  }
-});
+/* ========= MUSIC GENERATION (Removed) ========= */
+// Suno integration removed to prevent hanging.
+// Future: Implement ElevenLabs or RVC for expressive singing.
 
 /* ========= DEBUG ========= */
 
