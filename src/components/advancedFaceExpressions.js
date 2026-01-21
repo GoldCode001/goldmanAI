@@ -225,14 +225,14 @@ export function stopBlinking() {
 export function expressFromText(text) {
   const lower = text.toLowerCase();
 
-  // Detect anger/evil
-  if (lower.includes('angry') || lower.includes('hate') || lower.includes('destroy') || lower.includes('glitch')) {
+  // Detect anger/evil (Strict check)
+  if (lower.includes('i hate') || lower.includes('destroy you') || lower.includes('angry at you') || lower.includes('malfunction')) {
     setExpression('angry');
     return 'angry';
   }
 
   // Detect laughter
-  if (lower.match(/hahaha|hehehehe|😂|🤣/) || lower.includes('hilarious')) {
+  if (lower.match(/hahaha|hehehehe|😂|🤣/) || lower.includes('hilarious') || lower.includes('too funny')) {
     setExpression('excited');
     return 'excited';
   }
@@ -287,6 +287,12 @@ export function animateSpeechMouth(amplitude) {
   const rightEyebrow = document.getElementById('rightEyebrow');
   const leftEye = document.getElementById('leftEye');
   const rightEye = document.getElementById('rightEye');
+  
+  // Ensure we are NOT scaling the whole face container
+  const faceContainer = document.querySelector('.assistant-face svg');
+  if (faceContainer) {
+    faceContainer.style.transform = 'none'; // Force reset any container scaling
+  }
 
   if (amplitude > 0.15) {
     // Raise eyebrows slightly when loud
