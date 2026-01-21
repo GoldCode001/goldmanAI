@@ -321,8 +321,9 @@ app.post("/api/tts", async (req, res) => {
 
     console.log('Calling Deepgram Aura TTS for text:', textWithoutEmojis.substring(0, 50));
 
-    // Deepgram Aura TTS API - supports laughter and singing!
-    const response = await fetch('https://api.deepgram.com/v1/speak?model=aura-athena-en', {
+    // Deepgram Aura TTS API with expressive voice
+    // Using aura-asteria-en (most expressive female voice) with emotion settings
+    const response = await fetch('https://api.deepgram.com/v1/speak?model=aura-asteria-en&encoding=linear16&sample_rate=24000', {
       method: 'POST',
       headers: {
         'Authorization': `Token ${DEEPGRAM_API_KEY}`,
