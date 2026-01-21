@@ -33,9 +33,11 @@ desktop.ini
 # IDE files
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
+
 
 # Documentation (as requested - ignore all .md except README)
 *.md
