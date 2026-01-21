@@ -10,8 +10,8 @@ const app = express();
 
 // ElevenLabs Config
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-// "Adam" - The most popular, expressive, and reliable voice for high-energy/hype content
-const ELEVENLABS_VOICE_ID = "pNInz6obpgDQGcFmaJgB"; 
+// "Mark" - Natural Conversations (Casual, Young Adult)
+const ELEVENLABS_VOICE_ID = "WTUK291rZZ9CLPCiFTfh"; 
 const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY; // Keep for STT
 
 if (!ELEVENLABS_API_KEY) {
@@ -351,9 +351,9 @@ app.post("/api/tts", async (req, res) => {
           text: enhanced,
           model_id: "eleven_multilingual_v2", // Better prosody/quality than turbo
           voice_settings: {
-            stability: 0.4,       // Slightly higher stability for better quality, still expressive
-            similarity_boost: 0.8,
-            style: 0.6,           // High style for expressiveness
+            stability: 0.5,       // Balanced for natural conversation (not too erratic, not robotic)
+            similarity_boost: 0.75,
+            style: 0.0,           // Lower style for more natural, less exaggerated delivery
             use_speaker_boost: true
           }
         }),
