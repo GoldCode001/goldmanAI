@@ -275,15 +275,33 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
 
     console.log('Transcribing with Cartesia...');
 
-    // Cartesia STT (Ink)
-    const response = await cartesia.stt.transcribe({
-      file: req.file.buffer,
-      modelId: "ink-whisper",
-      language: "en",
-      // Optional: Add hints or other parameters if needed
+    // Create a FormData instance
+    const formData = new FormData();
+    // Append the buffer as a Blob with a filename
+    const audioBlob = new Blob([req.file.buffer], { type: req.file.mimetype });
+    formData.append("file", audioBlob, "audio.webm");
+    formData.append("model_id", "ink-whisper");
+    formData.append("language", "en");
+
+    console.log('Sending request to Cartesia API...');
+
+    const response = await fetch("https://api.cartesia.ai/stt/transcription", {
+      method: "POST",
+      headers: {
+        "X-API-Key": CARTESIA_API_KEY,
+        "Cartesia-Version": "2024-06-10",
+      },
+      body: formData,
     });
 
-    const transcript = response.text || '';
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Cartesia API error:', response.status, errorText);
+      throw new Error(`Cartesia API failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const transcript = data.text || '';
     console.log('Cartesia transcription:', transcript);
     res.json({ text: transcript });
 
