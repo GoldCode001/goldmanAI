@@ -44,10 +44,7 @@
 <div id="mainApp" class="pal-interface hidden">
   <!-- Assistant Face (Center, Always Visible) -->
   <div id="assistantFace" class="assistant-face">
-    <svg width="300" height="300" viewBox="0 0 200 200">
-      <!-- Background (screen) -->
-      <rect x="0" y="0" width="200" height="200" fill="#0a0a0a" />
-
+    <svg width="100%" height="100%" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet" style="max-width: 500px; max-height: 500px;">
       <!-- Left eyebrow (curved arc) -->
       <path id="leftEyebrow" d="M 50 60 Q 65 55 80 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
 
@@ -60,13 +57,8 @@
       <!-- Right eye (white oval) -->
       <ellipse id="rightEye" cx="135" cy="85" rx="18" ry="22" fill="#fff" />
 
-      <!-- Mouth (rounded rectangle that opens vertically) -->
-      <g id="mouthGroup">
-        <!-- Mouth outline -->
-        <rect id="mouth" x="70" y="135" width="60" height="8" rx="4" ry="4" fill="#fff" />
-        <!-- Inner mouth (black, expands when speaking) -->
-        <rect id="mouthInner" x="72" y="137" width="56" height="4" rx="2" ry="2" fill="#0a0a0a" />
-      </g>
+      <!-- Mouth (oval that opens vertically like PAL) -->
+      <ellipse id="mouth" cx="100" cy="140" rx="30" ry="8" fill="#fff" />
     </svg>
 
     <!-- Status text below face -->
