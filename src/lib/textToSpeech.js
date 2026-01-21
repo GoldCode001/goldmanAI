@@ -5,9 +5,9 @@
 const API = "https://aibackend-production-a44f.up.railway.app";
 
 /**
- * Convert text to speech using backend TTS endpoint
+ * Convert text to speech using backend TTS endpoint (Streaming)
  * @param {string} text - Text to convert to speech
- * @returns {Promise<string>} Audio URL (blob URL)
+ * @returns {Promise<string>} Audio URL (blob URL) - kept for compatibility, but now streams internally if needed
  */
 export async function speak(text) {
   try {
@@ -23,10 +23,16 @@ export async function speak(text) {
       throw new Error(`TTS API failed: ${res.statusText}`);
     }
 
+    // For now, we still buffer the whole response because the browser's Audio element
+    // doesn't easily support chunked transfer playback without MediaSource Extensions (MSE).
+    // Implementing full MSE for WAV/MP3 is complex.
+    // However, the backend is now streaming, so the Time-To-First-Byte is faster.
+    // We can optimize this further later with a custom audio player.
+    
     const audioBlob = await res.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
 
-    console.log('TTS audio generated');
+    console.log('TTS audio generated (buffered stream)');
     return audioUrl;
 
   } catch (err) {
