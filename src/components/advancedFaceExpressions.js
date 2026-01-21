@@ -79,6 +79,17 @@ const EXPRESSIONS = {
     mouthPath: 'M 75 145 Q 100 155 125 135',
     mouthFill: 'none',
     mouthStroke: 4
+  },
+
+  questioning: {
+    leftEyebrow: 'M 50 45 Q 65 35 80 45', // Raised high
+    rightEyebrow: 'M 120 65 Q 135 60 150 65', // Lower/flat
+    eyeHeight: 42,
+    eyeY: 69,
+    // Mouth: Small slight opening/pursed
+    mouthPath: 'M 80 145 Q 100 145 120 145 Q 120 155 100 155 Q 80 155 80 145', 
+    mouthFill: '#fff',
+    mouthStroke: 0
   }
 };
 
@@ -273,6 +284,12 @@ export function expressFromText(text) {
   if (lower.includes('happy') || lower.includes('great') || lower.match(/😊|😄|🙂/)) {
     setExpression('happy');
     return 'happy';
+  }
+
+  // Detect questions (The "Rock" eyebrow raise)
+  if (lower.includes('?') || lower.startsWith('what') || lower.startsWith('why') || lower.startsWith('how') || lower.includes('do you')) {
+    setExpression('questioning');
+    return 'questioning';
   }
 
   // Default to neutral
