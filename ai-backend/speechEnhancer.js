@@ -1,55 +1,90 @@
 /**
- * Speech Enhancer - Makes AI text sound more natural when spoken
- * Adds pauses, emphasis, and human-like patterns
+ * Speech Enhancer - Makes AI text sound HUMAN when spoken
+ * Uses natural pauses, varied pacing, and conversational rhythm
  */
 
 /**
- * Enhance text for more natural TTS output
+ * Enhance text for NATURAL TTS output (not robotic)
  * @param {string} text - Original AI response
- * @returns {string} Enhanced text with natural speech patterns
+ * @returns {string} Enhanced text with human-like speech patterns
  */
 export function enhanceForSpeech(text) {
   let enhanced = text;
 
-  // Add pauses after punctuation for breathing
-  enhanced = enhanced.replace(/\. /g, '... '); // Longer pause after sentences
-  enhanced = enhanced.replace(/\! /g, '!... '); // Pause after excitement
-  enhanced = enhanced.replace(/\? /g, '?.. '); // Medium pause after questions
-  enhanced = enhanced.replace(/\, /g, ', '); // Keep commas natural
+  // Step 1: Add LONG pauses after sentences (human breathing rhythm)
+  enhanced = enhanced.replace(/\.\s+/g, '... ');
 
-  // Detect laughter and enhance it
-  enhanced = enhanced.replace(/haha/gi, (match) => {
-    return match.toLowerCase() === 'haha' ? 'ha ha ha' : 'HA HA HA';
-  });
-  enhanced = enhanced.replace(/hahaha/gi, 'ha ha ha ha ha');
-  enhanced = enhanced.replace(/hehe/gi, 'heh heh heh');
+  // Step 2: Add pauses after questions (thinking pause)
+  enhanced = enhanced.replace(/\?\s+/g, '?.. ');
 
-  // Detect singing and add melodic pauses
-  enhanced = enhanced.replace(/(♪|♫)([^♪♫]+)(♪|♫)/g, (match, open, lyrics, close) => {
-    // Add slight pauses between sung phrases
-    const melodic = lyrics.trim().replace(/ /g, '~ ');
-    return `${open} ${melodic} ${close}`;
-  });
+  // Step 3: Add pauses after excitement
+  enhanced = enhanced.replace(/!\s+/g, '!.. ');
 
-  // Add emphasis to excited words (all caps)
-  enhanced = enhanced.replace(/\b([A-Z]{3,})\b/g, (match) => {
-    // Deepgram emphasizes louder when repeated
-    return match.split('').join(' ');
+  // Step 4: Add SHORT pauses after commas (natural breath)
+  enhanced = enhanced.replace(/,\s+/g, ', ');
+
+  // Step 5: Add pauses around "but", "and", "so" (conversational rhythm)
+  enhanced = enhanced.replace(/\s+but\s+/gi, ', but, ');
+  enhanced = enhanced.replace(/\s+and\s+/gi, ', and, ');
+  enhanced = enhanced.replace(/\s+so\s+/gi, ', so, ');
+
+  // Step 6: Slow down lists (add pauses between items)
+  enhanced = enhanced.replace(/,\s+(\w)/g, (match, letter) => {
+    return ', ' + letter; // Natural list pacing
   });
 
-  // Add natural fillers at sentence starts (occasional)
-  const fillers = ['Well, ', 'So, ', 'Hmm, ', 'Oh, ', 'Yeah, '];
-  enhanced = enhanced.replace(/^([A-Z])/g, (match) => {
-    // 30% chance to add filler
-    if (Math.random() < 0.3) {
-      const filler = fillers[Math.floor(Math.random() * fillers.length)];
-      return filler + match.toLowerCase();
+  // Step 7: Add thinking pauses before transitions
+  const transitions = ['however', 'therefore', 'meanwhile', 'additionally', 'furthermore'];
+  transitions.forEach(word => {
+    const regex = new RegExp(`\\b${word}\\b`, 'gi');
+    enhanced = enhanced.replace(regex, `... ${word}`);
+  });
+
+  // Step 8: Slow down technical terms (spell out acronyms with spaces)
+  enhanced = enhanced.replace(/\b([A-Z]{2,})\b/g, (match) => {
+    // Don't break common words like "AI" or "OK"
+    if (match === 'AI' || match === 'OK' || match === 'US') return match;
+    return match.split('').join(' '); // "API" → "A P I"
+  });
+
+  // Step 9: Add emphasis to questions (raise pitch by repeating slightly)
+  enhanced = enhanced.replace(/\?/g, '?');
+
+  // Step 10: Natural conversational starters
+  const starters = [
+    { pattern: /^(Let me |I can |I will )/i, replacement: '$1, ' },
+    { pattern: /^(Here's |Here are )/i, replacement: '... $1' },
+    { pattern: /^(You know|Actually|Basically|Honestly)/i, replacement: '$1, ' }
+  ];
+
+  starters.forEach(({ pattern, replacement }) => {
+    enhanced = enhanced.replace(pattern, replacement);
+  });
+
+  // Step 11: Fix laughter (space it out naturally)
+  enhanced = enhanced.replace(/hahaha+/gi, 'ha ha ha');
+  enhanced = enhanced.replace(/haha/gi, 'ha ha');
+  enhanced = enhanced.replace(/hehe+/gi, 'heh heh');
+
+  // Step 12: Add breath before long sentences (sentences over 15 words)
+  const sentences = enhanced.split(/([.!?])/);
+  enhanced = sentences.map((sentence, i) => {
+    if (i % 2 === 0 && sentence.split(' ').length > 15) {
+      return '... ' + sentence; // Add thinking pause before long thought
     }
-    return match;
-  });
+    return sentence;
+  }).join('');
 
-  // Replace multiple exclamation marks with emphasis
-  enhanced = enhanced.replace(/(!{2,})/g, '!');
+  // Step 13: Vary sentence pacing (add micro-pauses mid-sentence occasionally)
+  enhanced = enhanced.replace(/\s+(that|which|who|where|when)\s+/gi, ' $1 ');
+
+  // Step 14: Remove multiple spaces
+  enhanced = enhanced.replace(/\s{2,}/g, ' ');
+
+  // Step 15: Remove emoji (TTS shouldn't read these)
+  enhanced = enhanced.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+  console.log('Speech enhanced - original length:', text.length, '→ enhanced:', enhanced.length);
 
   return enhanced;
 }

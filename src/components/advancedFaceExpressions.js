@@ -25,10 +25,8 @@ const EXPRESSIONS = {
     rightEyeRx: 18,
     rightEyeRy: 22,
 
-    // Mouth - closed horizontal
-    mouthY: 135,
-    mouthHeight: 8,
-    mouthInnerHeight: 4
+    // Mouth - small oval (closed)
+    mouthRy: 8
   },
 
   happy: {
@@ -43,9 +41,7 @@ const EXPRESSIONS = {
     rightEyeRy: 18,
 
     // Mouth - wider smile
-    mouthY: 130,
-    mouthHeight: 12,
-    mouthInnerHeight: 8
+    mouthRy: 12
   },
 
   excited: {
@@ -60,9 +56,7 @@ const EXPRESSIONS = {
     rightEyeRy: 28,
 
     // Mouth - big open
-    mouthY: 125,
-    mouthHeight: 20,
-    mouthInnerHeight: 16
+    mouthRy: 20
   },
 
   surprised: {
@@ -77,9 +71,7 @@ const EXPRESSIONS = {
     rightEyeRy: 30,
 
     // Mouth - O shape
-    mouthY: 130,
-    mouthHeight: 18,
-    mouthInnerHeight: 14
+    mouthRy: 18
   },
 
   playful: {
@@ -94,9 +86,7 @@ const EXPRESSIONS = {
     rightEyeRy: 22,
 
     // Mouth - smirk
-    mouthY: 132,
-    mouthHeight: 10,
-    mouthInnerHeight: 6
+    mouthRy: 10
   },
 
   angry: {
@@ -110,10 +100,8 @@ const EXPRESSIONS = {
     rightEyeRx: 18,
     rightEyeRy: 14,
 
-    // Mouth - straight line (frown)
-    mouthY: 140,
-    mouthHeight: 6,
-    mouthInnerHeight: 2
+    // Mouth - thin line (frown)
+    mouthRy: 6
   }
 };
 
@@ -161,21 +149,12 @@ export function setExpression(expression, duration = 600) {
     easing: 'easeOutQuad'
   });
 
-  // Animate mouth
+  // Animate mouth (oval shape)
   anime({
     targets: '#mouth',
-    y: exp.mouthY,
-    height: exp.mouthHeight,
+    ry: exp.mouthRy,
     duration,
     easing: 'easeOutElastic(1, .8)'
-  });
-
-  anime({
-    targets: '#mouthInner',
-    y: exp.mouthY + 2,
-    height: exp.mouthInnerHeight,
-    duration,
-    easing: 'easeOutQuad'
   });
 
   console.log(`Expression set to: ${expression}`);
@@ -305,19 +284,10 @@ export function animateSpeechMouth(amplitude) {
   const exp = EXPRESSIONS[currentExpression];
 
   if (amplitude > 0.2) {
-    // WIDE OPEN - mouth expands vertically
+    // WIDE OPEN - mouth expands vertically (oval gets taller)
     anime({
       targets: '#mouth',
-      y: 120,
-      height: 30,
-      duration: 60,
-      easing: 'easeOutQuad'
-    });
-
-    anime({
-      targets: '#mouthInner',
-      y: 122,
-      height: 26,
+      ry: 30,
       duration: 60,
       easing: 'easeOutQuad'
     });
@@ -325,16 +295,7 @@ export function animateSpeechMouth(amplitude) {
     // Medium open
     anime({
       targets: '#mouth',
-      y: 128,
-      height: 18,
-      duration: 80,
-      easing: 'easeOutQuad'
-    });
-
-    anime({
-      targets: '#mouthInner',
-      y: 130,
-      height: 14,
+      ry: 18,
       duration: 80,
       easing: 'easeOutQuad'
     });
@@ -342,16 +303,7 @@ export function animateSpeechMouth(amplitude) {
     // Back to expression default (closed)
     anime({
       targets: '#mouth',
-      y: exp.mouthY,
-      height: exp.mouthHeight,
-      duration: 100,
-      easing: 'easeOutQuad'
-    });
-
-    anime({
-      targets: '#mouthInner',
-      y: exp.mouthY + 2,
-      height: exp.mouthInnerHeight,
+      ry: exp.mouthRy,
       duration: 100,
       easing: 'easeOutQuad'
     });
