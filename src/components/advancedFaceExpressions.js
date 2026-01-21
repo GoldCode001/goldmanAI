@@ -272,9 +272,8 @@ export function expressFromText(text) {
  */
 export function animateSpeechMouth(amplitude) {
   const mouth = document.getElementById('mouth');
-  const face = document.querySelector('.assistant-face svg');
   
-  if (!mouth || !face) return;
+  if (!mouth) return;
 
   // Map amplitude 0-1 to scale 1-3
   const scaleY = 1 + (amplitude * 3);
@@ -283,13 +282,35 @@ export function animateSpeechMouth(amplitude) {
   mouth.style.transformOrigin = "100px 140px";
   mouth.style.transform = `scaleY(${scaleY})`;
 
-  // Squash and stretch the whole face based on loudness
-  // Louder = taller/thinner (stretch)
-  // Quieter = wider/shorter (squash)
-  const stretch = 1 + (amplitude * 0.1);
-  const squash = 1 - (amplitude * 0.05);
-  
-  face.style.transform = `scale(${squash}, ${stretch})`;
+  // Dynamic eyebrows and eyes based on amplitude
+  const leftEyebrow = document.getElementById('leftEyebrow');
+  const rightEyebrow = document.getElementById('rightEyebrow');
+  const leftEye = document.getElementById('leftEye');
+  const rightEye = document.getElementById('rightEye');
+
+  if (amplitude > 0.15) {
+    // Raise eyebrows slightly when loud
+    const lift = amplitude * 10;
+    if (leftEyebrow) leftEyebrow.style.transform = `translateY(-${lift}px)`;
+    if (rightEyebrow) rightEyebrow.style.transform = `translateY(-${lift}px)`;
+    
+    // Widen eyes slightly
+    const widen = 1 + (amplitude * 0.2);
+    if (leftEye) leftEye.style.transform = `scaleY(${widen})`;
+    if (rightEye) rightEye.style.transform = `scaleY(${widen})`;
+  } else {
+    // Reset
+    if (leftEyebrow) leftEyebrow.style.transform = 'translateY(0)';
+    if (rightEyebrow) rightEyebrow.style.transform = 'translateY(0)';
+    if (leftEye) leftEye.style.transform = 'scaleY(1)';
+    if (rightEye) rightEye.style.transform = 'scaleY(1)';
+  }
+
+  // Random micro-expressions (very subtle twitch)
+  if (Math.random() > 0.95) {
+    const twitch = (Math.random() - 0.5) * 2;
+    if (leftEyebrow) leftEyebrow.style.transform = `translateY(${twitch}px) rotate(${twitch}deg)`;
+  }
 }
 
 // Dummy exports for compatibility
