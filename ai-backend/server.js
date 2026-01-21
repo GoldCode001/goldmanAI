@@ -278,7 +278,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
     // Cartesia STT (Ink)
     const response = await cartesia.stt.transcribe({
       file: req.file.buffer,
-      model: "ink-whisper",
+      modelId: "ink-whisper",
       language: "en",
       // Optional: Add hints or other parameters if needed
     });
