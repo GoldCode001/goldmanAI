@@ -280,12 +280,12 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
     // Append the buffer as a Blob with a filename
     const audioBlob = new Blob([req.file.buffer], { type: req.file.mimetype });
     formData.append("file", audioBlob, "audio.webm");
-    formData.append("model_id", "ink-whisper");
+    formData.append("model", "ink-whisper");
     formData.append("language", "en");
 
     console.log('Sending request to Cartesia API...');
 
-    const response = await fetch("https://api.cartesia.ai/stt/transcription", {
+    const response = await fetch("https://api.cartesia.ai/audio/transcriptions", {
       method: "POST",
       headers: {
         "X-API-Key": CARTESIA_API_KEY,
