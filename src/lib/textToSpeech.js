@@ -84,7 +84,16 @@ export async function playAudio(audioUrl, onAmplitudeUpdate) {
 
     audio.onplay = () => {
       console.log('Audio playback started');
-      updateAmplitude();
+      
+      // Ensure context is running (fixes potential cutoff on first play)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('AudioContext resumed');
+          updateAmplitude();
+        });
+      } else {
+        updateAmplitude();
+      }
     };
 
     audio.onended = () => {
