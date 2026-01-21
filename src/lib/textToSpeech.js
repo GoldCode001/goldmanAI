@@ -42,6 +42,41 @@ export async function speak(text) {
 }
 
 /**
+ * Generate music/song using backend music endpoint
+ * @param {string} prompt - Description of song or lyrics
+ * @returns {Promise<string>} Audio URL
+ */
+export async function sing(prompt) {
+  try {
+    console.log('Generating song for:', prompt);
+    
+    const res = await fetch(`${API}/api/music/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!res.ok) {
+      throw new Error(`Music API failed: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    
+    if (data.audio_url) {
+      return data.audio_url;
+    } else {
+      throw new Error('No audio URL returned');
+    }
+
+  } catch (err) {
+    console.error('Singing error:', err);
+    throw new Error('Failed to generate song');
+  }
+}
+
+/**
  * Play audio and track amplitude for animation
  * @param {string} audioUrl - Audio blob URL
  * @param {Function} onAmplitudeUpdate - Callback with normalized amplitude (0-1)
