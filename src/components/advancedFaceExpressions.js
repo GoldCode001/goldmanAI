@@ -25,7 +25,7 @@ const EXPRESSIONS = {
 
     // Mouth - gentle smile
     mouth: 'M35 75 Q60 85 85 75',
-    mouthFill: '',
+    mouthFill: 'M60 75 L60 75',  // Dummy invisible path
     mouthFillOpacity: 0,
 
     // Features visibility
@@ -44,7 +44,7 @@ const EXPRESSIONS = {
 
     // Mouth - big smile
     mouth: 'M30 70 Q60 95 90 70',
-    mouthFill: '',
+    mouthFill: 'M60 75 L60 75',  // Dummy invisible path
     mouthFillOpacity: 0,
 
     teethOpacity: 0,
@@ -98,7 +98,7 @@ const EXPRESSIONS = {
 
     // Mouth - tongue out
     mouth: 'M35 75 Q60 83 85 75',
-    mouthFill: '',
+    mouthFill: 'M60 75 L60 75',  // Dummy invisible path
     mouthFillOpacity: 0,
 
     teethOpacity: 0,
@@ -116,7 +116,7 @@ const EXPRESSIONS = {
 
     // Mouth - frown
     mouth: 'M35 85 Q60 75 85 85',
-    mouthFill: '',
+    mouthFill: 'M60 75 L60 75',  // Dummy invisible path
     mouthFillOpacity: 0,
 
     teethOpacity: 0,
