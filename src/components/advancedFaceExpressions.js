@@ -83,6 +83,20 @@ const EXPRESSIONS = {
 };
 
 /**
+ * PAL Mouth Visemes (Shapes for talking)
+ */
+const MOUTH_SHAPES = {
+  closed: 'M 70 140 Q 100 155 130 140', // Neutral curve
+  small: 'M 75 145 Q 100 150 125 145 Q 125 155 100 155 Q 75 155 75 145', // Small opening
+  medium: 'M 70 140 Q 100 140 130 140 Q 130 160 100 160 Q 70 160 70 140', // Wide oval
+  large: 'M 75 135 Q 100 135 125 135 Q 125 170 100 170 Q 75 170 75 135', // Tall oval (O shape)
+  wide: 'M 65 140 Q 100 140 135 140 Q 135 165 100 165 Q 65 165 65 140' // Wide smile (E shape)
+};
+
+let lastVisemeUpdate = 0;
+let currentViseme = 'closed';
+
+/**
  * Set facial expression with smooth animation
  */
 export function setExpression(expression, duration = 500) {
@@ -272,27 +286,63 @@ export function expressFromText(text) {
  */
 export function animateSpeechMouth(amplitude) {
   const mouth = document.getElementById('mouth');
-  
   if (!mouth) return;
 
-  // Map amplitude 0-1 to scale 1-3
-  const scaleY = 1 + (amplitude * 3);
-  
-  // Mouth animation
-  mouth.style.transformOrigin = "100px 140px";
-  mouth.style.transform = `scaleY(${scaleY})`;
-
-  // Dynamic eyebrows and eyes based on amplitude
-  const leftEyebrow = document.getElementById('leftEyebrow');
-  const rightEyebrow = document.getElementById('rightEyebrow');
-  const leftEye = document.getElementById('leftEye');
-  const rightEye = document.getElementById('rightEye');
-  
   // Ensure we are NOT scaling the whole face container
   const faceContainer = document.querySelector('.assistant-face svg');
   if (faceContainer) {
     faceContainer.style.transform = 'none'; // Force reset any container scaling
   }
+
+  // --- VISEME SIMULATION ---
+  // Instead of scaling, we morph the path to different shapes based on amplitude
+  // We limit updates to every ~50ms to simulate phoneme speed
+  const now = Date.now();
+  if (now - lastVisemeUpdate > 50) {
+    let targetShape = 'closed';
+    let fill = 'none';
+    let stroke = 4;
+
+    if (amplitude < 0.05) {
+      targetShape = 'closed';
+    } else if (amplitude < 0.2) {
+      targetShape = 'small';
+      fill = '#fff';
+      stroke = 0;
+    } else if (amplitude < 0.5) {
+      // Randomly choose between medium and wide for variety
+      targetShape = Math.random() > 0.5 ? 'medium' : 'wide';
+      fill = '#fff';
+      stroke = 0;
+    } else {
+      // Loudest: Large O shape or Wide
+      targetShape = Math.random() > 0.6 ? 'large' : 'wide';
+      fill = '#fff';
+      stroke = 0;
+    }
+
+    // Only update if shape changed
+    if (targetShape !== currentViseme) {
+      currentViseme = targetShape;
+      const d = MOUTH_SHAPES[targetShape];
+      
+      // Direct update for snappiness (lipsync needs to be fast)
+      mouth.setAttribute('d', d);
+      mouth.setAttribute('fill', fill);
+      mouth.setAttribute('stroke-width', stroke);
+      
+      // Reset any transform from previous scaling attempts
+      mouth.style.transform = 'none';
+    }
+    
+    lastVisemeUpdate = now;
+  }
+
+  // --- DYNAMIC EYES & BROWS ---
+  const leftEyebrow = document.getElementById('leftEyebrow');
+  const rightEyebrow = document.getElementById('rightEyebrow');
+  const leftEye = document.getElementById('leftEye');
+  const rightEye = document.getElementById('rightEye');
 
   if (amplitude > 0.15) {
     // Raise eyebrows slightly when loud
