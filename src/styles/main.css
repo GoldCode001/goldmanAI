@@ -174,8 +174,8 @@ button:hover {
 
 /* Recording state */
 .assistant-face.recording svg {
-  stroke: #f44336;
-  fill: #f44336;
+  stroke: #00bcd4;
+  fill: #00bcd4;
   animation: recording-pulse 1s ease-in-out infinite;
 }
 
@@ -200,7 +200,7 @@ button:hover {
 }
 
 .assistant-face.recording .status-text {
-  color: #f44336;
+  color: #00bcd4;
 }
 
 .assistant-face.speaking .status-text {
@@ -243,6 +243,102 @@ button:hover {
   line-height: 1.6;
   color: #fff;
   text-align: center;
+}
+
+/* ==================== INLINE TEXT OUTPUT ==================== */
+
+.inline-output {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  width: 90%;
+  max-width: 700px;
+  max-height: 60vh;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 16px;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.inline-output:not(.hidden) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.inline-output-header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.copy-inline-btn,
+.close-inline-btn {
+  padding: 6px 12px;
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  width: auto;
+  margin: 0;
+}
+
+.copy-inline-btn:hover,
+.close-inline-btn:hover {
+  background: #333;
+  border-color: #555;
+}
+
+.close-inline-btn {
+  width: 32px;
+  padding: 6px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+#inlineOutputContent {
+  flex: 1;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 16px;
+  color: #e5e5e5;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+#inlineOutputContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-track {
+  background: #111;
+  border-radius: 4px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-thumb:hover {
+  background: #444;
 }
 
 /* ==================== SETTINGS BUTTON (Top Right) ==================== */
@@ -289,6 +385,13 @@ button:hover {
 
 .settings-panel:not(.hidden) {
   transform: translateX(0);
+}
+
+/* Hide assistant face when settings is open */
+.pal-interface:has(.settings-panel:not(.hidden)) .assistant-face {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 .close-settings {

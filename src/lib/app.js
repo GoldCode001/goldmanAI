@@ -28,6 +28,13 @@ import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { VoiceActivityDetector } from "./voiceActivityDetection.js";
 import { speak, playAudio } from "./textToSpeech.js";
+import {
+  shouldShowInline,
+  extractInlineContent,
+  generateSummary,
+  showInlineOutput,
+  initInlineOutput
+} from "./inlineOutput.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -57,6 +64,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize face with tap-to-talk handler (starts blinking automatically)
   initAssistantFace(handleFaceTap);
+
+  // Initialize inline output panel
+  initInlineOutput();
 });
 
 /* ================= EVENTS ================= */
@@ -289,8 +299,26 @@ async function sendMessage(text) {
     const emotion = setExpressionFromText(aiResponse);
     console.log('Detected emotion:', emotion);
 
-    // Speak the AI response
-    await speakResponse(aiResponse);
+    // Check if response should be shown inline (AI "free will")
+    if (shouldShowInline(aiResponse)) {
+      console.log('AI decided to show inline output');
+
+      // Extract content to display
+      const inlineContent = extractInlineContent(aiResponse);
+
+      // Generate voice-friendly summary
+      const summary = generateSummary(aiResponse);
+
+      // Show inline panel with content
+      showInlineOutput(inlineContent);
+
+      // Speak the summary instead of full response
+      showTranscript(`PAL: ${summary}`);
+      await speakResponse(summary);
+    } else {
+      // Normal voice response
+      await speakResponse(aiResponse);
+    }
 
     // Hide transcript after speaking
     hideTranscript();
