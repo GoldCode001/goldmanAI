@@ -314,6 +314,9 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
 /* ========= TEXT-TO-SPEECH (Cartesia Sonic) ========= */
 
 app.post("/api/tts", async (req, res) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/fa4a5ba6-6d64-41c6-9824-cb79060da232',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:316',message:'TTS Endpoint Called',data:{body:req.body},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   try {
     const { text } = req.body;
     if (!text) {
@@ -327,11 +330,19 @@ app.post("/api/tts", async (req, res) => {
     const textWithoutEmojis = enhanced.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
     console.log('Calling Cartesia TTS for:', textWithoutEmojis.substring(0, 50));
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fa4a5ba6-6d64-41c6-9824-cb79060da232',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:330',message:'Pre-TTS Call',data:{textOriginal:text,textEnhanced:enhanced,textClean:textWithoutEmojis},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     // Cartesia Sonic TTS
     // Using a default expressive voice. You can change the voice ID.
     // Example voice: "694f9389-aac1-45b6-b726-9d9369183238" (Generic Female)
     // You might want to find a specific "fun" voice ID from Cartesia Playground.
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fa4a5ba6-6d64-41c6-9824-cb79060da232',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:338',message:'Calling cartesia.tts.bytes',data:{modelId:"sonic-english",voiceId:"694f9389-aac1-45b6-b726-9d9369183238"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     const buffer = await cartesia.tts.bytes({
       modelId: "sonic-english",
       transcript: textWithoutEmojis,
@@ -346,6 +357,10 @@ app.post("/api/tts", async (req, res) => {
       },
     });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fa4a5ba6-6d64-41c6-9824-cb79060da232',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:356',message:'TTS Success',data:{bufferSize:buffer.byteLength},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     // Stream the audio back
     res.set('Content-Type', 'audio/wav');
     res.send(Buffer.from(buffer));
@@ -354,6 +369,9 @@ app.post("/api/tts", async (req, res) => {
 
   } catch (err) {
     console.error('TTS error:', err);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/fa4a5ba6-6d64-41c6-9824-cb79060da232',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:365',message:'TTS Error Caught',data:{error:err.message,stack:err.stack,details:JSON.stringify(err)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     res.status(500).json({ error: 'TTS failed', details: err.message });
   }
 });
