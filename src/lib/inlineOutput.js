@@ -84,11 +84,12 @@ export function hideInlineOutput() {
     panel.classList.add('hidden');
   }
 
-  // Restore face
+  // Restore face to center with smooth animation
   const face = document.getElementById('assistantFace');
   if (face) {
     face.style.opacity = '1';
     face.style.transform = 'scale(1)';
+    face.style.transition = 'all 0.3s ease';
   }
 }
 

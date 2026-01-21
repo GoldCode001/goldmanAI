@@ -207,6 +207,36 @@ button:hover {
   color: #fff;
 }
 
+/* ==================== PAL EVIL MODE ==================== */
+
+.evil-mode {
+  /* No background on the face container itself, but we can affect children */
+}
+
+/* When in evil mode, the SVG should look glitchy */
+.evil-mode svg {
+  filter: drop-shadow(0 0 20px #ff0000) contrast(1.2) sepia(100%) hue-rotate(-50deg) !important;
+  animation: glitch-shake 0.2s infinite !important;
+}
+
+.evil-mode svg * {
+  stroke: #ff0000 !important;
+  fill: #ff0000 !important;
+}
+
+/* Also change the background of the app to red/black gradient */
+body:has(.evil-mode) {
+  background: radial-gradient(circle at center, #300 0%, #000 100%);
+}
+
+@keyframes glitch-shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 2px); }
+  50% { transform: translate(2px, -2px); }
+  75% { transform: translate(-2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
 /* ==================== TRANSCRIPT OVERLAY ==================== */
 
 .transcript-overlay {
