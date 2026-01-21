@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
+import { enhanceForSpeech } from "./speechEnhancer.js";
 
 const app = express();
 
@@ -311,8 +312,12 @@ app.post("/api/tts", async (req, res) => {
       return res.status(500).json({ error: 'TTS not configured' });
     }
 
-    // Remove emojis before TTS (so it doesn't read them out loud)
-    const textWithoutEmojis = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+    // Step 1: Enhance text for natural speech (add pauses, emphasis, laughter)
+    const enhanced = enhanceForSpeech(text);
+    console.log('Enhanced text:', enhanced.substring(0, 100));
+
+    // Step 2: Remove emojis before TTS (so it doesn't read them out loud)
+    const textWithoutEmojis = enhanced.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
     console.log('Calling Deepgram Aura TTS for text:', textWithoutEmojis.substring(0, 50));
 
