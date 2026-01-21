@@ -27,7 +27,7 @@ import {
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { VoiceActivityDetector } from "./voiceActivityDetection.js";
-import { speak, playAudio } from "./textToSpeech.js";
+import { speak, playAudio, sing } from "./textToSpeech.js";
 import {
   shouldShowInline,
   extractInlineContent,
@@ -299,6 +299,20 @@ async function sendMessage(text) {
     const emotion = setExpressionFromText(aiResponse);
     console.log('Detected emotion:', emotion);
 
+    // Check for SONG tag
+    const songMatch = aiResponse.match(/\[SONG:\s*(.*?)\s*\|\s*(.*?)\]/s);
+    
+    if (songMatch) {
+      const [_, style, lyrics] = songMatch;
+      console.log('Song detected:', style);
+      
+      showTranscript(`PAL is composing a song: "${style}"...`);
+      
+      // Call singing API
+      await speakResponse(lyrics, true, style);
+      return;
+    }
+
     // Check if response should be shown inline (AI "free will")
     if (shouldShowInline(aiResponse)) {
       console.log('AI decided to show inline output');
@@ -484,13 +498,23 @@ function stopListening() {
 
 /**
  * Speak AI response with face animation
+ * @param {string} text - Text to speak (or lyrics)
+ * @param {boolean} isSinging - Whether to use singing mode
+ * @param {string} songStyle - Style description for song generation
  */
-async function speakResponse(text) {
+async function speakResponse(text, isSinging = false, songStyle = "") {
   try {
     isAISpeaking = true;
+    let audioUrl;
 
-    // Generate speech audio
-    const audioUrl = await speak(text);
+    if (isSinging) {
+      // Generate song
+      const prompt = `${songStyle} ${text}`;
+      audioUrl = await sing(prompt);
+    } else {
+      // Generate speech audio
+      audioUrl = await speak(text);
+    }
 
     // Start face animation
     startSpeaking();
@@ -503,7 +527,7 @@ async function speakResponse(text) {
     // Stop face animation
     stopSpeaking();
   } catch (err) {
-    console.error('TTS failed:', err);
+    console.error('Audio generation failed:', err);
     // Don't block the UI if TTS fails
     stopSpeaking();
   } finally {
