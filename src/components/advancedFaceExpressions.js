@@ -3,7 +3,8 @@
  * Full range of expressions with eyebrows, eye shapes, and dynamic mouth
  */
 
-import anime from 'animejs';
+// Import anime from CDN (loaded in index.html)
+const anime = window.anime;
 
 let currentExpression = 'neutral';
 let blinkInterval = null;
