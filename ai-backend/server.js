@@ -3,21 +3,23 @@ import fetch from "node-fetch";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
-import { CartesiaClient } from "@cartesia/cartesia-js";
+// import { CartesiaClient } from "@cartesia/cartesia-js";
 import { enhanceForSpeech } from "./speechEnhancer.js";
 
 const app = express();
 
-// Initialize Cartesia Client
-const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
+// ElevenLabs Config
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+// "Adam" - The most popular, expressive, and reliable voice for high-energy/hype content
+const ELEVENLABS_VOICE_ID = "pNInz6obpgDQGcFmaJgB"; 
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY; // Keep for STT
 
-if (!CARTESIA_API_KEY) {
-  console.warn("CARTESIA_API_KEY not set in environment variables");
+if (!ELEVENLABS_API_KEY) {
+  console.warn("ELEVENLABS_API_KEY not set in environment variables");
 }
-
-const cartesia = new CartesiaClient({
-  apiKey: CARTESIA_API_KEY,
-});
+if (!CARTESIA_API_KEY) {
+  console.warn("CARTESIA_API_KEY not set in environment variables (needed for STT)");
+}
 
 app.use(cors());
 app.use(express.json());
@@ -322,7 +324,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
-/* ========= TEXT-TO-SPEECH (Cartesia Sonic - Streaming) ========= */
+/* ========= TEXT-TO-SPEECH (ElevenLabs Turbo v2.5) ========= */
 
 app.post("/api/tts", async (req, res) => {
   try {
@@ -331,46 +333,41 @@ app.post("/api/tts", async (req, res) => {
       return res.status(400).json({ error: "text required" });
     }
 
-    // Step 1: Enhance text for natural speech
+    // Step 1: Enhance text (Keep this, it helps with formatting)
     const enhanced = enhanceForSpeech(text);
     
-    // Step 2: Remove emojis (only if they break TTS, but Cartesia handles some well)
-    // We'll keep them for now as they might add pause/intonation cues
-    const textToSpeak = enhanced; 
+    console.log('Calling ElevenLabs TTS for:', enhanced.substring(0, 50));
 
-    console.log('Calling Cartesia TTS for:', textToSpeak.substring(0, 50));
-
-    // Cartesia Sonic TTS (Direct API Call)
-    const response = await fetch("https://api.cartesia.ai/tts/bytes", {
-      method: "POST",
-      headers: {
-        "X-API-Key": CARTESIA_API_KEY,
-        "Cartesia-Version": "2024-06-10",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model_id: "sonic-english",
-        transcript: textToSpeak,
-        voice: {
-          mode: "id",
-          id: "694f9389-aac1-45b6-b726-9d9369183238",
+    // ElevenLabs Streaming API
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
         },
-        output_format: {
-          container: "wav",
-          sample_rate: 44100,
-          encoding: "pcm_s16le",
-        },
-      }),
-    });
+        body: JSON.stringify({
+          text: enhanced,
+          model_id: "eleven_turbo_v2_5", // The fastest, most expressive model
+          voice_settings: {
+            stability: 0.3,       // Lower = more emotion/range (better for shouting/singing)
+            similarity_boost: 0.8,
+            style: 0.5,           // Higher = more exaggerated style
+            use_speaker_boost: true
+          }
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Cartesia TTS API error:', response.status, errorText);
-      throw new Error(`Cartesia TTS failed: ${response.status} - ${errorText}`);
+      console.error('ElevenLabs API error:', response.status, errorText);
+      throw new Error(`ElevenLabs TTS failed: ${response.status} - ${errorText}`);
     }
 
     // Set headers for streaming response
-    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Transfer-Encoding', 'chunked');
 
     // Pipe the response body stream directly to the client response
@@ -386,7 +383,7 @@ app.post("/api/tts", async (req, res) => {
         res.end();
       });
     } else {
-      throw new Error('No response body from Cartesia');
+      throw new Error('No response body from ElevenLabs');
     }
 
   } catch (err) {
