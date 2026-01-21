@@ -5,8 +5,10 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@cartesia/cartesia-js": "^2.2.9",
     "@supabase/supabase-js": "^2.90.1",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2"

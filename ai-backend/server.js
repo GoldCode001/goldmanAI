@@ -3,9 +3,21 @@ import fetch from "node-fetch";
 import cors from "cors";
 import { createClient } from "@supabase/supabase-js";
 import multer from "multer";
+import { CartesiaClient } from "@cartesia/cartesia-js";
 import { enhanceForSpeech } from "./speechEnhancer.js";
 
 const app = express();
+
+// Initialize Cartesia Client
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
+
+if (!CARTESIA_API_KEY) {
+  console.warn("CARTESIA_API_KEY not set in environment variables");
+}
+
+const cartesia = new CartesiaClient({
+  apiKey: CARTESIA_API_KEY,
+});
 
 app.use(cors());
 app.use(express.json());
@@ -253,7 +265,7 @@ app.post("/api/chat/generate-title", async (req, res) => {
   }
 });
 
-/* ========= DEEPGRAM TRANSCRIPTION ========= */
+/* ========= CARTESIA TRANSCRIPTION ========= */
 
 app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   try {
@@ -261,33 +273,18 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: "No audio file provided" });
     }
 
-    const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
+    console.log('Transcribing with Cartesia...');
 
-    if (!DEEPGRAM_API_KEY) {
-      console.error('DEEPGRAM_API_KEY not set');
-      return res.status(500).json({ error: 'Transcription not configured' });
-    }
-
-    // Deepgram API endpoint
-    const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-        'Content-Type': 'audio/webm'
-      },
-      body: req.file.buffer
+    // Cartesia STT (Ink)
+    const response = await cartesia.stt.transcribe({
+      file: req.file.buffer,
+      modelId: "ink-whisper",
+      language: "en",
+      // Optional: Add hints or other parameters if needed
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Deepgram API error:', response.status, errorText);
-      throw new Error(`Deepgram API failed: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const transcript = data.results?.channels[0]?.alternatives[0]?.transcript || '';
-
-    console.log('Deepgram transcription:', transcript);
+    const transcript = response.text || '';
+    console.log('Cartesia transcription:', transcript);
     res.json({ text: transcript });
 
   } catch (err) {
@@ -296,7 +293,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
-/* ========= TEXT-TO-SPEECH (Deepgram Aura) ========= */
+/* ========= TEXT-TO-SPEECH (Cartesia Sonic) ========= */
 
 app.post("/api/tts", async (req, res) => {
   try {
@@ -305,47 +302,37 @@ app.post("/api/tts", async (req, res) => {
       return res.status(400).json({ error: "text required" });
     }
 
-    const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY;
-
-    if (!DEEPGRAM_API_KEY) {
-      console.error('DEEPGRAM_API_KEY not set');
-      return res.status(500).json({ error: 'TTS not configured' });
-    }
-
-    // Step 1: Enhance text for natural speech (add pauses, emphasis, laughter)
+    // Step 1: Enhance text for natural speech
     const enhanced = enhanceForSpeech(text);
-    console.log('Enhanced text:', enhanced.substring(0, 100));
-
-    // Step 2: Remove emojis before TTS (so it doesn't read them out loud)
+    
+    // Step 2: Remove emojis
     const textWithoutEmojis = enhanced.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
 
-    console.log('Calling Deepgram Aura TTS for text:', textWithoutEmojis.substring(0, 50));
+    console.log('Calling Cartesia TTS for:', textWithoutEmojis.substring(0, 50));
 
-    // Deepgram Aura TTS API with expressive voice
-    // Using aura-asteria-en (most expressive female voice) with emotion settings
-    const response = await fetch('https://api.deepgram.com/v1/speak?model=aura-asteria-en&encoding=linear16&sample_rate=24000', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Token ${DEEPGRAM_API_KEY}`,
-        'Content-Type': 'application/json'
+    // Cartesia Sonic TTS
+    // Using a default expressive voice. You can change the voice ID.
+    // Example voice: "694f9389-aac1-45b6-b726-9d9369183238" (Generic Female)
+    // You might want to find a specific "fun" voice ID from Cartesia Playground.
+    const buffer = await cartesia.tts.bytes({
+      modelId: "sonic-english",
+      transcript: textWithoutEmojis,
+      voice: {
+        mode: "id",
+        id: "694f9389-aac1-45b6-b726-9d9369183238", 
       },
-      body: JSON.stringify({
-        text: textWithoutEmojis
-      })
+      outputFormat: {
+        container: "wav",
+        sampleRate: 44100,
+        encoding: "pcm_s16le"
+      },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Deepgram TTS error:', response.status, errorText);
-      throw new Error(`Deepgram TTS failed: ${response.status} - ${errorText}`);
-    }
+    // Stream the audio back
+    res.set('Content-Type', 'audio/wav');
+    res.send(Buffer.from(buffer));
 
-    // Stream the audio back to client
-    const audioBuffer = await response.arrayBuffer();
-    res.set('Content-Type', 'audio/mpeg');
-    res.send(Buffer.from(audioBuffer));
-
-    console.log('Deepgram TTS audio generated successfully');
+    console.log('Cartesia TTS audio generated successfully');
 
   } catch (err) {
     console.error('TTS error:', err);
