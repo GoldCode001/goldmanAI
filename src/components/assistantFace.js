@@ -100,8 +100,8 @@ export function startRecording() {
     statusText.textContent = "Listening... (tap to stop)";
   }
 
-  // Show curious/attentive expression
-  setExpression('neutral');
+  // Keep current expression (don't reset to neutral)
+  // setExpression('neutral');
   console.log('Face started recording');
 }
 
@@ -162,9 +162,9 @@ export function stopSpeaking() {
     statusText.textContent = "Tap to talk";
   }
 
-  // Return to neutral expression
-  setExpression('neutral');
-  console.log('Face stopped speaking');
+  // DO NOT reset to neutral. Keep the last expression (e.g. questioning, happy)
+  // setExpression('neutral'); 
+  console.log('Face stopped speaking (expression persisted)');
 }
 
 /**
