@@ -1,0 +1,9 @@
+{
+  "appId": "com.goldmanai.app",
+  "appName": "Goldman AI",
+  "webDir": ".",
+  "server": {
+    "url": "https://goldmanai-production.up.railway.app",
+    "cleartext": false
+  }
+}
