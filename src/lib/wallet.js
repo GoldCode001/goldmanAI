@@ -1,5 +1,5 @@
 import CoinbaseWalletSDK from "@coinbase/wallet-sdk";
-import { ethers } from "ethers";
+import { Wallet } from "ethers";
 
 const APP_NAME = "Goldman AI";
 const APP_LOGO_URL = "https://goldmanai.app/logo.png";
@@ -19,14 +19,14 @@ export async function createInvisibleWallet() {
 
   if (!privateKey) {
     // Generate new random wallet
-    const wallet = ethers.Wallet.createRandom();
+    const wallet = Wallet.createRandom();
     privateKey = wallet.privateKey;
     localStorage.setItem("invisible_wallet_pk", privateKey);
     console.log("Created new invisible wallet:", wallet.address);
   }
 
   // Initialize wallet from key
-  invisibleWallet = new ethers.Wallet(privateKey);
+  invisibleWallet = new Wallet(privateKey);
   walletAddress = invisibleWallet.address;
   localStorage.setItem("wallet_address", walletAddress);
 
