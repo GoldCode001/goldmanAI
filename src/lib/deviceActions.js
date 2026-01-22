@@ -304,17 +304,17 @@ async function setAlarm(timeStr) {
  */
 async function checkCalendar() {
   try {
-    // Check if device calendar API is available (limited browser support)
-    // For now, return a message and suggest using calendar apps
+    // Open Google Calendar
+    window.open('https://calendar.google.com/calendar/r', '_blank');
+    
     return {
       success: true,
-      message: 'Calendar access requires device permissions. Opening calendar app...',
-      action: 'calendar_requested',
-      // Try to open calendar URL scheme (works on some devices)
-      url: 'webcal://' // Generic calendar protocol
+      message: 'Opening your calendar...',
+      action: 'calendar_opened'
     };
   } catch (err) {
-    return { success: false, error: err.message };
+    console.error('Calendar error:', err);
+    return { success: false, error: 'Failed to open calendar: ' + err.message };
   }
 }
 
@@ -338,7 +338,8 @@ async function addCalendarEvent(description) {
       action: 'event_added'
     };
   } catch (err) {
-    return { success: false, error: err.message };
+    console.error('Calendar event error:', err);
+    return { success: false, error: 'Failed to add calendar event: ' + err.message };
   }
 }
 
