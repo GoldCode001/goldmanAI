@@ -897,6 +897,74 @@ body:has(.evil-mode) {
   color: #666;
 }
 
+/* ==================== PERSONALIZATION SETTINGS ==================== */
+
+.personalization-section {
+  margin: 24px 0;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #222;
+}
+
+.personalization-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item label {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.setting-item input {
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.2s;
+}
+
+.setting-item input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: #222;
+}
+
+.save-btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+
+.save-btn:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.save-btn:active {
+  transform: translateY(0);
+}
+
 /* ==================== CONVERSATION HISTORY ==================== */
 
 .conversation-history {
