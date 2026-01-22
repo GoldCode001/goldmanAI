@@ -244,9 +244,13 @@ async function loadConversationHistory() {
         hour12: true
       });
 
+      // Get AI name for display
+      const memory = await getUserMemory() || {};
+      const aiName = memory.aiName || 'PAL';
+      
       return `
         <div class="history-message ${msg.role}">
-          <div class="role">${msg.role === 'user' ? 'You' : 'PAL'}</div>
+          <div class="role">${msg.role === 'user' ? 'You' : aiName}</div>
           <div class="content">${escapeHtml(msg.content)}</div>
           <div class="timestamp">${timestamp}</div>
         </div>
@@ -461,7 +465,9 @@ async function sendMessage(text) {
     }
 
     // Show AI response as transcript
-    showTranscript(`PAL: ${aiResponse}`);
+    const memory = await getUserMemory() || {};
+    const aiName = memory.aiName || 'PAL';
+    showTranscript(`${aiName}: ${aiResponse}`);
 
     // Set facial expression based on response sentiment
     const emotion = setExpressionFromText(aiResponse);
@@ -678,7 +684,9 @@ You are more "smart companion" than "chaotic teenager".
         onTranscript: async (text) => {
           // Show transcript updates from Gemini
           if (text && text.trim()) {
-            showTranscript(`PAL: ${text}`);
+            const currentMemory = await getUserMemory() || {};
+            const currentAiName = currentMemory.aiName || 'PAL';
+            showTranscript(`${currentAiName}: ${text}`);
             
             // Store current speech text and estimate duration
             window.currentSpeechText = text;
