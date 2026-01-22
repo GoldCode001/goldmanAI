@@ -36,6 +36,7 @@ import {
   showInlineOutput,
   initInlineOutput
 } from "./inlineOutput.js";
+import { learnFromConversation, getUserMemory } from "./memory.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -301,6 +302,44 @@ async function createNewChat() {
   await loadConversationHistory();
 }
 
+/**
+ * Load and decrypt conversation history for AI context
+ * Returns plain text messages that backend can use for AI context
+ */
+async function getDecryptedHistory(chatId) {
+  try {
+    const res = await fetch(`${API}/api/chat/${chatId}`);
+    const messages = await res.json();
+
+    if (!messages || messages.length === 0) {
+      return [];
+    }
+
+    // Decrypt messages if needed for AI context
+    const decryptedHistory = await Promise.all(messages.map(async msg => {
+      let content = msg.content;
+      
+      // If we're in crypto mode, try to decrypt
+      if (window.currentUser?.isCrypto && window.sessionKey) {
+        const decrypted = await decryptMessage(content, window.sessionKey);
+        if (decrypted && decrypted !== '[Encrypted Message]') {
+          content = decrypted;
+        }
+      }
+      
+      return {
+        role: msg.role,
+        content: content // Plain text for AI context
+      };
+    }));
+
+    return decryptedHistory;
+  } catch (err) {
+    console.error('Failed to load decrypted history:', err);
+    return []; // Return empty array on error
+  }
+}
+
 async function sendMessage(text) {
   if (!text || !window.currentChatId) return;
 
@@ -311,10 +350,18 @@ async function sendMessage(text) {
     // Send user message - backend handles AI response automatically
     console.log('Sending message to backend:', text);
 
+    // Load and decrypt conversation history for AI context
+    const decryptedHistory = await getDecryptedHistory(window.currentChatId);
+    console.log('Sending decrypted history for AI context:', decryptedHistory.length, 'messages');
+
     let encryptedContent = null;
     if (window.currentUser?.isCrypto && window.sessionKey) {
       encryptedContent = await encryptMessage(text, window.sessionKey);
     }
+
+    // Get user language preference
+    const userSettings = await getUserMemory();
+    const userLanguage = userSettings?.language || "en";
 
     const res = await fetch(`${API}/api/message`, {
       method: "POST",
@@ -322,8 +369,11 @@ async function sendMessage(text) {
       body: JSON.stringify({
         chatId: window.currentChatId,
         role: "user",
-        content: text, // Plain text for AI context (if backend updated)
-        encryptedContent: encryptedContent // Encrypted for storage
+        content: text, // Plain text for AI context
+        encryptedContent: encryptedContent, // Encrypted for storage
+        decryptedHistory: decryptedHistory, // Send decrypted history for AI context
+        userId: window.currentUser?.id, // For memory/personalization
+        language: userLanguage // For multi-language support
       })
     });
 
@@ -337,6 +387,7 @@ async function sendMessage(text) {
     console.log('Backend response:', data);
 
     let aiResponse = data.content; // Backend returns AI response
+    const responseLanguage = data.language || userLanguage; // Get language from response or use user preference
 
     // If backend returned encrypted response (future proofing), decrypt it
     if (data.encryptedContent && window.currentUser?.isCrypto && window.sessionKey) {
@@ -370,14 +421,26 @@ async function sendMessage(text) {
 
       // Speak the summary instead of full response
       showTranscript(`PAL: ${summary}`);
-      await speakResponse(summary);
+      await speakResponse(summary, responseLanguage);
     } else {
       // Normal voice response
-      await speakResponse(aiResponse);
+      await speakResponse(aiResponse, responseLanguage);
     }
 
     // Hide transcript after speaking
     hideTranscript();
+
+    // Learn from conversation for personalization
+    try {
+      const allMessages = [...decryptedHistory, 
+        { role: "user", content: text },
+        { role: "assistant", content: aiResponse }
+      ];
+      await learnFromConversation(allMessages);
+    } catch (err) {
+      console.error('Failed to learn from conversation:', err);
+      // Non-critical, continue
+    }
 
     // Generate chat title after 3rd message
     await maybeGenerateChatTitle();
@@ -550,12 +613,12 @@ function stopListening() {
 /**
  * Speak AI response with face animation
  */
-async function speakResponse(text) {
+async function speakResponse(text, language = "en") {
   try {
     isAISpeaking = true;
 
-    // Generate speech audio
-    const audioUrl = await speak(text);
+    // Generate speech audio with user's language
+    const audioUrl = await speak(text, language);
 
     // Start face animation
     startSpeaking();

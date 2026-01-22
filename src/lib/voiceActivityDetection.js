@@ -163,9 +163,10 @@ export class VoiceActivityDetector {
   /**
    * Transcribe audio using Whisper API
    */
-  async transcribeAudio(audioBlob) {
+  async transcribeAudio(audioBlob, language = "en") {
     const formData = new FormData();
     formData.append('audio', audioBlob, 'audio.webm');
+    formData.append('language', language);
 
     const res = await fetch(`${API}/api/transcribe`, {
       method: 'POST',
