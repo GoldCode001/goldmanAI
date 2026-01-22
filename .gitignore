@@ -74,3 +74,8 @@ coverage/
 
 # Gemini app reference code
 geminiapp/
+
+# Capacitor native platforms
+ios/
+android/
+.capacitor/
