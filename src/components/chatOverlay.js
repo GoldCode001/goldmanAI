@@ -18,6 +18,26 @@ export function initChatOverlay() {
     return;
   }
 
+  // Initialize icons (load immediately)
+  const initIcons = async () => {
+    try {
+      const { MicIcon, PowerIcon, TerminalIcon } = await import('./icons.js');
+      const terminalIconEl = document.getElementById('terminalIcon');
+      const micIconEl = document.getElementById('micIcon');
+      const listeningMicIconEl = document.getElementById('listeningMicIcon');
+      const powerIconEl = document.getElementById('powerIcon');
+
+      if (terminalIconEl) terminalIconEl.innerHTML = TerminalIcon;
+      if (micIconEl) micIconEl.innerHTML = MicIcon;
+      if (listeningMicIconEl) listeningMicIconEl.innerHTML = MicIcon;
+      if (powerIconEl) powerIconEl.innerHTML = PowerIcon;
+    } catch (err) {
+      console.error('Failed to load icons:', err);
+    }
+  };
+  
+  initIcons();
+
   // Setup activate button
   const activateBtn = document.getElementById('activatePalBtn');
   if (activateBtn) {
