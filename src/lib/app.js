@@ -43,8 +43,6 @@ window.currentChatId = null;
 window.chatCache = [];
 
 // Voice state (Gemini Live)
-let geminiGenAI = null;
-let geminiModel = null;
 let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
 
@@ -549,73 +547,68 @@ async function startListening() {
     }
     const { apiKey } = await keyRes.json();
 
-    // Initialize Gemini Live if not already done
-    if (!geminiGenAI || !geminiModel) {
-      const result = await initGeminiLive(apiKey, {
-        onAudioLevel: (amplitude) => {
-          // Real-time lip sync from Gemini's audio output
-          updateMouth(amplitude);
-          if (amplitude > 0.1) {
-            if (!isAISpeaking) {
-              isAISpeaking = true;
-              startSpeaking(); // Update face animation
-            }
-          } else {
-            if (isAISpeaking) {
-              isAISpeaking = false;
-              stopSpeaking();
-            }
+    // Initialize Gemini Live
+    const initialized = await initGeminiLive(apiKey, {
+      onAudioLevel: (amplitude) => {
+        // Real-time lip sync from Gemini's audio output
+        updateMouth(amplitude);
+        if (amplitude > 0.1) {
+          if (!isAISpeaking) {
+            isAISpeaking = true;
+            startSpeaking(); // Update face animation
           }
-        },
-        onTranscript: async (text) => {
-          // Show transcript updates from Gemini
-          if (text && text.trim()) {
-            showTranscript(`PAL: ${text}`);
-            // Set facial expression based on text
-            setExpressionFromText(text);
-            
-            // Save AI message to database
-            try {
-              let encryptedContent = null;
-              if (window.currentUser?.isCrypto && window.sessionKey) {
-                encryptedContent = await encryptMessage(text, window.sessionKey);
-              }
-              
-              await fetch(`${API}/api/message`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  chatId: window.currentChatId,
-                  role: "assistant",
-                  content: text,
-                  encryptedContent: encryptedContent
-                })
-              });
-            } catch (err) {
-              console.error('Failed to save AI message:', err);
-            }
+        } else {
+          if (isAISpeaking) {
+            isAISpeaking = false;
+            stopSpeaking();
           }
-        },
-        onError: (error) => {
-          console.error('Gemini Live error:', error);
-          showTranscript(`Error: ${error.message}`);
-          setTimeout(() => {
-            stopListening();
-            hideTranscript();
-          }, 3000);
         }
-      });
-
-      if (!result) {
-        throw new Error('Failed to initialize Gemini Live');
+      },
+      onTranscript: async (text) => {
+        // Show transcript updates from Gemini
+        if (text && text.trim()) {
+          showTranscript(`PAL: ${text}`);
+          // Set facial expression based on text
+          setExpressionFromText(text);
+          
+          // Save AI message to database
+          try {
+            let encryptedContent = null;
+            if (window.currentUser?.isCrypto && window.sessionKey) {
+              encryptedContent = await encryptMessage(text, window.sessionKey);
+            }
+            
+            await fetch(`${API}/api/message`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chatId: window.currentChatId,
+                role: "assistant",
+                content: text,
+                encryptedContent: encryptedContent
+              })
+            });
+          } catch (err) {
+            console.error('Failed to save AI message:', err);
+          }
+        }
+      },
+      onError: (error) => {
+        console.error('Gemini Live error:', error);
+        showTranscript(`Error: ${error.message}`);
+        setTimeout(() => {
+          stopListening();
+          hideTranscript();
+        }, 3000);
       }
+    });
 
-      geminiGenAI = result.genAI;
-      geminiModel = result.model;
+    if (!initialized) {
+      throw new Error('Failed to initialize Gemini Live');
     }
 
     // Start Gemini Live connection
-    const started = await startGeminiLive(geminiGenAI, geminiModel);
+    const started = await startGeminiLive();
 
     if (started) {
       isListening = true;
