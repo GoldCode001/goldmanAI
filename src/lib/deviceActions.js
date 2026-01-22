@@ -128,6 +128,14 @@ export async function executeAction(action) {
  */
 async function makeEmergencyCall() {
   try {
+    // Check if we're on a device that supports tel: protocol
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      return { 
+        success: false, 
+        error: 'Phone calls are only supported on mobile devices. Please use your phone to call 911.' 
+      };
+    }
+    
     // Use tel: protocol - open in new window/tab to avoid navigation
     const link = document.createElement('a');
     link.href = 'tel:911';
@@ -140,7 +148,10 @@ async function makeEmergencyCall() {
     };
   } catch (err) {
     console.error('Emergency call error:', err);
-    return { success: false, error: 'Failed to initiate emergency call: ' + err.message };
+    return { 
+      success: false, 
+      error: 'Failed to initiate emergency call. Please dial 911 directly on your phone.' 
+    };
   }
 }
 
@@ -149,10 +160,18 @@ async function makeEmergencyCall() {
  */
 async function makeCall(phoneNumber) {
   try {
+    // Check if we're on a device that supports tel: protocol
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      return { 
+        success: false, 
+        error: 'Phone calls are only supported on mobile devices. Please use your phone to make calls.' 
+      };
+    }
+    
     // Clean phone number
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.length < 10) {
-      return { success: false, error: 'Invalid phone number' };
+      return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
     }
     
     // Use tel: protocol - open in new window/tab to avoid navigation
@@ -167,7 +186,10 @@ async function makeCall(phoneNumber) {
     };
   } catch (err) {
     console.error('Call error:', err);
-    return { success: false, error: 'Failed to initiate call: ' + err.message };
+    return { 
+      success: false, 
+      error: 'Failed to initiate call. Please use your phone to make the call.' 
+    };
   }
 }
 
@@ -176,9 +198,17 @@ async function makeCall(phoneNumber) {
  */
 async function sendText(phoneNumber, message = '') {
   try {
+    // Check if we're on a device that supports sms: protocol
+    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      return { 
+        success: false, 
+        error: 'SMS is only supported on mobile devices. Please use your phone to send text messages.' 
+      };
+    }
+    
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.length < 10) {
-      return { success: false, error: 'Invalid phone number' };
+      return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
     }
     
     // Use sms: protocol (works on mobile devices)
@@ -198,23 +228,68 @@ async function sendText(phoneNumber, message = '') {
     };
   } catch (err) {
     console.error('SMS error:', err);
-    return { success: false, error: 'Failed to open SMS: ' + err.message };
+    return { 
+      success: false, 
+      error: 'Failed to open SMS. Please use your phone to send text messages.' 
+    };
   }
+}
+
+/**
+ * Request geolocation permission
+ */
+async function requestGeolocationPermission() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ 
+        granted: false, 
+        error: 'Geolocation is not supported by your browser' 
+      });
+      return;
+    }
+    
+    // Check if permission is already granted by trying to get position
+    navigator.geolocation.getCurrentPosition(
+      () => {
+        resolve({ granted: true });
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          resolve({ 
+            granted: false, 
+            error: 'Location permission denied. Please enable location access in your browser settings.' 
+          });
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          resolve({ 
+            granted: false, 
+            error: 'Location information unavailable. Please check your device settings.' 
+          });
+        } else {
+          resolve({ 
+            granted: false, 
+            error: `Location error: ${error.message}` 
+          });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+    );
+  });
 }
 
 /**
  * Get current location and show on map
  */
 async function getLocation() {
+  // First request permission
+  const permission = await requestGeolocationPermission();
+  if (!permission.granted) {
+    return { 
+      success: false, 
+      error: permission.error || 'Location permission denied' 
+    };
+  }
+  
   return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve({ 
-        success: false, 
-        error: 'Geolocation is not supported by your browser' 
-      });
-      return;
-    }
-    
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
@@ -239,20 +314,71 @@ async function getLocation() {
         
         resolve({
           success: true,
-          message: `Your location: ${address}`,
+          message: `Opening map with your location: ${address}`,
           location: { latitude, longitude, address },
           action: 'location_shared'
         });
       },
       (error) => {
+        let errorMsg = 'Failed to get location';
+        if (error.code === error.PERMISSION_DENIED) {
+          errorMsg = 'Location permission denied. Please enable location access in your browser settings and try again.';
+        } else if (error.code === error.POSITION_UNAVAILABLE) {
+          errorMsg = 'Location information unavailable. Please check your device location settings.';
+        } else if (error.code === error.TIMEOUT) {
+          errorMsg = 'Location request timed out. Please try again.';
+        } else {
+          errorMsg = `Location error: ${error.message}`;
+        }
         resolve({
           success: false,
-          error: `Location access denied: ${error.message}`
+          error: errorMsg
         });
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   });
+}
+
+/**
+ * Request notification permission
+ */
+async function requestNotificationPermissionForAlarm() {
+  if (!('Notification' in window)) {
+    return { 
+      granted: false, 
+      error: 'Notifications are not supported by your browser' 
+    };
+  }
+  
+  if (Notification.permission === 'granted') {
+    return { granted: true };
+  }
+  
+  if (Notification.permission === 'denied') {
+    return { 
+      granted: false, 
+      error: 'Notification permission denied. Please enable notifications in your browser settings to receive alarm alerts.' 
+    };
+  }
+  
+  // Request permission
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      return { granted: true };
+    } else {
+      return { 
+        granted: false, 
+        error: 'Notification permission denied. Alarms will be saved but you won\'t receive alerts.' 
+      };
+    }
+  } catch (err) {
+    return { 
+      granted: false, 
+      error: `Failed to request notification permission: ${err.message}` 
+    };
+  }
 }
 
 /**
@@ -266,7 +392,11 @@ async function setAlarm(timeStr) {
       return { success: false, error: 'Could not parse time. Please specify time like "3:30 PM" or "15:30"' };
     }
     
-    // Store alarm in localStorage (for now - could use Web Notifications API)
+    // Request notification permission first
+    const notificationPermission = await requestNotificationPermissionForAlarm();
+    const hasNotificationPermission = notificationPermission.granted;
+    
+    // Store alarm in localStorage
     const alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
     const alarm = {
       id: Date.now(),
@@ -277,21 +407,19 @@ async function setAlarm(timeStr) {
     alarms.push(alarm);
     localStorage.setItem('alarms', JSON.stringify(alarms));
     
-    // Schedule notification if supported
-    if ('Notification' in window && Notification.permission === 'granted') {
+    // Schedule notification if permission granted
+    if (hasNotificationPermission) {
       scheduleNotification(time, `Alarm: ${timeStr}`);
-    } else if ('Notification' in window && Notification.permission !== 'denied') {
-      // Request permission
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          scheduleNotification(time, `Alarm: ${timeStr}`);
-        }
-      });
+    }
+    
+    let message = `Alarm set for ${time.toLocaleTimeString()}`;
+    if (!hasNotificationPermission && notificationPermission.error) {
+      message += `. Note: ${notificationPermission.error}`;
     }
     
     return {
       success: true,
-      message: `Alarm set for ${time.toLocaleTimeString()}`,
+      message: message,
       alarm: alarm,
       action: 'alarm_set'
     };
