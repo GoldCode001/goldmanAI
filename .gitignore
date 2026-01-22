@@ -71,3 +71,6 @@ coverage/
 # Production builds
 *.production.js
 *.production.css
+
+# Gemini app reference code
+geminiapp/
