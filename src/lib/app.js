@@ -56,6 +56,8 @@ let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
 let currentMood = 'NEUTRAL'; // For canvas face
 let currentAudioLevel = 0; // Current audio amplitude for face animation
+let geminiGenAI = null; // Track if Gemini is initialized
+let geminiModel = null;
 
 /* ================= BOOT ================= */
 
