@@ -675,6 +675,17 @@ You can help the user with device actions. When they request these, acknowledge 
 When the user requests these actions, acknowledge briefly (e.g., "Calling now...", "Opening map...", "Setting alarm...") and the system will execute them automatically.`;
       
       const initialized = await initGeminiLive(apiKey, {
+        onUserTranscript: async (userText) => {
+          // Detect actions from USER's speech (not AI's response)
+          console.log('User transcript received:', userText);
+          const action = parseActionRequest(userText);
+          if (action) {
+            console.log('Action detected from user:', action);
+            // Show confirmation modal
+            const { showActionModal } = await import('../components/actionModal.js');
+            await showActionModal(action, null);
+          }
+        },
         onAudioLevel: (amplitude) => {
           // Store current audio level
           currentAudioLevel = amplitude;
@@ -723,14 +734,8 @@ When the user requests these actions, acknowledge briefly (e.g., "Calling now...
             };
             updateMessages([newMessage]);
             
-            // Check for device action requests
-            const action = parseActionRequest(text);
-            if (action) {
-              console.log('Action detected:', action);
-              // Show confirmation modal instead of executing immediately
-              const { showActionModal } = await import('../components/actionModal.js');
-              showActionModal(action, null);
-            }
+            // Note: Action detection is now handled in onUserTranscript callback
+            // This onTranscript callback only receives AI responses
             
             // Set facial expression based on text
             const emotion = setExpressionFromText(text);
