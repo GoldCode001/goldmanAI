@@ -645,33 +645,33 @@ You are more "smart companion" than "chaotic teenager".`;
       
       const initialized = await initGeminiLive(apiKey, {
         onAudioLevel: (amplitude) => {
-        // Store current audio level
-        currentAudioLevel = amplitude;
-        
-        // Update canvas face with audio level and current text
-        // Estimate speech progress based on time (simple approximation)
-        const progress = window.speechStartTime 
-          ? Math.min((Date.now() - window.speechStartTime) / (window.currentSpeechDuration || 3000), 1)
-          : 0;
-        
-        updateFaceState(currentMood, amplitude, true, window.currentSpeechText || '', progress);
-        
-        if (amplitude > 0.1) {
-          if (!isAISpeaking) {
-            isAISpeaking = true;
-            currentMood = 'HAPPY'; // Set mood when speaking
-            window.speechStartTime = Date.now();
+          // Store current audio level
+          currentAudioLevel = amplitude;
+          
+          // Update canvas face with audio level and current text
+          // Estimate speech progress based on time (simple approximation)
+          const progress = window.speechStartTime 
+            ? Math.min((Date.now() - window.speechStartTime) / (window.currentSpeechDuration || 3000), 1)
+            : 0;
+          
+          updateFaceState(currentMood, amplitude, true, window.currentSpeechText || '', progress);
+          
+          if (amplitude > 0.1) {
+            if (!isAISpeaking) {
+              isAISpeaking = true;
+              currentMood = 'HAPPY'; // Set mood when speaking
+              window.speechStartTime = Date.now();
+            }
+          } else {
+            if (isAISpeaking) {
+              isAISpeaking = false;
+              currentMood = 'NEUTRAL';
+              window.speechStartTime = null;
+              window.currentSpeechText = '';
+            }
           }
-        } else {
-          if (isAISpeaking) {
-            isAISpeaking = false;
-            currentMood = 'NEUTRAL';
-            window.speechStartTime = null;
-            window.currentSpeechText = '';
-          }
-        }
-      },
-      onTranscript: async (text) => {
+        },
+        onTranscript: async (text) => {
           // Show transcript updates from Gemini
           if (text && text.trim()) {
             showTranscript(`PAL: ${text}`);
@@ -696,44 +696,43 @@ You are more "smart companion" than "chaotic teenager".`;
             
             // Update face with text for viseme detection
             updateFaceState(currentMood, currentAudioLevel || 0, true, text, 0);
-          
-          // Save AI message to database
-          try {
-            let encryptedContent = null;
-            if (window.currentUser?.isCrypto && window.sessionKey) {
-              encryptedContent = await encryptMessage(text, window.sessionKey);
-            }
             
-            await fetch(`${API}/api/message`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chatId: window.currentChatId,
-                role: "assistant",
-                content: text,
-                encryptedContent: encryptedContent,
-                userId: window.currentUser?.id,
-                language: (await getUserMemory())?.language || "en"
-              })
-            });
-            
-            // Extract memory from conversation (check for "remember this" / "don't forget")
+            // Save AI message to database
             try {
-              const decryptedHistory = await getDecryptedHistory(window.currentChatId);
-              const allMessages = [
-                ...decryptedHistory,
-                { role: "assistant", content: text }
-              ];
-              await learnFromConversation(allMessages);
+              let encryptedContent = null;
+              if (window.currentUser?.isCrypto && window.sessionKey) {
+                encryptedContent = await encryptMessage(text, window.sessionKey);
+              }
+              
+              await fetch(`${API}/api/message`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chatId: window.currentChatId,
+                  role: "assistant",
+                  content: text,
+                  encryptedContent: encryptedContent,
+                  userId: window.currentUser?.id,
+                  language: (await getUserMemory())?.language || "en"
+                })
+              });
+              
+              // Extract memory from conversation (check for "remember this" / "don't forget")
+              try {
+                const decryptedHistory = await getDecryptedHistory(window.currentChatId);
+                const allMessages = [
+                  ...decryptedHistory,
+                  { role: "assistant", content: text }
+                ];
+                await learnFromConversation(allMessages);
+              } catch (err) {
+                console.error('Failed to learn from conversation:', err);
+              }
             } catch (err) {
-              console.error('Failed to learn from conversation:', err);
+              console.error('Failed to save AI message:', err);
             }
-          } catch (err) {
-            console.error('Failed to save AI message:', err);
           }
-          }
-        }
-      },
+        },
       onError: (error) => {
         console.error('Gemini Live error:', error);
         showTranscript(`Error: ${error.message}`);
@@ -762,7 +761,7 @@ You are more "smart companion" than "chaotic teenager".`;
   } catch (err) {
     console.error('Failed to start listening:', err);
     showTranscript(`Error: ${err.message}`);
-    stopSpeaking();
+    // stopSpeaking(); // Function doesn't exist - removed
   }
 }
 
