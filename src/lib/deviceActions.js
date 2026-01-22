@@ -191,32 +191,24 @@ async function makeCall(phoneNumber) {
       return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
     }
     
-    // For iOS Chrome, use direct tel: link with user interaction
     const telUrl = `tel:${cleanNumber}`;
     
-    // Try using window.location for iOS (more reliable)
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS) {
-      // Create a temporary link and click it
+    // For iOS Chrome, window.location.href works better than link.click()
+    // Direct navigation is more reliable
+    try {
+      window.location.href = telUrl;
+    } catch (err) {
+      // Fallback: try creating a link
       const link = document.createElement('a');
       link.href = telUrl;
-      link.style.position = 'fixed';
-      link.style.top = '-1000px';
-      link.style.display = 'block';
+      link.target = '_self';
       document.body.appendChild(link);
-      
-      // Use setTimeout to ensure it's in the DOM
+      link.click();
       setTimeout(() => {
-        link.click();
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-        }, 100);
-      }, 10);
-    } else {
-      // For Android/other, use window.location
-      window.location.href = telUrl;
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 100);
     }
     
     return { 
@@ -245,26 +237,21 @@ async function sendText(phoneNumber, message = '') {
       ? `sms:${cleanNumber}?body=${encodeURIComponent(message)}`
       : `sms:${cleanNumber}`;
     
-    // For iOS Chrome, use direct link click
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS) {
+    // Direct navigation works better on iOS Chrome
+    try {
+      window.location.href = smsUrl;
+    } catch (err) {
+      // Fallback: try creating a link
       const link = document.createElement('a');
       link.href = smsUrl;
-      link.style.position = 'fixed';
-      link.style.top = '-1000px';
-      link.style.display = 'block';
+      link.target = '_self';
       document.body.appendChild(link);
-      
+      link.click();
       setTimeout(() => {
-        link.click();
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-        }, 100);
-      }, 10);
-    } else {
-      window.location.href = smsUrl;
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+      }, 100);
     }
     
     return { 

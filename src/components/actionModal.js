@@ -270,14 +270,27 @@ async function confirmAction() {
     console.log('Action result:', result);
     
     if (result.success) {
-      // Show success message briefly
+      // Show success message - user closes manually
       actionModalMessage.textContent = result.message || 'Action executed successfully!';
       actionModalMessage.style.color = '#4CAF50';
       
-      // Hide after 2 seconds
-      setTimeout(() => {
-        hideActionModal();
-      }, 2000);
+      // Don't auto-close - let user close when ready
+      // Re-enable buttons so user can close
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+      
+      // Change confirm button to "Close" for map actions
+      if (currentAction && (currentAction.type === 'show_map' || currentAction.type === 'get_location')) {
+        if (confirmBtn) {
+          confirmBtn.textContent = 'Close';
+          confirmBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            hideActionModal();
+          };
+        }
+      }
     } else {
       // Show error
       actionModalMessage.textContent = result.error || 'Action failed';
