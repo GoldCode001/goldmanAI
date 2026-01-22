@@ -112,6 +112,7 @@ export async function showActionModal(action, result) {
   }
   
   actionModalMessage.textContent = message;
+  actionModalMessage.style.color = '#ccc';
   
   // Show/hide save button based on action type
   const saveBtn = document.getElementById('actionModalSave');
@@ -119,41 +120,37 @@ export async function showActionModal(action, result) {
     saveBtn.style.display = showSave ? 'inline-block' : 'none';
   }
   
-  // Re-bind button events to ensure they work (fix for button clicks not working)
+  // Use direct onclick assignment (more reliable on iOS Chrome)
   const confirmBtn = document.getElementById('actionModalConfirm');
   const saveBtnEl = document.getElementById('actionModalSave');
   const cancelBtn = document.getElementById('actionModalCancel');
   
-  // Remove all existing listeners by cloning and replacing
   if (confirmBtn) {
-    const newConfirmBtn = confirmBtn.cloneNode(true);
-    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-    document.getElementById('actionModalConfirm').addEventListener('click', confirmAction);
+    confirmBtn.disabled = false;
+    confirmBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      confirmAction();
+    };
   }
+  
   if (saveBtnEl) {
-    const newSaveBtn = saveBtnEl.cloneNode(true);
-    saveBtnEl.parentNode.replaceChild(newSaveBtn, saveBtnEl);
-    const newSaveBtnEl = document.getElementById('actionModalSave');
-    if (newSaveBtnEl) {
-      newSaveBtnEl.addEventListener('click', saveAction);
-    }
+    saveBtnEl.disabled = false;
+    saveBtnEl.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      saveAction();
+    };
   }
+  
   if (cancelBtn) {
-    const newCancelBtn = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-    document.getElementById('actionModalCancel').addEventListener('click', hideActionModal);
+    cancelBtn.disabled = false;
+    cancelBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideActionModal();
+    };
   }
-  
-  // Reset message color
-  actionModalMessage.style.color = '#ccc';
-  
-  // Re-enable buttons
-  const finalConfirmBtn = document.getElementById('actionModalConfirm');
-  const finalSaveBtn = document.getElementById('actionModalSave');
-  const finalCancelBtn = document.getElementById('actionModalCancel');
-  if (finalConfirmBtn) finalConfirmBtn.disabled = false;
-  if (finalSaveBtn) finalSaveBtn.disabled = false;
-  if (finalCancelBtn) finalCancelBtn.disabled = false;
   
   // Show modal
   actionModal.classList.remove('hidden');
