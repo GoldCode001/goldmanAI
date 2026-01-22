@@ -27,8 +27,7 @@ import {
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { encryptMessage, decryptMessage } from "./encryption.js";
-import { VoiceActivityDetector } from "./voiceActivityDetection.js";
-import { speak, playAudio, sing, stopAudio } from "./textToSpeech.js";
+import { initGeminiLive, startGeminiLive, stopGeminiLive, isGeminiLiveConnected } from "./geminiLive.js";
 import {
   shouldShowInline,
   extractInlineContent,
@@ -43,10 +42,11 @@ const API = "https://aibackend-production-a44f.up.railway.app";
 window.currentChatId = null;
 window.chatCache = [];
 
-// Voice state
-let vad = null;
+// Voice state (Gemini Live)
+let geminiGenAI = null;
+let geminiModel = null;
 let isListening = false;
-let isAISpeaking = false; // Prevent overlapping AI responses
+let isAISpeaking = false; // Track if AI is speaking
 
 /* ================= BOOT ================= */
 
@@ -538,103 +538,105 @@ async function handleFaceTap() {
 }
 
 /**
- * Start continuous listening with VAD
+ * Start Gemini Live (replaces VAD + TTS pipeline)
  */
-function startListening() {
-  if (!vad) {
-    // Initialize VAD with callbacks
-    vad = new VoiceActivityDetector(
-      // onTranscript callback - when user stops speaking
-      async (text) => {
-        console.log('User said:', text);
+async function startListening() {
+  try {
+    // Get Gemini API key from backend
+    const keyRes = await fetch(`${API}/api/gemini/key`);
+    if (!keyRes.ok) {
+      throw new Error('Failed to get Gemini API key');
+    }
+    const { apiKey } = await keyRes.json();
 
-        // Ignore if AI is currently speaking (prevent overlapping responses)
-        if (isAISpeaking) {
-          console.log('AI is speaking, ignoring user input');
-          // Actually, we should allow interruption here too if they kept talking
-          // But for now, the onSpeechStart handles the interruption of playback
-          return;
+    // Initialize Gemini Live if not already done
+    if (!geminiGenAI || !geminiModel) {
+      const result = await initGeminiLive(apiKey, {
+        onAudioLevel: (amplitude) => {
+          // Real-time lip sync from Gemini's audio output
+          updateMouth(amplitude);
+          if (amplitude > 0.1) {
+            if (!isAISpeaking) {
+              isAISpeaking = true;
+              startSpeaking(); // Update face animation
+            }
+          } else {
+            if (isAISpeaking) {
+              isAISpeaking = false;
+              stopSpeaking();
+            }
+          }
+        },
+        onTranscript: async (text) => {
+          // Show transcript updates from Gemini
+          if (text && text.trim()) {
+            showTranscript(`PAL: ${text}`);
+            // Set facial expression based on text
+            setExpressionFromText(text);
+            
+            // Save AI message to database
+            try {
+              let encryptedContent = null;
+              if (window.currentUser?.isCrypto && window.sessionKey) {
+                encryptedContent = await encryptMessage(text, window.sessionKey);
+              }
+              
+              await fetch(`${API}/api/message`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chatId: window.currentChatId,
+                  role: "assistant",
+                  content: text,
+                  encryptedContent: encryptedContent
+                })
+              });
+            } catch (err) {
+              console.error('Failed to save AI message:', err);
+            }
+          }
+        },
+        onError: (error) => {
+          console.error('Gemini Live error:', error);
+          showTranscript(`Error: ${error.message}`);
+          setTimeout(() => {
+            stopListening();
+            hideTranscript();
+          }, 3000);
         }
+      });
 
-        // Show what user said
-        showTranscript(`You: ${text}`);
-
-        // Send to AI
-        await sendMessage(text);
-
-        // Stay in listening mode for follow-up
-        if (isListening) {
-          startRecording(); // Visual indicator we're still listening
-        }
-      },
-      // onError callback
-      (error) => {
-        console.error('VAD error:', error);
-        showTranscript(`Error: ${error}`);
-        setTimeout(() => {
-          stopListening();
-          hideTranscript();
-        }, 3000);
-      },
-      // onSpeechStart callback - when user STARTS speaking
-      () => {
-        console.log('User started speaking - interrupting AI');
-        stopSpeaking(); // Stop face animation
-        stopAudio();    // Stop audio playback immediately
-        isAISpeaking = false; // Reset flag so we can process new input
+      if (!result) {
+        throw new Error('Failed to initialize Gemini Live');
       }
-    );
-  }
 
-  const started = vad.start();
+      geminiGenAI = result.genAI;
+      geminiModel = result.model;
+    }
 
-  if (started) {
-    isListening = true;
-    startRecording(); // Update face animation
-    console.log('Started continuous listening mode');
-  } else {
-    stopSpeaking(); // Reset to idle if failed
+    // Start Gemini Live connection
+    const started = await startGeminiLive(geminiGenAI, geminiModel);
+
+    if (started) {
+      isListening = true;
+      startRecording(); // Update face animation
+      console.log('Started Gemini Live');
+    } else {
+      throw new Error('Failed to start Gemini Live');
+    }
+  } catch (err) {
+    console.error('Failed to start listening:', err);
+    showTranscript(`Error: ${err.message}`);
+    stopSpeaking();
   }
 }
 
 /**
- * Stop listening mode
+ * Stop Gemini Live
  */
 function stopListening() {
-  if (vad) {
-    vad.stop();
-  }
-
+  stopGeminiLive();
   isListening = false;
   stopSpeaking(); // Reset face to idle
-  console.log('Stopped listening mode');
-}
-
-/**
- * Speak AI response with face animation
- */
-async function speakResponse(text, language = "en") {
-  try {
-    isAISpeaking = true;
-
-    // Generate speech audio with user's language
-    const audioUrl = await speak(text, language);
-
-    // Start face animation
-    startSpeaking();
-
-    // Play audio with mouth sync
-    await playAudio(audioUrl, (amplitude) => {
-      updateMouth(amplitude);
-    });
-
-    // Stop face animation
-    stopSpeaking();
-  } catch (err) {
-    console.error('TTS failed:', err);
-    // Don't block the UI if TTS fails
-    stopSpeaking();
-  } finally {
-    isAISpeaking = false;
-  }
+  console.log('Stopped Gemini Live');
 }
