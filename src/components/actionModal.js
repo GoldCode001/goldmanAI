@@ -52,7 +52,7 @@ export function initActionModal() {
 /**
  * Show action modal with action details
  */
-export function showActionModal(action, result) {
+export async function showActionModal(action, result) {
   if (!actionModal || !actionModalContent) {
     console.error('Action modal not initialized');
     return;
