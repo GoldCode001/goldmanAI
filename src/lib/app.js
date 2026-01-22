@@ -508,7 +508,7 @@ async function sendMessage(text) {
     console.error('sendMessage error:', err);
     showTranscript(`Error: ${err.message}`);
     setTimeout(() => {
-      stopSpeaking(); // Reset to idle
+      // stopSpeaking(); // Function doesn't exist - removed
       hideTranscript();
     }, 3000);
   }
