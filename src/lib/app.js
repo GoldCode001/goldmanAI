@@ -45,6 +45,7 @@ import {
   initInlineOutput
 } from "./inlineOutput.js";
 import { learnFromConversation, getUserMemory } from "./memory.js";
+import { parseActionRequest, executeAction, requestNotificationPermission } from "./deviceActions.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
