@@ -72,12 +72,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   showMainApp();
   await ensureUser(user);
   await loadChats(user.id);
-
   bindAppEvents();
-
-  // Initialize face with tap-to-talk handler (starts blinking automatically)
-  initAssistantFace(handleFaceTap);
-
+  
+  // Initialize new canvas-based face and chat overlay
+  initCanvasFace();
+  initChatOverlay();
+  
+  // Setup activate/disconnect handlers
+  window.onActivatePal = handleFaceTap;
+  window.onDisconnectPal = () => {
+    stopListening();
+  };
+  
   // Initialize inline output panel
   initInlineOutput();
 });
