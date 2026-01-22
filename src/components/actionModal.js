@@ -61,16 +61,19 @@ export function showActionModal(action, result) {
   currentAction = action;
   currentActionResult = result;
   
+  // Import ActionTypes to match action types
+  const { ActionTypes } = await import('../lib/deviceActions.js');
+  
   // Set title based on action type
   const titles = {
-    'show_map': 'Location Request',
-    'get_location': 'Get Location',
-    'make_call': 'Make Call',
-    'emergency_call': 'Emergency Call',
-    'send_text': 'Send Text Message',
-    'set_alarm': 'Set Alarm',
-    'check_calendar': 'Calendar Access',
-    'add_event': 'Add Calendar Event'
+    [ActionTypes.SHOW_MAP]: 'Location Request',
+    [ActionTypes.GET_LOCATION]: 'Get Location',
+    [ActionTypes.MAKE_CALL]: 'Make Call',
+    [ActionTypes.EMERGENCY_CALL]: 'Emergency Call',
+    [ActionTypes.SEND_TEXT]: 'Send Text Message',
+    [ActionTypes.SET_ALARM]: 'Set Alarm',
+    [ActionTypes.CHECK_CALENDAR]: 'Calendar Access',
+    [ActionTypes.ADD_EVENT]: 'Add Calendar Event'
   };
   
   actionModalTitle.textContent = titles[action.type] || 'Action Confirmation';
@@ -80,27 +83,27 @@ export function showActionModal(action, result) {
   let showSave = false;
   
   switch (action.type) {
-    case 'make_call':
+    case ActionTypes.MAKE_CALL:
       message = `Call ${formatPhoneNumber(action.params.number)}?`;
       break;
-    case 'emergency_call':
+    case ActionTypes.EMERGENCY_CALL:
       message = 'Call 911 (Emergency Services)?';
       break;
-    case 'send_text':
+    case ActionTypes.SEND_TEXT:
       message = `Send text to ${formatPhoneNumber(action.params.number)}${action.params.message ? `:\n"${action.params.message}"` : ''}?`;
       break;
-    case 'show_map':
-    case 'get_location':
+    case ActionTypes.SHOW_MAP:
+    case ActionTypes.GET_LOCATION:
       message = 'Show your current location on map?';
       break;
-    case 'set_alarm':
+    case ActionTypes.SET_ALARM:
       message = `Set alarm for ${action.params.time}?`;
       showSave = true;
       break;
-    case 'check_calendar':
+    case ActionTypes.CHECK_CALENDAR:
       message = 'Open calendar to view your schedule?';
       break;
-    case 'add_event':
+    case ActionTypes.ADD_EVENT:
       message = `Add event: "${action.params.description}"?`;
       showSave = true;
       break;
@@ -145,6 +148,14 @@ export function hideActionModal() {
 async function confirmAction() {
   if (!currentAction) return;
   
+  // Disable buttons during execution
+  const confirmBtn = document.getElementById('actionModalConfirm');
+  const saveBtn = document.getElementById('actionModalSave');
+  const cancelBtn = document.getElementById('actionModalCancel');
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (saveBtn) saveBtn.disabled = true;
+  if (cancelBtn) cancelBtn.disabled = true;
+  
   // Execute the action
   const { executeAction } = await import('../lib/deviceActions.js');
   const result = await executeAction(currentAction);
@@ -162,6 +173,11 @@ async function confirmAction() {
     // Show error
     actionModalMessage.textContent = result.error || 'Action failed';
     actionModalMessage.style.color = '#ef4444';
+    
+    // Re-enable buttons
+    if (confirmBtn) confirmBtn.disabled = false;
+    if (saveBtn) saveBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
   }
 }
 
