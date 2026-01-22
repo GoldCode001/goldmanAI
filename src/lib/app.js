@@ -26,6 +26,7 @@ import {
 
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
+import { encryptMessage, decryptMessage } from "./encryption.js";
 import { VoiceActivityDetector } from "./voiceActivityDetection.js";
 import { speak, playAudio, sing, stopAudio } from "./textToSpeech.js";
 import {
@@ -156,8 +157,25 @@ async function loadConversationHistory() {
       return;
     }
 
+    // Decrypt messages if needed
+    const processedMessages = await Promise.all(messages.map(async msg => {
+      let content = msg.content;
+      // Check if message looks encrypted (Base64) and we have a key
+      // Simple heuristic: no spaces, ends with =, long string
+      // Or just try decrypting if we are in crypto mode
+      if (window.currentUser?.isCrypto && window.sessionKey) {
+        // We assume all messages in this mode are encrypted or we try to decrypt
+        // If decryption fails, it returns the original or error text
+        const decrypted = await decryptMessage(content, window.sessionKey);
+        if (decrypted && decrypted !== '[Encrypted Message]') {
+          content = decrypted;
+        }
+      }
+      return { ...msg, content };
+    }));
+
     // Render messages
-    container.innerHTML = messages.map(msg => {
+    container.innerHTML = processedMessages.map(msg => {
       const timestamp = new Date(msg.created_at).toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
@@ -267,13 +285,19 @@ async function sendMessage(text) {
     // Send user message - backend handles AI response automatically
     console.log('Sending message to backend:', text);
 
+    let encryptedContent = null;
+    if (window.currentUser?.isCrypto && window.sessionKey) {
+      encryptedContent = await encryptMessage(text, window.sessionKey);
+    }
+
     const res = await fetch(`${API}/api/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chatId: window.currentChatId,
         role: "user",
-        content: text
+        content: text, // Plain text for AI context (if backend updated)
+        encryptedContent: encryptedContent // Encrypted for storage
       })
     });
 
@@ -286,7 +310,13 @@ async function sendMessage(text) {
     const data = await res.json();
     console.log('Backend response:', data);
 
-    const aiResponse = data.content; // Backend returns AI response
+    let aiResponse = data.content; // Backend returns AI response
+
+    // If backend returned encrypted response (future proofing), decrypt it
+    if (data.encryptedContent && window.currentUser?.isCrypto && window.sessionKey) {
+       const decrypted = await decryptMessage(data.encryptedContent, window.sessionKey);
+       if (decrypted) aiResponse = decrypted;
+    }
 
     if (!aiResponse) {
       throw new Error('No AI response received');

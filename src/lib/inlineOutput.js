@@ -70,7 +70,8 @@ export function showInlineOutput(content) {
   const face = document.getElementById('assistantFace');
   if (face) {
     face.style.opacity = '0.3';
-    face.style.transform = 'scale(0.6)';
+    // Maintain centering while scaling down
+    face.style.transform = 'translate(-50%, -50%) scale(0.6)';
     face.style.transition = 'all 0.3s ease';
   }
 }
@@ -88,7 +89,8 @@ export function hideInlineOutput() {
   const face = document.getElementById('assistantFace');
   if (face) {
     face.style.opacity = '1';
-    face.style.transform = 'scale(1)';
+    // Maintain centering while restoring scale
+    face.style.transform = 'translate(-50%, -50%) scale(1)';
     face.style.transition = 'all 0.3s ease';
   }
 }
