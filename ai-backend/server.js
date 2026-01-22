@@ -8,18 +8,16 @@ import { enhanceForSpeech } from "./speechEnhancer.js";
 
 const app = express();
 
-// ElevenLabs Config
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-// "Mark" - Natural Conversations (Casual, Young Adult)
-const ELEVENLABS_VOICE_ID = "WTUK291rZZ9CLPCiFTfh"; 
-const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY; // Keep for STT
+// Cartesia Config
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
 
-if (!ELEVENLABS_API_KEY) {
-  console.warn("ELEVENLABS_API_KEY not set in environment variables");
-}
 if (!CARTESIA_API_KEY) {
-  console.warn("CARTESIA_API_KEY not set in environment variables (needed for STT)");
+  console.warn("CARTESIA_API_KEY not set in environment variables");
 }
+
+// "Friendly Reading Man" (Commonly used in Cartesia demos)
+// This ID corresponds to "Friendly Reading Man" (Sonic)
+const CARTESIA_VOICE_ID = "692a1c92-b77e-4691-8f9d-1fb2a18acfc6"; // Friendly Reading Man
 
 app.use(cors());
 app.use(express.json());
@@ -328,7 +326,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   }
 });
 
-/* ========= TEXT-TO-SPEECH (ElevenLabs Turbo v2.5) ========= */
+/* ========= TEXT-TO-SPEECH (Cartesia Sonic) ========= */
 
 app.post("/api/tts", async (req, res) => {
   try {
@@ -337,38 +335,36 @@ app.post("/api/tts", async (req, res) => {
       return res.status(400).json({ error: "text required" });
     }
 
-    // Step 1: Enhance text (Keep this, it helps with formatting)
-    const enhanced = enhanceForSpeech(text);
-    const textToSpeak = text; // Bypass enhancement for natural voice
-    
-    console.log('Calling ElevenLabs TTS for:', enhanced.substring(0, 50));
+    console.log('Calling Cartesia TTS for:', text.substring(0, 50));
 
-    // ElevenLabs Streaming API
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}/stream`,
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
-          "Content-Type": "application/json",
+    // Cartesia TTS API (bytes endpoint for streaming)
+    // Docs: https://docs.cartesia.ai/api-reference/endpoints/tts-bytes
+    const response = await fetch("https://api.cartesia.ai/tts/bytes", {
+      method: "POST",
+      headers: {
+        "X-API-Key": CARTESIA_API_KEY,
+        "Cartesia-Version": "2024-06-10",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model_id: "sonic-english",
+        transcript: text,
+        voice: {
+          mode: "id",
+          id: CARTESIA_VOICE_ID
         },
-        body: JSON.stringify({
-          text: textToSpeak,
-          model_id: "eleven_multilingual_v2", // Better prosody/quality than turbo
-          voice_settings: {
-            stability: 0.45,      // Lower stability for more natural variation (was 0.5)
-            similarity_boost: 0.75, // Keep identity strong
-            style: 0.0,           // Keep style low to avoid "performance" artifacting
-            use_speaker_boost: true
-          }
-        }),
-      }
-    );
+        output_format: {
+          container: "mp3",
+          encoding: "mp3",
+          sample_rate: 44100
+        }
+      }),
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('ElevenLabs API error:', response.status, errorText);
-      throw new Error(`ElevenLabs TTS failed: ${response.status} - ${errorText}`);
+      console.error('Cartesia TTS API error:', response.status, errorText);
+      throw new Error(`Cartesia TTS failed: ${response.status} - ${errorText}`);
     }
 
     // Set headers for streaming response
@@ -380,7 +376,7 @@ app.post("/api/tts", async (req, res) => {
       response.body.pipe(res);
       
       response.body.on('end', () => {
-        console.log('TTS streaming completed');
+        console.log('Cartesia TTS streaming completed');
       });
 
       response.body.on('error', (err) => {
@@ -388,7 +384,7 @@ app.post("/api/tts", async (req, res) => {
         res.end();
       });
     } else {
-      throw new Error('No response body from ElevenLabs');
+      throw new Error('No response body from Cartesia');
     }
 
   } catch (err) {
