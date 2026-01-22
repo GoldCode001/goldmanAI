@@ -487,7 +487,8 @@ async function sendMessage(text) {
       showInlineOutput(inlineContent);
 
       // Speak the summary instead of full response
-      showTranscript(`PAL: ${summary}`);
+      const aiNameForSummary = (await getUserMemory())?.aiName || 'PAL';
+      showTranscript(`${aiNameForSummary}: ${summary}`);
       await speakResponse(summary, responseLanguage);
     } else {
       // Normal voice response
