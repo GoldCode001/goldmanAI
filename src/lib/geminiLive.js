@@ -243,6 +243,9 @@ You are more "smart companion" than "chaotic teenager".
     
     // Start audio level monitoring for lip sync
     startAudioLevelMonitoring();
+    
+    // Start user speech recognition for action detection
+    startUserSpeechRecognition();
 
     isConnected = true;
     console.log('Gemini Live started and connected');
