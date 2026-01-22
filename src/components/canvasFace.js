@@ -314,13 +314,18 @@ function render() {
     );
   }
   
-  ctx.closePath();
-  ctx.fill();
+    ctx.closePath();
+    ctx.fill();
 
-  // Reset shadow
-  ctx.shadowBlur = 0;
+    // Reset shadow
+    ctx.shadowBlur = 0;
 
-  frameId = requestAnimationFrame(render);
+    frameId = requestAnimationFrame(render);
+  } catch (err) {
+    console.error('Error in render loop:', err);
+    // Continue render loop even if there's an error
+    frameId = requestAnimationFrame(render);
+  }
 }
 
 /**
