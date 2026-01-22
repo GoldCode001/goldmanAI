@@ -236,6 +236,10 @@ async function loadConversationHistory() {
       return { ...msg, content };
     }));
 
+    // Get AI name for display (once, outside the map)
+    const memory = await getUserMemory() || {};
+    const aiName = memory.aiName || 'PAL';
+
     // Render messages
     container.innerHTML = processedMessages.map(msg => {
       const timestamp = new Date(msg.created_at).toLocaleTimeString('en-US', {
@@ -243,10 +247,6 @@ async function loadConversationHistory() {
         minute: '2-digit',
         hour12: true
       });
-
-      // Get AI name for display
-      const memory = await getUserMemory() || {};
-      const aiName = memory.aiName || 'PAL';
       
       return `
         <div class="history-message ${msg.role}">
