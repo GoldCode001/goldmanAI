@@ -8,12 +8,15 @@ import { enhanceForSpeech } from "./speechEnhancer.js";
 
 const app = express();
 
-// Cartesia Config
-const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
+// Gemini Config
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-if (!CARTESIA_API_KEY) {
-  console.warn("CARTESIA_API_KEY not set in environment variables");
+if (!GEMINI_API_KEY) {
+  console.warn("GEMINI_API_KEY not set in environment variables");
 }
+
+// Cartesia Config (keeping for now, will remove after migration)
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY;
 
 // "Friendly Reading Man" (Commonly used in Cartesia demos)
 // This ID corresponds to "Friendly Reading Man" (Sonic)
@@ -52,6 +55,17 @@ app.post("/api/user", async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
+});
+
+/* ========= GEMINI API KEY ========= */
+
+app.get("/api/gemini/key", async (req, res) => {
+  // Return Gemini API key to frontend (it will be used client-side)
+  // In production, you might want to proxy requests instead
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+  }
+  res.json({ apiKey: GEMINI_API_KEY });
 });
 
 /* ========= USER MEMORY ========= */
