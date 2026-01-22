@@ -427,28 +427,7 @@ button:hover {
   height: 100%;
 }
 
-/* Transcript Section */
-.transcript-section {
-  position: absolute;
-  bottom: 8rem;
-  left: 0;
-  right: 0;
-  padding: 0 2rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: none;
-}
-
-.transcript-text {
-  max-width: 36rem;
-  text-align: center;
-  color: rgba(207, 250, 254, 0.5);
-  font-size: 0.875rem;
-  font-weight: 300;
-  font-style: italic;
-  display: none;
-}
+/* Transcript Section - REMOVED per user request */
 
 /* ==================== ASSISTANT FACE (Fixed Position, Expressive) ==================== */
 
