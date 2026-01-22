@@ -388,8 +388,9 @@ button:hover {
 .listening-text {
   font-size: 0.625rem;
   letter-spacing: 0.2em;
-  color: #f87171;
+  color: rgba(255, 255, 255, 0.6);
   text-transform: uppercase;
+  font-weight: 300;
 }
 
 .disconnect-button {
