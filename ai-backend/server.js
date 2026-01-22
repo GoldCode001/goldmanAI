@@ -467,22 +467,15 @@ app.post("/api/tts", async (req, res) => {
     }
 
     // Map language codes to Cartesia model IDs
-    // Default to English if not specified
+    // Note: Cartesia currently primarily supports sonic-english
+    // Other language models may not be available yet - defaulting to English for now
+    // The AI will still respond in the user's language, but TTS will use English voice
     const lang = language || "en";
-    const modelMap = {
-      "en": "sonic-english",
-      "es": "sonic-spanish",
-      "fr": "sonic-french",
-      "de": "sonic-german",
-      "it": "sonic-italian",
-      "pt": "sonic-portuguese",
-      "ja": "sonic-japanese",
-      "ko": "sonic-korean",
-      "zh": "sonic-chinese"
-    };
-    const modelId = modelMap[lang] || "sonic-english";
+    // For now, always use sonic-english (Cartesia's primary model)
+    // TODO: Add other language models when Cartesia supports them
+    const modelId = "sonic-english";
 
-    console.log('Calling Cartesia TTS for:', text.substring(0, 50), '(language:', lang, ')');
+    console.log('Calling Cartesia TTS for:', text.substring(0, 50), '(requested language:', lang, ', using model:', modelId, ')');
 
     // Cartesia TTS API (bytes endpoint for streaming)
     // Docs: https://docs.cartesia.ai/api-reference/endpoints/tts-bytes
