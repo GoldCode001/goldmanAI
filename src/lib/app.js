@@ -90,6 +90,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   // Initialize inline output panel
   initInlineOutput();
+  
+  // Request notification permission for alarms
+  requestNotificationPermission();
 });
 
 /* ================= EVENTS ================= */
@@ -703,6 +706,23 @@ You are more "smart companion" than "chaotic teenager".
               timestamp: Date.now()
             };
             updateMessages([newMessage]);
+            
+            // Check for device action requests
+            const action = parseActionRequest(text);
+            if (action) {
+              console.log('Action detected:', action);
+              const result = await executeAction(action);
+              if (result.success) {
+                console.log('Action executed:', result.message);
+                // Optionally show feedback to user
+                if (result.message) {
+                  showTranscript(`${currentAiName}: ${result.message}`);
+                }
+              } else {
+                console.error('Action failed:', result.error);
+                showTranscript(`${currentAiName}: ${result.error || 'Action failed'}`);
+              }
+            }
             
             // Set facial expression based on text
             const emotion = setExpressionFromText(text);
