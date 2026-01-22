@@ -84,6 +84,7 @@ export function parseActionRequest(text) {
 
 /**
  * Execute device action
+ * Uses native Capacitor APIs when available, falls back to web APIs
  */
 export async function executeAction(action) {
   if (!action || !action.type) {
@@ -91,6 +92,10 @@ export async function executeAction(action) {
   }
   
   try {
+    // Try native implementations first
+    const { getLocationNative, setAlarmNative, isNativePlatform } = await import('./deviceActionsNative.js');
+    const isNative = isNativePlatform();
+    
     switch (action.type) {
       case ActionTypes.EMERGENCY_CALL:
         return await makeEmergencyCall();
@@ -103,9 +108,19 @@ export async function executeAction(action) {
       
       case ActionTypes.SHOW_MAP:
       case ActionTypes.GET_LOCATION:
+        // Try native first, fallback to web
+        if (isNative) {
+          const nativeResult = await getLocationNative();
+          if (nativeResult) return nativeResult;
+        }
         return await getLocation();
       
       case ActionTypes.SET_ALARM:
+        // Try native first, fallback to web
+        if (isNative) {
+          const nativeResult = await setAlarmNative(action.params.time, `Alarm: ${action.params.time}`);
+          if (nativeResult) return nativeResult;
+        }
         return await setAlarm(action.params.time);
       
       case ActionTypes.CHECK_CALENDAR:
