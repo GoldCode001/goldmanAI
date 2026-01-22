@@ -154,6 +154,13 @@ function render() {
     let targetJaw = Math.min(rawVolume * 4.0, 1.0);
     
     // Debug: log audio level occasionally
+    if (window.faceDebugCount === undefined) window.faceDebugCount = 0;
+    if (window.faceDebugCount < 10 && rawVolume > 0.01) {
+      console.log('Face audio level:', rawVolume.toFixed(3), 'Target jaw:', targetJaw.toFixed(3), 'Current jaw:', state.jawOpenness.toFixed(3));
+      window.faceDebugCount++;
+    }
+    
+    // Debug: log audio level occasionally
     if (Math.random() < 0.01 && rawVolume > 0) {
       console.log('Face audio level:', rawVolume.toFixed(3), 'Target jaw:', targetJaw.toFixed(3));
     }
