@@ -311,7 +311,7 @@ Be the most human-like, natural audio companion possible.`
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://goldmanai.app",
+          "HTTP-Referer": "https://goldmanai-production.up.railway.app",
           "X-Title": "Goldman AI"
         },
         body: JSON.stringify({

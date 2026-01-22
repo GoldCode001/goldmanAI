@@ -2,7 +2,7 @@ import CoinbaseWalletSDK from "@coinbase/wallet-sdk";
 import { Wallet } from "ethers";
 
 const APP_NAME = "Goldman AI";
-const APP_LOGO_URL = "https://goldmanai.app/logo.png";
+const APP_LOGO_URL = "https://goldmanai-production.up.railway.app/logo.png";
 const BASE_RPC = "https://mainnet.base.org";
 
 let provider = null;
