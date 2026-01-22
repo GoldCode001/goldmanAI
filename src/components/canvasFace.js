@@ -275,7 +275,9 @@ function render() {
     const eyeBaseH = state.eyeHeight;
     const eyeY = centerY - 90 + state.lookY * 20;
     
-    const currentEyeH = eyeBaseH * (1 - state.blinkProgress) * (1 - state.eyeSquish);
+    // Laughter squints eyes more
+    const squishFactor = isLaughing ? Math.max(state.eyeSquish, 0.4) : state.eyeSquish;
+    const currentEyeH = eyeBaseH * (1 - state.blinkProgress) * (1 - squishFactor);
     
     const drawEye = (x, isRight) => {
       ctx.save();
