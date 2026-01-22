@@ -119,9 +119,48 @@ export async function showActionModal(action, result) {
     saveBtn.style.display = showSave ? 'inline-block' : 'none';
   }
   
+  // Re-bind button events to ensure they work (fix for button clicks not working)
+  const confirmBtn = document.getElementById('actionModalConfirm');
+  const saveBtnEl = document.getElementById('actionModalSave');
+  const cancelBtn = document.getElementById('actionModalCancel');
+  
+  // Remove all existing listeners by cloning and replacing
+  if (confirmBtn) {
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+    document.getElementById('actionModalConfirm').addEventListener('click', confirmAction);
+  }
+  if (saveBtnEl) {
+    const newSaveBtn = saveBtnEl.cloneNode(true);
+    saveBtnEl.parentNode.replaceChild(newSaveBtn, saveBtnEl);
+    const newSaveBtnEl = document.getElementById('actionModalSave');
+    if (newSaveBtnEl) {
+      newSaveBtnEl.addEventListener('click', saveAction);
+    }
+  }
+  if (cancelBtn) {
+    const newCancelBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+    document.getElementById('actionModalCancel').addEventListener('click', hideActionModal);
+  }
+  
+  // Reset message color
+  actionModalMessage.style.color = '#ccc';
+  
+  // Re-enable buttons
+  const finalConfirmBtn = document.getElementById('actionModalConfirm');
+  const finalSaveBtn = document.getElementById('actionModalSave');
+  const finalCancelBtn = document.getElementById('actionModalCancel');
+  if (finalConfirmBtn) finalConfirmBtn.disabled = false;
+  if (finalSaveBtn) finalSaveBtn.disabled = false;
+  if (finalCancelBtn) finalCancelBtn.disabled = false;
+  
   // Show modal
   actionModal.classList.remove('hidden');
-  actionModalContent.classList.add('show');
+  // Small delay to ensure transition works
+  setTimeout(() => {
+    actionModalContent.classList.add('show');
+  }, 10);
 }
 
 /**
