@@ -21,22 +21,15 @@ export function initActionModal() {
   actionModalMessage = document.getElementById('actionModalMessage');
   actionModalActions = document.getElementById('actionModalActions');
   
+  // Make functions globally accessible for iOS Chrome compatibility
+  window.confirmAction = confirmAction;
+  window.saveAction = saveAction;
+  window.hideActionModal = hideActionModal;
+  
   // Close button
   const closeBtn = document.getElementById('actionModalClose');
   if (closeBtn) {
-    closeBtn.addEventListener('click', hideActionModal);
-  }
-  
-  // Confirm button
-  const confirmBtn = document.getElementById('actionModalConfirm');
-  if (confirmBtn) {
-    confirmBtn.addEventListener('click', confirmAction);
-  }
-  
-  // Save button
-  const saveBtn = document.getElementById('actionModalSave');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', saveAction);
+    closeBtn.onclick = hideActionModal; // Direct assignment for iOS
   }
   
   // Close on backdrop click
@@ -47,6 +40,8 @@ export function initActionModal() {
       }
     });
   }
+  
+  console.log('Action modal initialized');
 }
 
 /**
