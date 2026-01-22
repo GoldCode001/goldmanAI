@@ -30,8 +30,8 @@ export function parseActionRequest(text) {
     return { type: ActionTypes.EMERGENCY_CALL, params: {} };
   }
   
-  // Regular phone call
-  const callMatch = text.match(/\b(?:call|phone|dial|ring)\s+(?:me\s+)?(?:at\s+)?([+]?[\d\s\-\(\)]{7,})/i);
+  // Regular phone call - More flexible to handle missed words
+  const callMatch = text.match(/\b(?:call|phone|dial|ring|contact)\s*(?:me\s*)?(?:at\s*)?([+]?[\d\s\-\(\)]{7,})/i);
   if (callMatch) {
     const phoneNumber = callMatch[1].replace(/\D/g, ''); // Remove non-digits
     if (phoneNumber.length >= 10) {
@@ -39,8 +39,8 @@ export function parseActionRequest(text) {
     }
   }
   
-  // Send text/SMS
-  const textMatch = text.match(/\b(?:text|message|sms|send)\s+(?:me\s+)?(?:a\s+)?(?:message\s+)?(?:to\s+)?([+]?[\d\s\-\(\)]{7,})/i);
+  // Send text/SMS - More flexible
+  const textMatch = text.match(/\b(?:text|message|sms|send)\s*(?:me\s*)?(?:a\s*)?(?:message\s*)?(?:to\s*)?([+]?[\d\s\-\(\)]{7,})/i);
   if (textMatch) {
     const phoneNumber = textMatch[1].replace(/\D/g, '');
     if (phoneNumber.length >= 10) {
@@ -51,29 +51,30 @@ export function parseActionRequest(text) {
     }
   }
   
-  // Show on map / get location
-  if (/\b(?:show|display|find|where|location|map)\s+(?:me\s+)?(?:on\s+)?(?:the\s+)?(?:map|location)\b/i.test(text)) {
+  // Show on map / get location - More flexible patterns to handle missed words
+  // Match: "show map", "show me map", "show on map", "map", "location", "where am i", etc.
+  if (/\b(?:show|display|find|open|see|get|my|the)\s*(?:me\s*)?(?:on\s*)?(?:the\s*)?(?:map|location)\b/i.test(text) ||
+      /\b(?:map|location)\b/i.test(text) ||
+      /\b(?:where|where's|where\s+am|where\s+is)\s*(?:am\s*)?(?:i\s*)?(?:located|at|now|here)\b/i.test(text) ||
+      /\b(?:show|display|find)\s*(?:my|me|current)\s*(?:location|position|where)\b/i.test(text)) {
     return { type: ActionTypes.SHOW_MAP, params: {} };
   }
   
-  if (/\b(?:where\s+)?(?:am\s+)?i\s+(?:located|at|now)\b/i.test(text)) {
-    return { type: ActionTypes.GET_LOCATION, params: {} };
-  }
-  
-  // Set alarm
-  const alarmMatch = text.match(/\b(?:set|create|schedule)\s+(?:an?\s+)?(?:alarm|reminder|timer)\s+(?:for\s+)?(?:at\s+)?([\d:]+(?:\s*(?:am|pm))?)/i);
+  // Set alarm - More flexible
+  const alarmMatch = text.match(/\b(?:set|create|schedule|add)\s*(?:an?\s*)?(?:alarm|reminder|timer)\s*(?:for\s*)?(?:at\s*)?([\d:]+(?:\s*(?:am|pm))?)/i);
   if (alarmMatch) {
     const timeStr = alarmMatch[1];
     return { type: ActionTypes.SET_ALARM, params: { time: timeStr } };
   }
   
-  // Check calendar
-  if (/\b(?:check|show|what|view|see)\s+(?:my\s+)?(?:calendar|schedule|events|appointments)\b/i.test(text)) {
+  // Check calendar - More flexible
+  if (/\b(?:check|show|what|view|see|open|my)\s*(?:my\s*)?(?:calendar|schedule|events|appointments)\b/i.test(text) ||
+      /\b(?:calendar|schedule)\b/i.test(text)) {
     return { type: ActionTypes.CHECK_CALENDAR, params: {} };
   }
   
-  // Add calendar event
-  const eventMatch = text.match(/\b(?:add|create|schedule|set)\s+(?:an?\s+)?(?:event|appointment|meeting)\s+(?:for\s+)?(.+)/i);
+  // Add calendar event - More flexible
+  const eventMatch = text.match(/\b(?:add|create|schedule|set)\s*(?:an?\s*)?(?:event|appointment|meeting)\s*(?:for\s*)?(.+)/i);
   if (eventMatch) {
     return { type: ActionTypes.ADD_EVENT, params: { description: eventMatch[1] } };
   }

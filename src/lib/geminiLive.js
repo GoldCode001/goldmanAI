@@ -336,13 +336,18 @@ function startUserSpeechRecognition() {
   userSpeechRecognition.lang = 'en-US';
   
   userSpeechRecognition.onresult = (event) => {
-    const lastResult = event.results[event.results.length - 1];
-    if (lastResult.isFinal) {
-      const transcript = lastResult[0].transcript.trim();
-      if (transcript && onUserTranscriptUpdate) {
-        console.log('User said:', transcript);
-        onUserTranscriptUpdate(transcript);
+    // Collect all final results, not just the last one
+    let fullTranscript = '';
+    for (let i = 0; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        fullTranscript += event.results[i][0].transcript + ' ';
       }
+    }
+    
+    if (fullTranscript.trim() && onUserTranscriptUpdate) {
+      const transcript = fullTranscript.trim();
+      console.log('User said (full):', transcript);
+      onUserTranscriptUpdate(transcript);
     }
   };
   
