@@ -3,15 +3,15 @@
  * This module provides native device access for mobile apps
  */
 
-let isNative = false;
-
 // Check if running in Capacitor
-try {
-  const { Capacitor } = require('@capacitor/core');
-  isNative = Capacitor.isNativePlatform();
-} catch (err) {
-  // Not in Capacitor environment, will use web fallbacks
-  isNative = false;
+async function checkNative() {
+  try {
+    const { Capacitor } = await import('@capacitor/core');
+    return Capacitor.isNativePlatform();
+  } catch (err) {
+    // Not in Capacitor environment, will use web fallbacks
+    return false;
+  }
 }
 
 /**
@@ -57,6 +57,7 @@ export async function getLocationNative() {
         success: false,
         error: `Location error: ${err.message}`
       };
+    }
   }
   
   // Fallback to web geolocation
@@ -141,7 +142,7 @@ function parseTimeString(timeStr) {
   let hours, minutes;
   const hasAmPm = /(am|pm)/.test(lower);
   const amPmMatch = lower.match(/(am|pm)/);
-  const isPM = amPm && amPmMatch && amPmMatch[1] === 'pm';
+  const isPM = hasAmPm && amPmMatch && amPmMatch[1] === 'pm';
   
   const timeMatch = lower.match(/(\d{1,2}):?(\d{2})?/);
   if (timeMatch) {
