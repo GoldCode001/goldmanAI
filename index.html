@@ -53,30 +53,54 @@
 
 <!-- PAL Interface (Voice-First) -->
 <div id="mainApp" class="pal-interface hidden">
-  <!-- Assistant Face (Center, Always Visible) -->
-  <div id="assistantFace" class="assistant-face">
-    <svg width="100%" height="100%" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet" style="max-width: 500px; max-height: 500px;">
-      <!-- Left eyebrow -->
-      <path id="leftEyebrow" d="M 50 60 Q 65 55 80 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
+  <!-- Canvas-based PAL Face (Full Screen) -->
+  <canvas id="palCanvas" class="pal-canvas"></canvas>
 
-      <!-- Right eyebrow -->
-      <path id="rightEyebrow" d="M 120 60 Q 135 55 150 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
+  <!-- Chat Overlay UI -->
+  <div id="chatOverlay" class="chat-overlay">
+    <!-- Header / Status -->
+    <div class="overlay-header">
+      <div class="header-left">
+        <span class="terminal-icon">⚡</span>
+        <span class="pal-version">PAL v2.5 LIVE_OS</span>
+      </div>
+      
+      <div class="header-right">
+        <div class="status-indicator">
+          <div class="status-dot standby"></div>
+          <span class="status-text">STANDBY</span>
+        </div>
+      </div>
+    </div>
 
-      <!-- Left eye (Vertical Pill/Stadium) -->
-      <rect id="leftEye" x="55" y="70" width="20" height="40" rx="10" fill="#fff" />
+    <!-- Center Action Area (When not connected) -->
+    <div class="activate-section">
+      <button id="activatePalBtn" class="activate-button">
+        <div class="button-glow"></div>
+        <span class="button-icon">🎤</span>
+        <span class="button-label">ACTIVATE PAL</span>
+      </button>
+    </div>
 
-      <!-- Right eye (Vertical Pill/Stadium) -->
-      <rect id="rightEye" x="125" y="70" width="20" height="40" rx="10" fill="#fff" />
+    <!-- Live Controls (When connected) -->
+    <div class="live-controls" style="display: none;">
+      <div class="listening-indicator">
+        <div class="listening-dot"></div>
+        <span class="listening-text">Listening</span>
+      </div>
+      
+      <button id="disconnectPalBtn" class="disconnect-button">
+        <span class="power-icon">⏻</span>
+      </button>
+    </div>
 
-      <!-- Mouth (Morphable Path - Default Neutral Smile) -->
-      <path id="mouth" d="M 70 140 Q 100 155 130 140" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
-    </svg>
-
-    <!-- Status text below face -->
-    <p id="statusText" class="status-text">Tap to talk</p>
+    <!-- Transcript Log (Subtle) -->
+    <div class="transcript-section">
+      <p class="transcript-text"></p>
+    </div>
   </div>
 
-  <!-- Transcript Overlay (Only shows when needed) -->
+  <!-- Transcript Overlay (Legacy - for compatibility) -->
   <div id="transcriptOverlay" class="transcript-overlay hidden">
     <p id="transcriptText"></p>
   </div>

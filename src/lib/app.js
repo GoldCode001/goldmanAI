@@ -13,12 +13,21 @@ import {
 } from "../components/ui.js";
 
 import {
-  initAssistantFace,
-  startSpeaking,
-  stopSpeaking,
-  updateMouth,
-  startRecording,
-  stopRecording,
+  initCanvasFace,
+  updateFaceState,
+  destroyCanvasFace
+} from "../components/canvasFace.js";
+
+import {
+  initChatOverlay,
+  updateConnectionState,
+  updateMessages,
+  showChatOverlay,
+  hideChatOverlay
+} from "../components/chatOverlay.js";
+
+// Legacy face functions (for compatibility)
+import {
   showTranscript,
   hideTranscript,
   setExpressionFromText
@@ -45,6 +54,7 @@ window.chatCache = [];
 // Voice state (Gemini Live)
 let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
+let currentMood = 'NEUTRAL'; // For canvas face
 
 /* ================= BOOT ================= */
 
@@ -550,26 +560,39 @@ async function startListening() {
     // Initialize Gemini Live
     const initialized = await initGeminiLive(apiKey, {
       onAudioLevel: (amplitude) => {
-        // Real-time lip sync from Gemini's audio output
-        updateMouth(amplitude);
+        // Update canvas face with audio level
+        updateFaceState(currentMood, amplitude, true);
+        
         if (amplitude > 0.1) {
           if (!isAISpeaking) {
             isAISpeaking = true;
-            startSpeaking(); // Update face animation
+            currentMood = 'HAPPY'; // Set mood when speaking
           }
         } else {
           if (isAISpeaking) {
             isAISpeaking = false;
-            stopSpeaking();
+            currentMood = 'NEUTRAL';
           }
         }
       },
-      onTranscript: async (text) => {
-        // Show transcript updates from Gemini
-        if (text && text.trim()) {
-          showTranscript(`PAL: ${text}`);
-          // Set facial expression based on text
-          setExpressionFromText(text);
+        onTranscript: async (text) => {
+          // Show transcript updates from Gemini
+          if (text && text.trim()) {
+            showTranscript(`PAL: ${text}`);
+            
+            // Update messages for chat overlay
+            const newMessage = {
+              id: Date.now().toString(),
+              role: 'model',
+              text: text,
+              timestamp: Date.now()
+            };
+            updateMessages([newMessage]);
+            
+            // Set facial expression based on text
+            const emotion = setExpressionFromText(text);
+            currentMood = emotion ? emotion.toUpperCase() : 'NEUTRAL';
+            // Audio level will be updated via onAudioLevel callback
           
           // Save AI message to database
           try {
@@ -612,7 +635,8 @@ async function startListening() {
 
     if (started) {
       isListening = true;
-      startRecording(); // Update face animation
+      updateConnectionState(true); // Update chat overlay
+      updateFaceState('NEUTRAL', 0, true); // Update canvas face
       console.log('Started Gemini Live');
     } else {
       throw new Error('Failed to start Gemini Live');
@@ -630,6 +654,7 @@ async function startListening() {
 function stopListening() {
   stopGeminiLive();
   isListening = false;
-  stopSpeaking(); // Reset face to idle
+  updateConnectionState(false); // Update chat overlay
+  updateFaceState('NEUTRAL', 0, false); // Reset canvas face
   console.log('Stopped Gemini Live');
 }
