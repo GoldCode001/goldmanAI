@@ -55,27 +55,7 @@ export function showInlineMap(latitude, longitude) {
     return;
   }
   
-  // Hide message, show map
-  if (actionModalMessage) {
-    actionModalMessage.classList.add('hidden');
-  }
-  if (inlineMapContainer) {
-    inlineMapContainer.classList.remove('hidden');
-  }
-  
-  // Create Google Maps embed URL with nearby restaurants
-  // Using Google Maps Embed API - shows location with nearby places
-  const embedUrl = `https://www.google.com/maps/embed/v1/search?key=AIzaSyBFw0Qbyq9zTFTd-tUY6d-s6U4uO3Zx&q=restaurants+near+${latitude},${longitude}&center=${latitude},${longitude}&zoom=15`;
-  
-  // Alternative: Use place search with location
-  // const embedUrl = `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6d-s6U4uO3Zx&q=${latitude},${longitude}&zoom=15`;
-  
-  // For now, use a simpler approach - Google Maps with search query
-  const simpleUrl = `https://www.google.com/maps?q=restaurants+near+${latitude},${longitude}&output=embed`;
-  
-  inlineMap.src = simpleUrl;
-  
-  // Show modal if not already shown
+  // IMPORTANT: Show modal FIRST, then load map
   if (actionModal && actionModal.classList.contains('hidden')) {
     actionModal.classList.remove('hidden');
     setTimeout(() => {
@@ -84,6 +64,18 @@ export function showInlineMap(latitude, longitude) {
       }
     }, 10);
   }
+  
+  // Hide message, show map
+  if (actionModalMessage) {
+    actionModalMessage.classList.add('hidden');
+  }
+  if (inlineMapContainer) {
+    inlineMapContainer.classList.remove('hidden');
+  }
+  
+  // Use a working Google Maps embed URL
+  const mapUrl = `https://www.google.com/maps?q=restaurants+near+${latitude},${longitude}&output=embed`;
+  inlineMap.src = mapUrl;
   
   // Hide action buttons (map is interactive)
   if (actionModalActions) {
@@ -95,7 +87,7 @@ export function showInlineMap(latitude, longitude) {
     actionModalTitle.textContent = 'Your Location & Nearby Restaurants';
   }
   
-  // Add close button functionality for map
+  // Ensure close button works
   const closeBtn = document.getElementById('actionModalClose');
   if (closeBtn) {
     closeBtn.onclick = hideActionModal;

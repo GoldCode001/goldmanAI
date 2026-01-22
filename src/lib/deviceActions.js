@@ -185,7 +185,6 @@ async function makeEmergencyCall() {
  */
 async function makeCall(phoneNumber) {
   try {
-    // Clean phone number
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.length < 10) {
       return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
@@ -193,23 +192,22 @@ async function makeCall(phoneNumber) {
     
     const telUrl = `tel:${cleanNumber}`;
     
-    // For iOS Chrome, window.location.href works better than link.click()
-    // Direct navigation is more reliable
-    try {
-      window.location.href = telUrl;
-    } catch (err) {
-      // Fallback: try creating a link
-      const link = document.createElement('a');
-      link.href = telUrl;
-      link.target = '_self';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-      }, 100);
-    }
+    // For iOS, we MUST use a link click from user interaction
+    // Create link and trigger immediately (we're in a user interaction context)
+    const link = document.createElement('a');
+    link.href = telUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    
+    // Trigger immediately - we're in a click handler context
+    link.click();
+    
+    // Clean up after a moment
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 100);
     
     return { 
       success: true, 
@@ -218,7 +216,7 @@ async function makeCall(phoneNumber) {
     };
   } catch (err) {
     console.error('Call error:', err);
-    return { success: false, error: 'Failed to initiate call. Please try again or dial manually.' };
+    return { success: false, error: 'Failed to initiate call. Please dial manually.' };
   }
 }
 
@@ -237,22 +235,18 @@ async function sendText(phoneNumber, message = '') {
       ? `sms:${cleanNumber}?body=${encodeURIComponent(message)}`
       : `sms:${cleanNumber}`;
     
-    // Direct navigation works better on iOS Chrome
-    try {
-      window.location.href = smsUrl;
-    } catch (err) {
-      // Fallback: try creating a link
-      const link = document.createElement('a');
-      link.href = smsUrl;
-      link.target = '_self';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (document.body.contains(link)) {
-          document.body.removeChild(link);
-        }
-      }, 100);
-    }
+    // Use link click for iOS compatibility
+    const link = document.createElement('a');
+    link.href = smsUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 100);
     
     return { 
       success: true, 
@@ -408,17 +402,39 @@ async function requestNotificationPermissionForAlarm() {
  */
 async function setAlarm(timeStr) {
   try {
-    // Parse time string (e.g., "3:30 PM", "15:30", "3pm")
     const time = parseTimeString(timeStr);
     if (!time) {
       return { success: false, error: 'Could not parse time. Please specify time like "3:30 PM" or "15:30"' };
     }
     
-    // Request notification permission first
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    // On iOS web, we CANNOT access the Clock app directly
+    // This is an iOS security restriction
+    if (isIOS && !window.Capacitor) {
+      // Save alarm info and provide instructions
+      const alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
+      const alarm = {
+        id: Date.now(),
+        time: time.toISOString(),
+        timeStr: timeStr,
+        createdAt: new Date().toISOString()
+      };
+      alarms.push(alarm);
+      localStorage.setItem('alarms', JSON.stringify(alarms));
+      
+      return {
+        success: true,
+        message: `Alarm saved for ${time.toLocaleTimeString()}. To set it on your device, open the Clock app and set an alarm for this time. Web apps cannot access the Clock app on iOS for security reasons.`,
+        alarm: alarm,
+        action: 'alarm_saved'
+      };
+    }
+    
+    // For Android or native apps, try notifications
     const notificationPermission = await requestNotificationPermissionForAlarm();
     const hasNotificationPermission = notificationPermission.granted;
     
-    // Store alarm in localStorage
     const alarms = JSON.parse(localStorage.getItem('alarms') || '[]');
     const alarm = {
       id: Date.now(),
@@ -429,14 +445,13 @@ async function setAlarm(timeStr) {
     alarms.push(alarm);
     localStorage.setItem('alarms', JSON.stringify(alarms));
     
-    // Schedule notification if permission granted
     if (hasNotificationPermission) {
       scheduleNotification(time, `Alarm: ${timeStr}`);
     }
     
     let message = `Alarm set for ${time.toLocaleTimeString()}`;
-    if (!hasNotificationPermission && notificationPermission.error) {
-      message += `. Note: ${notificationPermission.error}`;
+    if (!hasNotificationPermission) {
+      message += '. Note: Notification permission is required for alerts.';
     }
     
     return {
