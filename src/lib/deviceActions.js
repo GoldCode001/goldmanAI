@@ -92,10 +92,6 @@ export async function executeAction(action) {
   }
   
   try {
-    // Try native implementations first
-    const { getLocationNative, setAlarmNative, isNativePlatform } = await import('./deviceActionsNative.js');
-    const isNative = isNativePlatform();
-    
     switch (action.type) {
       case ActionTypes.EMERGENCY_CALL:
         return await makeEmergencyCall();
@@ -109,17 +105,29 @@ export async function executeAction(action) {
       case ActionTypes.SHOW_MAP:
       case ActionTypes.GET_LOCATION:
         // Try native first, fallback to web
-        if (isNative) {
-          const nativeResult = await getLocationNative();
-          if (nativeResult) return nativeResult;
+        try {
+          const { getLocationNative, isNativePlatform } = await import('./deviceActionsNative.js');
+          const isNative = await isNativePlatform();
+          if (isNative) {
+            const nativeResult = await getLocationNative();
+            if (nativeResult) return nativeResult;
+          }
+        } catch (err) {
+          console.log('Native location not available, using web fallback');
         }
         return await getLocation();
       
       case ActionTypes.SET_ALARM:
         // Try native first, fallback to web
-        if (isNative) {
-          const nativeResult = await setAlarmNative(action.params.time, `Alarm: ${action.params.time}`);
-          if (nativeResult) return nativeResult;
+        try {
+          const { setAlarmNative, isNativePlatform } = await import('./deviceActionsNative.js');
+          const isNative = await isNativePlatform();
+          if (isNative) {
+            const nativeResult = await setAlarmNative(action.params.time, `Alarm: ${action.params.time}`);
+            if (nativeResult) return nativeResult;
+          }
+        } catch (err) {
+          console.log('Native alarm not available, using web fallback');
         }
         return await setAlarm(action.params.time);
       
