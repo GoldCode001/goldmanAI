@@ -566,18 +566,26 @@ async function startListening() {
     // Initialize Gemini Live
     const initialized = await initGeminiLive(apiKey, {
       onAudioLevel: (amplitude) => {
-        // Update canvas face with audio level
-        updateFaceState(currentMood, amplitude, true);
+        // Update canvas face with audio level and current text
+        // Estimate speech progress based on time (simple approximation)
+        const progress = window.speechStartTime 
+          ? Math.min((Date.now() - window.speechStartTime) / (window.currentSpeechDuration || 3000), 1)
+          : 0;
+        
+        updateFaceState(currentMood, amplitude, true, window.currentSpeechText || '', progress);
         
         if (amplitude > 0.1) {
           if (!isAISpeaking) {
             isAISpeaking = true;
             currentMood = 'HAPPY'; // Set mood when speaking
+            window.speechStartTime = Date.now();
           }
         } else {
           if (isAISpeaking) {
             isAISpeaking = false;
             currentMood = 'NEUTRAL';
+            window.speechStartTime = null;
+            window.currentSpeechText = '';
           }
         }
       },
@@ -585,6 +593,11 @@ async function startListening() {
           // Show transcript updates from Gemini
           if (text && text.trim()) {
             showTranscript(`PAL: ${text}`);
+            
+            // Store current speech text and estimate duration
+            window.currentSpeechText = text;
+            window.currentSpeechDuration = text.length * 50; // ~50ms per character
+            window.speechStartTime = Date.now();
             
             // Update messages for chat overlay
             const newMessage = {
@@ -598,7 +611,9 @@ async function startListening() {
             // Set facial expression based on text
             const emotion = setExpressionFromText(text);
             currentMood = emotion ? emotion.toUpperCase() : 'NEUTRAL';
-            // Audio level will be updated via onAudioLevel callback
+            
+            // Update face with text for viseme detection
+            updateFaceState(currentMood, audioLevel || 0, true, text, 0);
           
           // Save AI message to database
           try {
