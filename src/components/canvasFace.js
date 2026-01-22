@@ -39,34 +39,40 @@ let mousePos = { x: 0, y: 0 };
  * Initialize canvas face
  */
 export function initCanvasFace() {
-  canvas = document.getElementById('palCanvas');
-  if (!canvas) {
-    console.error('Canvas element not found');
-    return;
-  }
+  // Wait a bit to ensure DOM is ready
+  setTimeout(() => {
+    canvas = document.getElementById('palCanvas');
+    if (!canvas) {
+      console.error('Canvas element not found - make sure mainApp is visible');
+      return;
+    }
 
-  ctx = canvas.getContext('2d');
-  if (!ctx) {
-    console.error('Could not get 2D context');
-    return;
-  }
+    ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Could not get 2D context');
+      return;
+    }
 
-  // Handle resize
-  const resizeHandler = () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  };
-  window.addEventListener('resize', resizeHandler);
-  resizeHandler();
+    // Handle resize
+    const resizeHandler = () => {
+      if (canvas) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+    };
+    window.addEventListener('resize', resizeHandler);
+    resizeHandler();
 
-  // Track mouse for eye following
-  document.addEventListener('mousemove', (e) => {
-    mousePos.x = e.clientX;
-    mousePos.y = e.clientY;
-  });
+    // Track mouse for eye following
+    document.addEventListener('mousemove', (e) => {
+      mousePos.x = e.clientX;
+      mousePos.y = e.clientY;
+    });
 
-  // Start render loop
-  render();
+    console.log('Canvas face initialized');
+    // Start render loop
+    render();
+  }, 100);
 }
 
 /**
@@ -82,12 +88,18 @@ export function updateFaceState(mood, audioLevelValue, connected) {
  * Main render loop
  */
 function render() {
-  timeRef += 0.05;
-  const w = canvas.width;
-  const h = canvas.height;
-  const centerX = w / 2;
-  const centerY = h / 2;
-  const state = animState;
+  if (!canvas || !ctx) {
+    console.error('Canvas or context not available');
+    return;
+  }
+
+  try {
+    timeRef += 0.05;
+    const w = canvas.width;
+    const h = canvas.height;
+    const centerX = w / 2;
+    const centerY = h / 2;
+    const state = animState;
   
   // --- 1. Physics & Logic ---
 
