@@ -61,19 +61,36 @@ export async function learnFromConversation(messages) {
 
     // Extract potential facts about user from conversation
     const userMessages = messages.filter(m => m.role === 'user');
-    const assistantMessages = messages.filter(m => m.role === 'assistant');
     
     // Simple extraction: look for patterns like "I am", "My name is", "I like", etc.
     const facts = [];
+    const rememberedFacts = []; // For "remember this" / "don't forget" extraction
     
     userMessages.forEach(msg => {
-      const text = msg.content.toLowerCase();
+      const text = msg.content;
+      const lowerText = text.toLowerCase();
       
-      // Name extraction
-      const nameMatch = text.match(/(?:my name is|i'm|i am|call me)\s+([a-z]+)/i);
+      // Name extraction (don't overwrite if already set)
+      const nameMatch = text.match(/(?:my name is|i'm|i am|call me)\s+([a-z]+(?:\s+[a-z]+)?)/i);
       if (nameMatch) {
-        facts.push({ type: 'name', value: nameMatch[1] });
+        facts.push({ type: 'name', value: nameMatch[1].trim() });
       }
+      
+      // "Remember this" / "Don't forget" extraction
+      const rememberPatterns = [
+        /(?:remember|don't forget|don't forget that|never forget)\s+(?:that\s+)?(.+?)(?:\.|$)/gi,
+        /(?:remember this|remember that)\s*:?\s*(.+?)(?:\.|$)/gi
+      ];
+      
+      rememberPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+          const fact = match[1].trim();
+          if (fact && fact.length > 3) { // Minimum length to avoid noise
+            rememberedFacts.push(fact);
+          }
+        }
+      });
       
       // Preferences
       const likeMatch = text.match(/(?:i like|i love|i enjoy|i prefer)\s+([^.!?]+)/i);
@@ -88,27 +105,37 @@ export async function learnFromConversation(messages) {
       }
     });
 
-    if (facts.length > 0) {
-      // Get existing memory
-      const existingMemory = await getUserMemory() || {};
-      
-      // Merge new facts
-      const updatedMemory = { ...existingMemory };
-      
-      facts.forEach(fact => {
-        if (fact.type === 'name' && !updatedMemory.name) {
-          updatedMemory.name = fact.value;
-        } else if (fact.type === 'preference') {
-          if (!updatedMemory.preferences) updatedMemory.preferences = [];
-          if (!updatedMemory.preferences.includes(fact.value)) {
-            updatedMemory.preferences.push(fact.value);
-          }
-        } else if (fact.type === 'location' && !updatedMemory.location) {
-          updatedMemory.location = fact.value;
+    // Get existing memory
+    const existingMemory = await getUserMemory() || {};
+    const updatedMemory = { ...existingMemory };
+    
+    // Process extracted facts
+    facts.forEach(fact => {
+      if (fact.type === 'name' && !updatedMemory.name) {
+        // Only set name if not already set (don't overwrite signup name)
+        updatedMemory.name = fact.value;
+      } else if (fact.type === 'preference') {
+        if (!updatedMemory.preferences) updatedMemory.preferences = [];
+        if (!updatedMemory.preferences.includes(fact.value)) {
+          updatedMemory.preferences.push(fact.value);
+        }
+      } else if (fact.type === 'location' && !updatedMemory.location) {
+        updatedMemory.location = fact.value;
+      }
+    });
+    
+    // Add remembered facts
+    if (rememberedFacts.length > 0) {
+      if (!updatedMemory.facts) updatedMemory.facts = [];
+      rememberedFacts.forEach(fact => {
+        if (!updatedMemory.facts.includes(fact)) {
+          updatedMemory.facts.push(fact);
         }
       });
-      
-      // Save updated memory
+    }
+    
+    // Save updated memory if there are changes
+    if (facts.length > 0 || rememberedFacts.length > 0) {
       await saveUserMemory(updatedMemory);
     }
   } catch (err) {

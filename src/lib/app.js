@@ -111,6 +111,29 @@ function bindAppEvents() {
   // Settings panel
   document.getElementById("settingsBtn")?.addEventListener("click", openSettings);
   document.getElementById("closeSettings")?.addEventListener("click", closeSettings);
+  
+  // AI Name save handler
+  document.getElementById("saveAiNameBtn")?.addEventListener("click", async () => {
+    const aiNameInput = document.getElementById('aiNameInput');
+    if (!aiNameInput) return;
+    
+    const aiName = aiNameInput.value.trim();
+    if (!aiName) {
+      alert('Please enter an AI name');
+      return;
+    }
+    
+    const { getUserMemory, saveUserMemory } = await import('./memory.js');
+    const memory = await getUserMemory() || {};
+    memory.aiName = aiName;
+    
+    const saved = await saveUserMemory(memory);
+    if (saved) {
+      alert('AI name saved!');
+    } else {
+      alert('Failed to save AI name');
+    }
+  });
 }
 
 /* ================= SETTINGS ================= */
@@ -122,6 +145,14 @@ async function openSettings() {
     // Load both chat list and conversation history
     await renderChatListUI();
     await loadConversationHistory();
+    
+    // Load user memory and populate AI name field
+    const { getUserMemory } = await import('./memory.js');
+    const memory = await getUserMemory();
+    const aiNameInput = document.getElementById('aiNameInput');
+    if (aiNameInput && memory?.aiName) {
+      aiNameInput.value = memory.aiName;
+    }
   }
 }
 
@@ -255,9 +286,15 @@ async function onSignIn(e) {
 
 async function onSignUp(e) {
   e.preventDefault();
+  const name = document.getElementById('signupName').value.trim();
   const email = document.getElementById('signupEmail').value;
   const password = document.getElementById('signupPassword').value;
   const confirm = document.getElementById('signupConfirm').value;
+  
+  if (!name) {
+    updateAuthStatus("Please enter your name", "error");
+    return;
+  }
   
   if (password !== confirm) {
     updateAuthStatus("passwords do not match", "error");
@@ -265,7 +302,14 @@ async function onSignUp(e) {
   }
   
   try {
-    await signUp(email, password);
+    const user = await signUp(email, password);
+    
+    // Store user's name in memory
+    if (user && user.id) {
+      const { saveUserMemory } = await import('./memory.js');
+      await saveUserMemory({ name: name });
+    }
+    
     updateAuthStatus("Account created! Please sign in.", "success");
     switchTab("signin");
   } catch (err) {
@@ -564,8 +608,42 @@ async function startListening() {
     }
     const { apiKey } = await keyRes.json();
 
-    // Initialize Gemini Live
-    const initialized = await initGeminiLive(apiKey, {
+    // Initialize Gemini Live if not already done
+    if (!geminiGenAI || !geminiModel) {
+      // Load user memory for personalized system prompt
+      const memory = await getUserMemory() || {};
+      const userName = memory.name || '';
+      const aiName = memory.aiName || 'PAL';
+      
+      // Build personalized system prompt
+      let systemPrompt = `You are ${aiName} (Predictive Algorithmic Learning).
+Your persona is a highly intelligent, witty, and helpful personal assistant.
+You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
+You are more "smart companion" than "chaotic teenager".`;
+      
+      if (userName) {
+        systemPrompt += `\n\nThe user's name is ${userName}. Use their name naturally in conversation, but don't overuse it.`;
+      }
+      
+      // Add memory context if available
+      if (memory.facts && memory.facts.length > 0) {
+        systemPrompt += `\n\nImportant things to remember about ${userName || 'the user'}:`;
+        memory.facts.forEach(fact => {
+          systemPrompt += `\n- ${fact}`;
+        });
+      }
+      
+      if (memory.preferences && memory.preferences.length > 0) {
+        systemPrompt += `\n\n${userName || 'The user'}'s preferences: ${memory.preferences.join(", ")}`;
+      }
+      
+      systemPrompt += `\n\n**Core Instructions:**
+1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
+2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
+3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
+4. **Identity**: You are the user's loyal assistant. You are ${aiName}.`;
+      
+      const initialized = await initGeminiLive(apiKey, {
       onAudioLevel: (amplitude) => {
         // Store current audio level
         currentAudioLevel = amplitude;
@@ -633,9 +711,23 @@ async function startListening() {
                 chatId: window.currentChatId,
                 role: "assistant",
                 content: text,
-                encryptedContent: encryptedContent
+                encryptedContent: encryptedContent,
+                userId: window.currentUser?.id,
+                language: (await getUserMemory())?.language || "en"
               })
             });
+            
+            // Extract memory from conversation (check for "remember this" / "don't forget")
+            try {
+              const decryptedHistory = await getDecryptedHistory(window.currentChatId);
+              const allMessages = [
+                ...decryptedHistory,
+                { role: "assistant", content: text }
+              ];
+              await learnFromConversation(allMessages);
+            } catch (err) {
+              console.error('Failed to learn from conversation:', err);
+            }
           } catch (err) {
             console.error('Failed to save AI message:', err);
           }

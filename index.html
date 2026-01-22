@@ -42,6 +42,7 @@
     </form>
 
     <form id="signupForm" class="hidden">
+      <input id="signupName" type="text" placeholder="your name" required>
       <input id="signupEmail" type="email" placeholder="email" required>
       <input id="signupPassword" type="password" placeholder="password" required>
       <input id="signupConfirm" type="password" placeholder="confirm password" required>
@@ -124,6 +125,16 @@
   <aside id="settingsPanel" class="settings-panel hidden">
     <button id="closeSettings" class="close-settings">✕</button>
     <p id="userEmail" class="user-email"></p>
+
+    <!-- Personalization Settings -->
+    <div class="personalization-section">
+      <h3>Personalization</h3>
+      <div class="setting-item">
+        <label for="aiNameInput">AI's Name:</label>
+        <input id="aiNameInput" type="text" placeholder="e.g., PAL, Assistant" />
+        <button id="saveAiNameBtn" class="save-btn">Save</button>
+      </div>
+    </div>
 
     <!-- Chat List Section -->
     <div class="chat-list-section">

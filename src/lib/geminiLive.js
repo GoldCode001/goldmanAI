@@ -19,18 +19,20 @@ let onError = null;
 let microphoneStream = null;
 let nextStartTime = 0; // For scheduling audio chunks
 let sessionPromise = null;
+let customSystemPrompt = null; // Custom system prompt for personalization
 
 /**
  * Initialize Gemini Live connection
  * @param {string} apiKey - Google AI Studio API key
  * @param {Object} callbacks - { onAudioLevel, onTranscript, onError }
  */
-export async function initGeminiLive(apiKey, callbacks = {}) {
+export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverride = null) {
   try {
     geminiApiKey = apiKey;
     onAudioLevelUpdate = callbacks.onAudioLevel;
     onTranscriptUpdate = callbacks.onTranscript;
     onError = callbacks.onError;
+    customSystemPrompt = systemPromptOverride;
 
     if (!geminiApiKey) {
       throw new Error('Gemini API key is required');
@@ -216,7 +218,7 @@ export async function startGeminiLive() {
       },
       config: {
         responseModalities: [Modality.AUDIO],
-        systemInstruction: `You are PAL (Predictive Algorithmic Learning).
+        systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
 Your persona is a highly intelligent, witty, and helpful personal assistant.
 You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
 You are more "smart companion" than "chaotic teenager".
