@@ -332,8 +332,9 @@ function startUserSpeechRecognition() {
   
   userSpeechRecognition = new SpeechRecognition();
   userSpeechRecognition.continuous = true;
-  userSpeechRecognition.interimResults = false;
+  userSpeechRecognition.interimResults = true; // Enable interim results to catch partial speech
   userSpeechRecognition.lang = 'en-US';
+  userSpeechRecognition.maxAlternatives = 1;
   
   userSpeechRecognition.onresult = (event) => {
     // Collect all final results, not just the last one
