@@ -503,7 +503,14 @@ app.post("/api/tts", async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Cartesia TTS API error:', response.status, errorText);
+      console.error('Cartesia TTS API error:', response.status);
+      console.error('Cartesia error response:', errorText);
+      console.error('Request body sent:', JSON.stringify({
+        model: modelId,
+        transcript: text.substring(0, 50) + '...',
+        voice_id: CARTESIA_VOICE_ID,
+        output_format: "mp3"
+      }, null, 2));
       throw new Error(`Cartesia TTS failed: ${response.status} - ${errorText}`);
     }
 
