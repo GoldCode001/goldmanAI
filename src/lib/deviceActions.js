@@ -548,10 +548,30 @@ function scheduleNotification(time, message) {
 /**
  * Request notification permission
  */
+/**
+ * Request notification permission (general)
+ */
 export async function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
+  if (!('Notification' in window)) {
+    console.warn('Notifications are not supported by your browser');
+    return false;
+  }
+  
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+  
+  if (Notification.permission === 'denied') {
+    console.warn('Notification permission was previously denied');
+    return false;
+  }
+  
+  // Request permission
+  try {
     const permission = await Notification.requestPermission();
     return permission === 'granted';
+  } catch (err) {
+    console.error('Failed to request notification permission:', err);
+    return false;
   }
-  return Notification.permission === 'granted';
 }
