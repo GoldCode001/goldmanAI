@@ -315,9 +315,71 @@ function startAudioLevelMonitoring() {
 }
 
 /**
+ * Start Web Speech API recognition for user speech (to detect actions)
+ */
+function startUserSpeechRecognition() {
+  // Check if Web Speech API is available
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn('Web Speech API not available for user transcript');
+    return;
+  }
+  
+  // Stop any existing recognition
+  if (userSpeechRecognition) {
+    userSpeechRecognition.stop();
+  }
+  
+  userSpeechRecognition = new SpeechRecognition();
+  userSpeechRecognition.continuous = true;
+  userSpeechRecognition.interimResults = false;
+  userSpeechRecognition.lang = 'en-US';
+  
+  userSpeechRecognition.onresult = (event) => {
+    const lastResult = event.results[event.results.length - 1];
+    if (lastResult.isFinal) {
+      const transcript = lastResult[0].transcript.trim();
+      if (transcript && onUserTranscriptUpdate) {
+        console.log('User said:', transcript);
+        onUserTranscriptUpdate(transcript);
+      }
+    }
+  };
+  
+  userSpeechRecognition.onerror = (event) => {
+    console.error('User speech recognition error:', event.error);
+    // Don't stop on errors, just log
+  };
+  
+  userSpeechRecognition.onend = () => {
+    // Restart recognition if still connected
+    if (isConnected) {
+      try {
+        userSpeechRecognition.start();
+      } catch (err) {
+        console.error('Failed to restart user speech recognition:', err);
+      }
+    }
+  };
+  
+  try {
+    userSpeechRecognition.start();
+    console.log('User speech recognition started');
+  } catch (err) {
+    console.error('Failed to start user speech recognition:', err);
+  }
+}
+
+/**
  * Stop Gemini Live connection
  */
 export function stopGeminiLive() {
+  // Stop user speech recognition
+  if (userSpeechRecognition) {
+    userSpeechRecognition.stop();
+    userSpeechRecognition = null;
+  }
+  
   if (scriptProcessor) {
     scriptProcessor.disconnect();
     scriptProcessor = null;
