@@ -127,15 +127,19 @@ export async function executeAction(action) {
  */
 async function makeEmergencyCall() {
   try {
-    // Use tel: protocol to initiate emergency call
-    window.location.href = 'tel:911';
+    // Use tel: protocol - open in new window/tab to avoid navigation
+    const link = document.createElement('a');
+    link.href = 'tel:911';
+    link.click();
+    
     return { 
       success: true, 
       message: 'Initiating emergency call to 911...',
       action: 'emergency_call_initiated'
     };
   } catch (err) {
-    return { success: false, error: 'Failed to initiate emergency call' };
+    console.error('Emergency call error:', err);
+    return { success: false, error: 'Failed to initiate emergency call: ' + err.message };
   }
 }
 
@@ -150,15 +154,19 @@ async function makeCall(phoneNumber) {
       return { success: false, error: 'Invalid phone number' };
     }
     
-    // Use tel: protocol
-    window.location.href = `tel:${cleanNumber}`;
+    // Use tel: protocol - open in new window/tab to avoid navigation
+    const link = document.createElement('a');
+    link.href = `tel:${cleanNumber}`;
+    link.click();
+    
     return { 
       success: true, 
       message: `Calling ${formatPhoneNumber(cleanNumber)}...`,
       action: 'call_initiated'
     };
   } catch (err) {
-    return { success: false, error: 'Failed to initiate call' };
+    console.error('Call error:', err);
+    return { success: false, error: 'Failed to initiate call: ' + err.message };
   }
 }
 
@@ -177,14 +185,19 @@ async function sendText(phoneNumber, message = '') {
       ? `sms:${cleanNumber}?body=${encodeURIComponent(message)}`
       : `sms:${cleanNumber}`;
     
-    window.location.href = smsUrl;
+    // Open in new window/tab to avoid navigation
+    const link = document.createElement('a');
+    link.href = smsUrl;
+    link.click();
+    
     return { 
       success: true, 
       message: `Opening text message to ${formatPhoneNumber(cleanNumber)}...`,
       action: 'sms_opened'
     };
   } catch (err) {
-    return { success: false, error: 'Failed to open SMS' };
+    console.error('SMS error:', err);
+    return { success: false, error: 'Failed to open SMS: ' + err.message };
   }
 }
 
