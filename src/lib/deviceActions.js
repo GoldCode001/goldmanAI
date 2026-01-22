@@ -248,31 +248,9 @@ async function requestGeolocationPermission() {
       return;
     }
     
-    // Check if permission is already granted by trying to get position
-    navigator.geolocation.getCurrentPosition(
-      () => {
-        resolve({ granted: true });
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          resolve({ 
-            granted: false, 
-            error: 'Location permission denied. Please enable location access in your browser settings.' 
-          });
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          resolve({ 
-            granted: false, 
-            error: 'Location information unavailable. Please check your device settings.' 
-          });
-        } else {
-          resolve({ 
-            granted: false, 
-            error: `Location error: ${error.message}` 
-          });
-        }
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
+    // Don't check permission separately - just try to get location directly
+    // The browser will prompt for permission automatically
+    resolve({ granted: true }); // Assume we can request it
   });
 }
 
@@ -280,16 +258,19 @@ async function requestGeolocationPermission() {
  * Get current location and show on map
  */
 async function getLocation() {
-  // First request permission
-  const permission = await requestGeolocationPermission();
-  if (!permission.granted) {
-    return { 
-      success: false, 
-      error: permission.error || 'Location permission denied' 
-    };
-  }
-  
   return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ 
+        success: false, 
+        error: 'Geolocation is not supported by your browser' 
+      });
+      return;
+    }
+    
+    // Use longer timeout for mobile devices and allow cached position
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const timeout = isMobile ? 20000 : 15000; // 20s for mobile, 15s for desktop
+    
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
@@ -322,11 +303,11 @@ async function getLocation() {
       (error) => {
         let errorMsg = 'Failed to get location';
         if (error.code === error.PERMISSION_DENIED) {
-          errorMsg = 'Location permission denied. Please enable location access in your browser settings and try again.';
+          errorMsg = 'Location permission denied. Please enable location access in your browser/device settings and try again.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          errorMsg = 'Location information unavailable. Please check your device location settings.';
+          errorMsg = 'Location information unavailable. Please check your device location settings and ensure GPS is enabled.';
         } else if (error.code === error.TIMEOUT) {
-          errorMsg = 'Location request timed out. Please try again.';
+          errorMsg = 'Location request timed out. Please ensure your device GPS is enabled and try again.';
         } else {
           errorMsg = `Location error: ${error.message}`;
         }
@@ -335,7 +316,11 @@ async function getLocation() {
           error: errorMsg
         });
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { 
+        enableHighAccuracy: true, 
+        timeout: timeout, 
+        maximumAge: 60000 // Allow cached position up to 1 minute old
+      }
     );
   });
 }

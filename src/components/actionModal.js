@@ -146,7 +146,12 @@ export function hideActionModal() {
  * Confirm and execute action
  */
 async function confirmAction() {
-  if (!currentAction) return;
+  if (!currentAction) {
+    console.error('No action to confirm');
+    return;
+  }
+  
+  console.log('Confirming action:', currentAction);
   
   // Disable buttons during execution
   const confirmBtn = document.getElementById('actionModalConfirm');
@@ -156,22 +161,35 @@ async function confirmAction() {
   if (saveBtn) saveBtn.disabled = true;
   if (cancelBtn) cancelBtn.disabled = true;
   
-  // Execute the action
-  const { executeAction } = await import('../lib/deviceActions.js');
-  const result = await executeAction(currentAction);
-  
-  if (result.success) {
-    // Show success message briefly
-    actionModalMessage.textContent = result.message || 'Action executed successfully!';
-    actionModalMessage.style.color = '#4CAF50';
+  try {
+    // Execute the action
+    const { executeAction } = await import('../lib/deviceActions.js');
+    const result = await executeAction(currentAction);
     
-    // Hide after 2 seconds
-    setTimeout(() => {
-      hideActionModal();
-    }, 2000);
-  } else {
-    // Show error
-    actionModalMessage.textContent = result.error || 'Action failed';
+    console.log('Action result:', result);
+    
+    if (result.success) {
+      // Show success message briefly
+      actionModalMessage.textContent = result.message || 'Action executed successfully!';
+      actionModalMessage.style.color = '#4CAF50';
+      
+      // Hide after 2 seconds
+      setTimeout(() => {
+        hideActionModal();
+      }, 2000);
+    } else {
+      // Show error
+      actionModalMessage.textContent = result.error || 'Action failed';
+      actionModalMessage.style.color = '#ef4444';
+      
+      // Re-enable buttons
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+  } catch (err) {
+    console.error('Error executing action:', err);
+    actionModalMessage.textContent = `Error: ${err.message || 'Failed to execute action'}`;
     actionModalMessage.style.color = '#ef4444';
     
     // Re-enable buttons
@@ -185,32 +203,53 @@ async function confirmAction() {
  * Save action (for alarms, events, etc.)
  */
 async function saveAction() {
-  if (!currentAction) return;
+  if (!currentAction) {
+    console.error('No action to save');
+    return;
+  }
+  
+  console.log('Saving action:', currentAction);
   
   // Disable buttons during execution
   const confirmBtn = document.getElementById('actionModalConfirm');
   const saveBtn = document.getElementById('actionModalSave');
+  const cancelBtn = document.getElementById('actionModalCancel');
   if (confirmBtn) confirmBtn.disabled = true;
   if (saveBtn) saveBtn.disabled = true;
+  if (cancelBtn) cancelBtn.disabled = true;
   
-  // Execute and save
-  const { executeAction } = await import('../lib/deviceActions.js');
-  const result = await executeAction(currentAction);
-  
-  if (result.success) {
-    actionModalMessage.textContent = result.message || 'Saved and executed!';
-    actionModalMessage.style.color = '#4CAF50';
+  try {
+    // Execute and save
+    const { executeAction } = await import('../lib/deviceActions.js');
+    const result = await executeAction(currentAction);
     
-    setTimeout(() => {
-      hideActionModal();
-    }, 2000);
-  } else {
-    actionModalMessage.textContent = result.error || 'Failed to save';
+    console.log('Save action result:', result);
+    
+    if (result.success) {
+      actionModalMessage.textContent = result.message || 'Saved and executed!';
+      actionModalMessage.style.color = '#4CAF50';
+      
+      setTimeout(() => {
+        hideActionModal();
+      }, 2000);
+    } else {
+      actionModalMessage.textContent = result.error || 'Failed to save';
+      actionModalMessage.style.color = '#ef4444';
+      
+      // Re-enable buttons
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+  } catch (err) {
+    console.error('Error saving action:', err);
+    actionModalMessage.textContent = `Error: ${err.message || 'Failed to save action'}`;
     actionModalMessage.style.color = '#ef4444';
     
     // Re-enable buttons
     if (confirmBtn) confirmBtn.disabled = false;
     if (saveBtn) saveBtn.disabled = false;
+    if (cancelBtn) cancelBtn.disabled = false;
   }
 }
 
