@@ -14,12 +14,14 @@ let microphoneSource = null;
 let scriptProcessor = null;
 let isConnected = false;
 let onAudioLevelUpdate = null; // Callback for lip sync (amplitude 0-1)
-let onTranscriptUpdate = null; // Callback for text updates
+let onTranscriptUpdate = null; // Callback for text updates (AI responses)
+let onUserTranscriptUpdate = null; // Callback for user speech transcripts
 let onError = null;
 let microphoneStream = null;
 let nextStartTime = 0; // For scheduling audio chunks
 let sessionPromise = null;
 let customSystemPrompt = null; // Custom system prompt for personalization
+let userSpeechRecognition = null; // Web Speech API for user transcript
 
 /**
  * Initialize Gemini Live connection
@@ -31,6 +33,7 @@ export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverrid
     geminiApiKey = apiKey;
     onAudioLevelUpdate = callbacks.onAudioLevel;
     onTranscriptUpdate = callbacks.onTranscript;
+    onUserTranscriptUpdate = callbacks.onUserTranscript; // New: user transcript callback
     onError = callbacks.onError;
     customSystemPrompt = systemPromptOverride;
 
