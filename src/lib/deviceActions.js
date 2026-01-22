@@ -185,46 +185,48 @@ async function makeEmergencyCall() {
  */
 async function makeCall(phoneNumber) {
   try {
-    // Check if we're on a device that supports tel: protocol
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (!isMobile) {
-      return { 
-        success: false, 
-        error: 'Phone calls are only supported on mobile devices. Please use your phone to make calls.' 
-      };
-    }
-    
     // Clean phone number
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.length < 10) {
       return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
     }
     
-    // Use tel: protocol - this will open the device's dialer
-    // On mobile, this works directly. On desktop, it may not work.
-    const link = document.createElement('a');
-    link.href = `tel:${cleanNumber}`;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    // Remove after a short delay to ensure click works
-    setTimeout(() => {
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-    }, 100);
+    // For iOS Chrome, use direct tel: link with user interaction
+    const telUrl = `tel:${cleanNumber}`;
+    
+    // Try using window.location for iOS (more reliable)
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      // Create a temporary link and click it
+      const link = document.createElement('a');
+      link.href = telUrl;
+      link.style.position = 'fixed';
+      link.style.top = '-1000px';
+      link.style.display = 'block';
+      document.body.appendChild(link);
+      
+      // Use setTimeout to ensure it's in the DOM
+      setTimeout(() => {
+        link.click();
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+        }, 100);
+      }, 10);
+    } else {
+      // For Android/other, use window.location
+      window.location.href = telUrl;
+    }
     
     return { 
       success: true, 
-      message: `Opening dialer to call ${formatPhoneNumber(cleanNumber)}...`,
+      message: `Calling ${formatPhoneNumber(cleanNumber)}...`,
       action: 'call_initiated'
     };
   } catch (err) {
     console.error('Call error:', err);
-    return { 
-      success: false, 
-      error: 'Failed to initiate call. Please use your phone to make the call.' 
-    };
+    return { success: false, error: 'Failed to initiate call. Please try again or dial manually.' };
   }
 }
 
@@ -233,14 +235,6 @@ async function makeCall(phoneNumber) {
  */
 async function sendText(phoneNumber, message = '') {
   try {
-    // Check if we're on a device that supports sms: protocol
-    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      return { 
-        success: false, 
-        error: 'SMS is only supported on mobile devices. Please use your phone to send text messages.' 
-      };
-    }
-    
     const cleanNumber = phoneNumber.replace(/\D/g, '');
     if (cleanNumber.length < 10) {
       return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
@@ -251,10 +245,27 @@ async function sendText(phoneNumber, message = '') {
       ? `sms:${cleanNumber}?body=${encodeURIComponent(message)}`
       : `sms:${cleanNumber}`;
     
-    // Open in new window/tab to avoid navigation
-    const link = document.createElement('a');
-    link.href = smsUrl;
-    link.click();
+    // For iOS Chrome, use direct link click
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIOS) {
+      const link = document.createElement('a');
+      link.href = smsUrl;
+      link.style.position = 'fixed';
+      link.style.top = '-1000px';
+      link.style.display = 'block';
+      document.body.appendChild(link);
+      
+      setTimeout(() => {
+        link.click();
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+        }, 100);
+      }, 10);
+    } else {
+      window.location.href = smsUrl;
+    }
     
     return { 
       success: true, 
@@ -313,25 +324,6 @@ async function getLocation() {
         console.log('Location obtained:', position.coords);
         const { latitude, longitude } = position.coords;
         
-        const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
-        
-        // iOS Chrome/Safari: Use location.href (more reliable than window.open)
-        if (isIOS) {
-          window.location.href = mapsUrl;
-        } else {
-          // Try window.open, fallback to location.href
-          try {
-            const mapWindow = window.open(mapsUrl, '_blank');
-            setTimeout(() => {
-              if (!mapWindow || mapWindow.closed) {
-                window.location.href = mapsUrl;
-              }
-            }, 100);
-          } catch (err) {
-            window.location.href = mapsUrl;
-          }
-        }
-        
         // Try to get address (reverse geocoding)
         let address = 'Current location';
         try {
@@ -346,9 +338,13 @@ async function getLocation() {
           console.error('Reverse geocoding failed:', err);
         }
         
+        // Show inline map instead of navigating away
+        const { showInlineMap } = await import('../components/actionModal.js');
+        showInlineMap(latitude, longitude);
+        
         resolve({
           success: true,
-          message: `Opening map with your location: ${address}`,
+          message: `Showing your location on map: ${address}`,
           location: { latitude, longitude, address },
           action: 'location_shared'
         });

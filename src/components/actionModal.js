@@ -20,6 +20,8 @@ export function initActionModal() {
   actionModalTitle = document.getElementById('actionModalTitle');
   actionModalMessage = document.getElementById('actionModalMessage');
   actionModalActions = document.getElementById('actionModalActions');
+  inlineMapContainer = document.getElementById('inlineMapContainer');
+  inlineMap = document.getElementById('inlineMap');
   
   // Make functions globally accessible for iOS Chrome compatibility
   window.confirmAction = confirmAction;
@@ -42,6 +44,62 @@ export function initActionModal() {
   }
   
   console.log('Action modal initialized');
+}
+
+/**
+ * Show inline Google Maps embed
+ */
+export function showInlineMap(latitude, longitude) {
+  if (!inlineMapContainer || !inlineMap) {
+    console.error('Map elements not found');
+    return;
+  }
+  
+  // Hide message, show map
+  if (actionModalMessage) {
+    actionModalMessage.classList.add('hidden');
+  }
+  if (inlineMapContainer) {
+    inlineMapContainer.classList.remove('hidden');
+  }
+  
+  // Create Google Maps embed URL with nearby restaurants
+  // Using Google Maps Embed API - shows location with nearby places
+  const embedUrl = `https://www.google.com/maps/embed/v1/search?key=AIzaSyBFw0Qbyq9zTFTd-tUY6d-s6U4uO3Zx&q=restaurants+near+${latitude},${longitude}&center=${latitude},${longitude}&zoom=15`;
+  
+  // Alternative: Use place search with location
+  // const embedUrl = `https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6d-s6U4uO3Zx&q=${latitude},${longitude}&zoom=15`;
+  
+  // For now, use a simpler approach - Google Maps with search query
+  const simpleUrl = `https://www.google.com/maps?q=restaurants+near+${latitude},${longitude}&output=embed`;
+  
+  inlineMap.src = simpleUrl;
+  
+  // Show modal if not already shown
+  if (actionModal && actionModal.classList.contains('hidden')) {
+    actionModal.classList.remove('hidden');
+    setTimeout(() => {
+      if (actionModalContent) {
+        actionModalContent.classList.add('show');
+      }
+    }, 10);
+  }
+  
+  // Hide action buttons (map is interactive)
+  if (actionModalActions) {
+    actionModalActions.style.display = 'none';
+  }
+  
+  // Update title
+  if (actionModalTitle) {
+    actionModalTitle.textContent = 'Your Location & Nearby Restaurants';
+  }
+  
+  // Add close button functionality for map
+  const closeBtn = document.getElementById('actionModalClose');
+  if (closeBtn) {
+    closeBtn.onclick = hideActionModal;
+  }
 }
 
 /**
@@ -166,6 +224,18 @@ export function hideActionModal() {
       // Reset message color
       if (actionModalMessage) {
         actionModalMessage.style.color = '#ccc';
+        actionModalMessage.classList.remove('hidden');
+      }
+      // Hide map
+      if (inlineMapContainer) {
+        inlineMapContainer.classList.add('hidden');
+      }
+      if (inlineMap) {
+        inlineMap.src = ''; // Clear iframe src
+      }
+      // Show action buttons again
+      if (actionModalActions) {
+        actionModalActions.style.display = 'flex';
       }
     }, 200); // Wait for animation
   }
