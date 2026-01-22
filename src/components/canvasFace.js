@@ -98,14 +98,29 @@ export function updateFaceState(mood, audioLevelValue, connected, text = '', pro
     isLaughing = false;
   }
   
-  // Update viseme based on current text position
+  // Update viseme based on current text position (synchronous for performance)
   if (text && progress > 0) {
-    import('./visemeDetector.js').then(({ detectViseme }) => {
-      currentViseme = detectViseme(text, progress);
-    }).catch(() => {
-      // Fallback if import fails
-      currentViseme = audioLevel > 0.1 ? 'open' : 'neutral';
-    });
+    // Simple viseme detection without async import
+    const charIndex = Math.floor(progress * text.length);
+    const char = text[charIndex]?.toLowerCase() || '';
+    
+    if (['m', 'b', 'p'].includes(char)) {
+      currentViseme = 'closed';
+    } else if (['e', 'i', 'y'].includes(char)) {
+      currentViseme = 'wide';
+    } else if (['a', 'o', 'u'].includes(char)) {
+      currentViseme = 'open';
+    } else if (['f', 'v'].includes(char)) {
+      currentViseme = 'teeth';
+    } else if (charIndex < text.length - 1 && text.substring(charIndex, charIndex + 2).toLowerCase() === 'th') {
+      currentViseme = 'tongue';
+    } else if (/[aeiou]/.test(char)) {
+      currentViseme = 'open';
+    } else if (audioLevel > 0.1) {
+      currentViseme = 'open';
+    } else {
+      currentViseme = 'neutral';
+    }
   } else if (audioLevel > 0.1) {
     // Use audio level as fallback
     currentViseme = 'open';
