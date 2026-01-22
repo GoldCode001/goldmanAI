@@ -754,6 +754,19 @@ You are more "smart companion" than "chaotic teenager".
       // Mark as initialized
       geminiGenAI = true;
       geminiModel = true;
+    } else {
+      // If already initialized, check if AI name changed and restart if needed
+      const currentMemory = await getUserMemory() || {};
+      const currentAiName = currentMemory.aiName || 'PAL';
+      if (currentAiName !== aiName) {
+        // AI name changed, need to restart
+        console.log('AI name changed, restarting Gemini Live...');
+        stopGeminiLive();
+        geminiGenAI = null;
+        geminiModel = null;
+        // Recursively call to reinitialize
+        return startListening();
+      }
     }
 
     // Start Gemini Live connection
