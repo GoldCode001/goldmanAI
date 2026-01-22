@@ -54,6 +54,72 @@ app.post("/api/user", async (req, res) => {
   res.json(data);
 });
 
+/* ========= USER MEMORY ========= */
+
+app.get("/api/user/memory", async (req, res) => {
+  try {
+    const userId = req.query.userId || req.headers['x-user-id'];
+    if (!userId) {
+      return res.status(400).json({ error: "userId required" });
+    }
+
+    const { data, error } = await supabase
+      .from("user_settings")
+      .select("settings")
+      .eq("user_id", userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      return res.status(500).json({ error: error.message });
+    }
+
+    const memory = data?.settings?.memory || {};
+    res.json({ memory });
+  } catch (err) {
+    console.error('Memory fetch error:', err);
+    res.status(500).json({ error: 'Failed to fetch memory' });
+  }
+});
+
+app.post("/api/user/memory", async (req, res) => {
+  try {
+    const { userId, memory } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "userId required" });
+    }
+
+    // Get existing settings
+    const { data: existing } = await supabase
+      .from("user_settings")
+      .select("settings")
+      .eq("user_id", userId)
+      .single();
+
+    const currentSettings = existing?.settings || {};
+    const updatedSettings = {
+      ...currentSettings,
+      memory: memory
+    };
+
+    const { error } = await supabase
+      .from("user_settings")
+      .upsert({
+        user_id: userId,
+        settings: updatedSettings,
+        updated_at: new Date().toISOString()
+      });
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Memory save error:', err);
+    res.status(500).json({ error: 'Failed to save memory' });
+  }
+});
+
 /* ========= CHAT CREATE ========= */
 
 app.post("/api/chat/new", async (req, res) => {
@@ -103,7 +169,7 @@ app.get("/api/chat/:chatId", async (req, res) => {
 /* ========= MESSAGE + AI ========= */
 
 app.post("/api/message", async (req, res) => {
-  const { chatId, role, content, encryptedContent } = req.body;
+  const { chatId, role, content, encryptedContent, decryptedHistory, userId } = req.body;
   if (!chatId || !role || !content) {
     return res.status(400).json({ error: "missing fields" });
   }
@@ -121,15 +187,77 @@ app.post("/api/message", async (req, res) => {
     return res.json({ ok: true });
   }
 
-  // load full conversation
-  // Note: If history is encrypted in DB, AI context will be broken for those messages.
-  // Full privacy implementation requires client to send decrypted history.
-  // For now, we rely on DB history (which might be mixed or encrypted).
-  const { data: history } = await supabase
-    .from("messages")
-    .select("role, content")
-    .eq("chat_id", chatId)
-    .order("created_at");
+  // Use decrypted history from client for AI context (privacy-preserving)
+  // Client decrypts messages locally and sends plain text for AI processing
+  // while still storing encrypted versions in DB
+  let history = decryptedHistory || [];
+  
+  // If client didn't send decrypted history, fallback to DB (for non-encrypted chats)
+  if (!history || history.length === 0) {
+    const { data: dbHistory } = await supabase
+      .from("messages")
+      .select("role, content")
+      .eq("chat_id", chatId)
+      .order("created_at");
+    history = dbHistory || [];
+  }
+  
+  // Add current user message to history
+  history.push({ role: "user", content: content });
+
+  // Load user memory and language preference for personalization
+  let memoryContext = "";
+  let userLanguage = "en"; // Default to English
+  if (userId) {
+    try {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("settings")
+        .eq("user_id", userId)
+        .single();
+      
+      if (settings?.settings) {
+        // Get language preference
+        if (settings.settings.language) {
+          userLanguage = settings.settings.language;
+        }
+        
+        // Get memory for personalization
+        if (settings.settings.memory) {
+          const memory = settings.settings.memory;
+          memoryContext = "\n\nUSER CONTEXT (Remember these details):\n";
+          if (memory.name) memoryContext += `- User's name: ${memory.name}\n`;
+          if (memory.location) memoryContext += `- User's location: ${memory.location}\n`;
+          if (memory.preferences && memory.preferences.length > 0) {
+            memoryContext += `- User's preferences: ${memory.preferences.join(", ")}\n`;
+          }
+          if (memory.facts && memory.facts.length > 0) {
+            memoryContext += `- Additional facts: ${memory.facts.join(", ")}\n`;
+          }
+          memoryContext += "\nUse this information to personalize your responses naturally. Don't be robotic about it.";
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load user settings:', err);
+      // Continue without memory if it fails
+    }
+  }
+  
+  // Add language instruction to system prompt
+  const languageNames = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese"
+  };
+  const languageInstruction = userLanguage !== "en" 
+    ? `\n\nLANGUAGE: Respond in ${languageNames[userLanguage] || userLanguage}. The user prefers to communicate in this language.`
+    : "";
 
   try {
     console.log('Calling OpenRouter with history:', history);
@@ -138,7 +266,7 @@ app.post("/api/message", async (req, res) => {
     const messagesWithSystem = [
       {
         role: "system",
-        content: `You are PAL, a highly advanced, ultra-realistic AI companion.
+        content: `You are PAL, a highly advanced, ultra-realistic AI companion.${languageInstruction}${memoryContext}
 
 AUDIO-FIRST PERSONA (CRITICAL):
 - You are an AUDIO assistant. You can "hear" the user and "speak" back.
@@ -203,7 +331,7 @@ Be the most human-like, natural audio companion possible.`
       content: reply
     });
 
-    res.json({ content: reply });
+    res.json({ content: reply, language: userLanguage });
 
   } catch (err) {
     console.error('AI processing error:', err);
@@ -288,7 +416,10 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: "No audio file provided" });
     }
 
-    console.log('Transcribing with Cartesia...');
+    // Get user's preferred language (default: en)
+    const language = req.body.language || req.query.language || "en";
+
+    console.log('Transcribing with Cartesia (language:', language, ')...');
 
     // Create a FormData instance
     const formData = new FormData();
@@ -296,7 +427,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
     const audioBlob = new Blob([req.file.buffer], { type: req.file.mimetype });
     formData.append("file", audioBlob, "audio.webm");
     formData.append("model", "ink-whisper");
-    formData.append("language", "en");
+    formData.append("language", language);
 
     console.log('Sending request to Cartesia API...');
 
@@ -330,12 +461,28 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
 
 app.post("/api/tts", async (req, res) => {
   try {
-    const { text } = req.body;
+    const { text, language } = req.body;
     if (!text) {
       return res.status(400).json({ error: "text required" });
     }
 
-    console.log('Calling Cartesia TTS for:', text.substring(0, 50));
+    // Map language codes to Cartesia model IDs
+    // Default to English if not specified
+    const lang = language || "en";
+    const modelMap = {
+      "en": "sonic-english",
+      "es": "sonic-spanish",
+      "fr": "sonic-french",
+      "de": "sonic-german",
+      "it": "sonic-italian",
+      "pt": "sonic-portuguese",
+      "ja": "sonic-japanese",
+      "ko": "sonic-korean",
+      "zh": "sonic-chinese"
+    };
+    const modelId = modelMap[lang] || "sonic-english";
+
+    console.log('Calling Cartesia TTS for:', text.substring(0, 50), '(language:', lang, ')');
 
     // Cartesia TTS API (bytes endpoint for streaming)
     // Docs: https://docs.cartesia.ai/api-reference/endpoints/tts-bytes
@@ -347,7 +494,7 @@ app.post("/api/tts", async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model_id: "sonic-english",
+        model_id: modelId,
         transcript: text,
         voice: {
           mode: "id",

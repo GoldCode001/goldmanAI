@@ -7,16 +7,17 @@ const API = "https://aibackend-production-a44f.up.railway.app";
 /**
  * Convert text to speech using backend TTS endpoint (Streaming)
  * @param {string} text - Text to convert to speech
+ * @param {string} language - Language code (en, es, fr, etc.) - defaults to 'en'
  * @returns {Promise<string>} Audio URL (blob URL) - kept for compatibility, but now streams internally if needed
  */
-export async function speak(text) {
+export async function speak(text, language = "en") {
   try {
     const res = await fetch(`${API}/api/tts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, language })
     });
 
     if (!res.ok) {
