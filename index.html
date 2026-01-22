@@ -155,6 +155,20 @@
   </aside>
 </div>
 
-<script type="module" src="src/lib/app.js"></script>
+  <!-- Action Confirmation Modal -->
+  <div id="actionModal" class="action-modal hidden">
+    <div id="actionModalContent" class="action-modal-content">
+      <button id="actionModalClose" class="action-modal-close">×</button>
+      <h3 id="actionModalTitle" class="action-modal-title">Action Confirmation</h3>
+      <p id="actionModalMessage" class="action-modal-message"></p>
+      <div id="actionModalActions" class="action-modal-actions">
+        <button id="actionModalConfirm" class="action-modal-btn action-modal-btn-primary">Confirm</button>
+        <button id="actionModalSave" class="action-modal-btn action-modal-btn-secondary" style="display: none;">Save & Execute</button>
+        <button id="actionModalCancel" class="action-modal-btn action-modal-btn-cancel" onclick="document.getElementById('actionModal').classList.add('hidden')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/lib/app.js"></script>
 </body>
 </html>

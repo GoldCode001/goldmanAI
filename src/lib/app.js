@@ -91,6 +91,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize inline output panel
   initInlineOutput();
   
+  // Initialize action modal
+  const { initActionModal } = await import('../components/actionModal.js');
+  initActionModal();
+  
   // Request notification permission for alarms
   requestNotificationPermission();
 });
