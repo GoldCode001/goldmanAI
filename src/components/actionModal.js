@@ -343,9 +343,11 @@ async function saveAction() {
       actionModalMessage.textContent = result.message || 'Saved and executed!';
       actionModalMessage.style.color = '#4CAF50';
       
-      setTimeout(() => {
-        hideActionModal();
-      }, 2000);
+      // Don't auto-close - let user close when ready
+      // Re-enable buttons so user can close
+      if (confirmBtn) confirmBtn.disabled = false;
+      if (saveBtn) saveBtn.disabled = false;
+      if (cancelBtn) cancelBtn.disabled = false;
     } else {
       actionModalMessage.textContent = result.error || 'Failed to save';
       actionModalMessage.style.color = '#ef4444';
