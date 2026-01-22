@@ -151,7 +151,12 @@ function render() {
     // Audio -> Jaw (base openness)
     const rawVolume = audioLevel || 0;
     // Increase sensitivity for better mouth movement
-    let targetJaw = Math.min(rawVolume * 3.0, 1.0);
+    let targetJaw = Math.min(rawVolume * 4.0, 1.0);
+    
+    // Debug: log audio level occasionally
+    if (Math.random() < 0.01 && rawVolume > 0) {
+      console.log('Face audio level:', rawVolume.toFixed(3), 'Target jaw:', targetJaw.toFixed(3));
+    }
     
     // Laughter overrides - wide open mouth
     if (isLaughing) {

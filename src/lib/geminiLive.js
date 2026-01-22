@@ -113,8 +113,10 @@ export async function startGeminiLive() {
 
     // Setup Analyser for Mouth Sync (on output context)
     analyserNode = outputAudioContext.createAnalyser();
-    analyserNode.fftSize = 256;
-    analyserNode.smoothingTimeConstant = 0.8;
+    analyserNode.fftSize = 2048; // Larger FFT for better frequency resolution
+    analyserNode.smoothingTimeConstant = 0.3; // Less smoothing for more responsive animation
+    analyserNode.minDecibels = -90;
+    analyserNode.maxDecibels = -10;
 
     // Setup Gemini Client
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -274,8 +276,13 @@ function startAudioLevelMonitoring() {
     }
     const rms = Math.sqrt(sum / dataArray.length);
     
-    // Normalize to 0-1 range (multiply by 2 for better sensitivity)
-    const normalized = Math.min(rms * 2.0, 1.0);
+    // Normalize to 0-1 range (multiply by 3 for better sensitivity)
+    const normalized = Math.min(rms * 3.0, 1.0);
+    
+    // Debug: log occasionally
+    if (Math.random() < 0.01 && normalized > 0) {
+      console.log('Audio amplitude:', normalized.toFixed(3), 'RMS:', rms.toFixed(3));
+    }
     
     if (onAudioLevelUpdate) {
       onAudioLevelUpdate(normalized);
