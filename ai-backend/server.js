@@ -105,16 +105,17 @@ app.get("/api/chat/:chatId", async (req, res) => {
 /* ========= MESSAGE + AI ========= */
 
 app.post("/api/message", async (req, res) => {
-  const { chatId, role, content } = req.body;
+  const { chatId, role, content, encryptedContent } = req.body;
   if (!chatId || !role || !content) {
     return res.status(400).json({ error: "missing fields" });
   }
 
   // save user message
+  // If encryptedContent is provided (Privacy Layer), save that instead of plain text
   await supabase.from("messages").insert({
     chat_id: chatId,
     role,
-    content
+    content: encryptedContent || content
   });
 
   // only call AI on user message
@@ -123,6 +124,9 @@ app.post("/api/message", async (req, res) => {
   }
 
   // load full conversation
+  // Note: If history is encrypted in DB, AI context will be broken for those messages.
+  // Full privacy implementation requires client to send decrypted history.
+  // For now, we rely on DB history (which might be mixed or encrypted).
   const { data: history } = await supabase
     .from("messages")
     .select("role, content")
