@@ -610,18 +610,20 @@ async function startListening() {
     }
     const { apiKey } = await keyRes.json();
 
+    // Always reload memory to get latest AI name and user preferences
+    const memory = await getUserMemory() || {};
+    const userName = memory.name || '';
+    const aiName = memory.aiName || 'PAL';
+    
     // Initialize Gemini Live if not already done
     if (!geminiGenAI || !geminiModel) {
-      // Load user memory for personalized system prompt
-      const memory = await getUserMemory() || {};
-      const userName = memory.name || '';
-      const aiName = memory.aiName || 'PAL';
-      
       // Build personalized system prompt
-      let systemPrompt = `You are ${aiName} (Predictive Algorithmic Learning).
+      let systemPrompt = `You are ${aiName}.
 Your persona is a highly intelligent, witty, and helpful personal assistant.
 You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
-You are more "smart companion" than "chaotic teenager".`;
+You are more "smart companion" than "chaotic teenager".
+
+**CRITICAL - YOUR NAME**: Your name is ${aiName}. When you refer to yourself, ALWAYS use "${aiName}", never "PAL" or any other name. If the user asks your name, say "${aiName}".`;
       
       if (userName) {
         systemPrompt += `\n\nThe user's name is ${userName}. Use their name naturally in conversation, but don't overuse it.`;
@@ -641,9 +643,9 @@ You are more "smart companion" than "chaotic teenager".`;
       
       systemPrompt += `\n\n**Core Instructions:**
 1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
-2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
+2. **Backchanneling (IMPORTANT)**: When the user is speaking, use brief verbal acknowledgments to show you're actively listening. Examples: "Right", "I see", "Uh-huh", "Got it", "Mhm", "Yeah", "Okay", "Go on", "Interesting". Use these naturally during pauses in the user's speech, not after every sentence. This makes the conversation feel more natural and shows engagement.
 3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
-4. **Identity**: You are the user's loyal assistant. You are ${aiName}.`;
+4. **Identity**: You are the user's loyal assistant. Your name is ${aiName} - always refer to yourself as ${aiName}, never as PAL or any other name.`;
       
       const initialized = await initGeminiLive(apiKey, {
         onAudioLevel: (amplitude) => {
