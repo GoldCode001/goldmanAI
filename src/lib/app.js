@@ -50,6 +50,9 @@ let isAISpeaking = false; // Prevent overlapping AI responses
 /* ================= BOOT ================= */
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Bind auth events FIRST (so they work on auth screen before login)
+  bindAuthEvents();
+
   const user = await checkAuth();
 
   if (!user) {
@@ -61,7 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await ensureUser(user);
   await loadChats(user.id);
 
-  bindEvents();
+  bindAppEvents();
 
   // Initialize face with tap-to-talk handler (starts blinking automatically)
   initAssistantFace(handleFaceTap);
@@ -72,10 +75,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 /* ================= EVENTS ================= */
 
-function bindEvents() {
+/**
+ * Bind auth-related events (must run BEFORE user check)
+ */
+function bindAuthEvents() {
   document.getElementById("signinForm")?.addEventListener("submit", onSignIn);
   document.getElementById("signupForm")?.addEventListener("submit", onSignUp);
+  document.getElementById("signinTab")?.addEventListener("click", () => switchTab("signin"));
+  document.getElementById("signupTab")?.addEventListener("click", () => switchTab("signup"));
+}
 
+/**
+ * Bind app events (runs AFTER successful auth)
+ */
+function bindAppEvents() {
   document.getElementById("newChatBtn")?.addEventListener("click", createNewChat);
   document.getElementById("signOutBtn")?.addEventListener("click", signOut);
 
@@ -213,8 +226,11 @@ function escapeHtml(text) {
 
 async function onSignIn(e) {
   e.preventDefault();
+  const email = document.getElementById('signinEmail').value;
+  const password = document.getElementById('signinPassword').value;
+  
   try {
-    await signIn(signinEmail.value, signinPassword.value);
+    await signIn(email, password);
     location.reload();
   } catch (err) {
     updateAuthStatus(err.message, "error");
@@ -223,12 +239,22 @@ async function onSignIn(e) {
 
 async function onSignUp(e) {
   e.preventDefault();
-  if (signupPassword.value !== signupConfirm.value) {
+  const email = document.getElementById('signupEmail').value;
+  const password = document.getElementById('signupPassword').value;
+  const confirm = document.getElementById('signupConfirm').value;
+  
+  if (password !== confirm) {
     updateAuthStatus("passwords do not match", "error");
     return;
   }
-  await signUp(signupEmail.value, signupPassword.value);
-  switchTab("signin");
+  
+  try {
+    await signUp(email, password);
+    updateAuthStatus("Account created! Please sign in.", "success");
+    switchTab("signin");
+  } catch (err) {
+    updateAuthStatus(err.message, "error");
+  }
 }
 
 /* ================= CHAT ================= */
