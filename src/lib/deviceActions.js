@@ -304,29 +304,32 @@ async function getLocation() {
     
     console.log('Requesting location...');
     
-    // Use longer timeout for mobile devices and allow cached position
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const timeout = isMobile ? 20000 : 15000; // 20s for mobile, 15s for desktop
+    // iOS Chrome/Safari needs longer timeout and different settings
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const timeout = isIOS ? 30000 : 15000; // 30s for iOS, 15s for others
     
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         console.log('Location obtained:', position.coords);
         const { latitude, longitude } = position.coords;
         
-        // Open in Google Maps
         const mapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
         
-        // Try multiple methods to open map
-        try {
-          const mapWindow = window.open(mapsUrl, '_blank');
-          if (!mapWindow || mapWindow.closed || typeof mapWindow.closed === 'undefined') {
-            // Popup blocked, try direct navigation
-            console.log('Popup blocked, using direct navigation');
+        // iOS Chrome/Safari: Use location.href (more reliable than window.open)
+        if (isIOS) {
+          window.location.href = mapsUrl;
+        } else {
+          // Try window.open, fallback to location.href
+          try {
+            const mapWindow = window.open(mapsUrl, '_blank');
+            setTimeout(() => {
+              if (!mapWindow || mapWindow.closed) {
+                window.location.href = mapsUrl;
+              }
+            }, 100);
+          } catch (err) {
             window.location.href = mapsUrl;
           }
-        } catch (err) {
-          console.error('Failed to open window, trying location.href');
-          window.location.href = mapsUrl;
         }
         
         // Try to get address (reverse geocoding)
@@ -354,11 +357,11 @@ async function getLocation() {
         console.error('Geolocation error:', error);
         let errorMsg = 'Failed to get location';
         if (error.code === error.PERMISSION_DENIED) {
-          errorMsg = 'Location permission denied. Please enable location access in your browser/device settings and try again.';
+          errorMsg = 'Location permission denied. Go to Settings > Chrome > Location Services and enable it, then try again.';
         } else if (error.code === error.POSITION_UNAVAILABLE) {
-          errorMsg = 'Location information unavailable. Please check your device location settings and ensure GPS is enabled.';
+          errorMsg = 'Location unavailable. Please check your device location settings.';
         } else if (error.code === error.TIMEOUT) {
-          errorMsg = 'Location request timed out. Please ensure your device GPS is enabled and try again.';
+          errorMsg = 'Location request timed out. Please ensure location services are enabled and try again.';
         } else {
           errorMsg = `Location error: ${error.message || 'Unknown error'}`;
         }
@@ -368,9 +371,9 @@ async function getLocation() {
         });
       },
       { 
-        enableHighAccuracy: false, // Changed to false - high accuracy can cause timeouts
+        enableHighAccuracy: false, // false works better on iOS
         timeout: timeout, 
-        maximumAge: 60000 // Allow cached position up to 1 minute old
+        maximumAge: 300000 // Allow cached position up to 5 minutes old
       }
     );
   });
