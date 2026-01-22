@@ -18,8 +18,23 @@ export function updateAuthStatus(msg, type = "info") {
 }
 
 export function switchTab(tab) {
+  // Toggle forms
   document.getElementById("signinForm")?.classList.toggle("hidden", tab !== "signin");
   document.getElementById("signupForm")?.classList.toggle("hidden", tab !== "signup");
+  
+  // Toggle active state on tabs
+  const signinTab = document.getElementById("signinTab");
+  const signupTab = document.getElementById("signupTab");
+  
+  if (signinTab && signupTab) {
+    if (tab === "signin") {
+      signinTab.classList.add("active");
+      signupTab.classList.remove("active");
+    } else {
+      signupTab.classList.add("active");
+      signinTab.classList.remove("active");
+    }
+  }
 }
 
 /* ================= SIDEBAR ================= */

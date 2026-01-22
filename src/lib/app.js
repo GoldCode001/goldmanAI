@@ -644,7 +644,7 @@ You are more "smart companion" than "chaotic teenager".`;
 4. **Identity**: You are the user's loyal assistant. You are ${aiName}.`;
       
       const initialized = await initGeminiLive(apiKey, {
-      onAudioLevel: (amplitude) => {
+        onAudioLevel: (amplitude) => {
         // Store current audio level
         currentAudioLevel = amplitude;
         
@@ -671,7 +671,7 @@ You are more "smart companion" than "chaotic teenager".`;
           }
         }
       },
-        onTranscript: async (text) => {
+      onTranscript: async (text) => {
           // Show transcript updates from Gemini
           if (text && text.trim()) {
             showTranscript(`PAL: ${text}`);
@@ -730,6 +730,7 @@ You are more "smart companion" than "chaotic teenager".`;
             }
           } catch (err) {
             console.error('Failed to save AI message:', err);
+          }
           }
         }
       },
