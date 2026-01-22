@@ -256,8 +256,15 @@ You are more "smart companion" than "chaotic teenager".
  * Monitor audio levels for lip sync animation
  */
 function startAudioLevelMonitoring() {
+  if (!analyserNode) {
+    console.error('AnalyserNode not initialized');
+    return;
+  }
+  
   const bufferLength = analyserNode.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
+  
+  console.log('Starting audio level monitoring, buffer length:', bufferLength);
   
   function update() {
     if (!isConnected || !analyserNode) {
@@ -276,16 +283,21 @@ function startAudioLevelMonitoring() {
     }
     const rms = Math.sqrt(sum / dataArray.length);
     
-    // Normalize to 0-1 range (multiply by 3 for better sensitivity)
-    const normalized = Math.min(rms * 3.0, 1.0);
+    // Normalize to 0-1 range (multiply by 4 for better sensitivity)
+    const normalized = Math.min(rms * 4.0, 1.0);
     
-    // Debug: log occasionally
-    if (Math.random() < 0.01 && normalized > 0) {
+    // Debug: log first few times to verify it's working
+    if (window.audioDebugCount === undefined) window.audioDebugCount = 0;
+    if (window.audioDebugCount < 10 && normalized > 0.01) {
       console.log('Audio amplitude:', normalized.toFixed(3), 'RMS:', rms.toFixed(3));
+      window.audioDebugCount++;
     }
     
     if (onAudioLevelUpdate) {
       onAudioLevelUpdate(normalized);
+    } else if (window.audioDebugCount < 5) {
+      console.warn('onAudioLevelUpdate callback not set');
+      window.audioDebugCount++;
     }
     
     requestAnimationFrame(update);
