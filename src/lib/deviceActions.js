@@ -157,11 +157,14 @@ async function makeEmergencyCall() {
 
 /**
  * Make regular phone call
+ * Note: Web apps cannot access device contact list for security reasons.
+ * Users must provide phone numbers directly or use their device's dialer app.
  */
 async function makeCall(phoneNumber) {
   try {
     // Check if we're on a device that supports tel: protocol
-    if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (!isMobile) {
       return { 
         success: false, 
         error: 'Phone calls are only supported on mobile devices. Please use your phone to make calls.' 
@@ -174,14 +177,23 @@ async function makeCall(phoneNumber) {
       return { success: false, error: 'Invalid phone number. Please provide a valid 10-digit phone number.' };
     }
     
-    // Use tel: protocol - open in new window/tab to avoid navigation
+    // Use tel: protocol - this will open the device's dialer
+    // On mobile, this works directly. On desktop, it may not work.
     const link = document.createElement('a');
     link.href = `tel:${cleanNumber}`;
+    link.style.display = 'none';
+    document.body.appendChild(link);
     link.click();
+    // Remove after a short delay to ensure click works
+    setTimeout(() => {
+      if (document.body.contains(link)) {
+        document.body.removeChild(link);
+      }
+    }, 100);
     
     return { 
       success: true, 
-      message: `Calling ${formatPhoneNumber(cleanNumber)}...`,
+      message: `Opening dialer to call ${formatPhoneNumber(cleanNumber)}...`,
       action: 'call_initiated'
     };
   } catch (err) {
