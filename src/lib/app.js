@@ -733,15 +733,15 @@ You are more "smart companion" than "chaotic teenager".`;
             }
           }
         },
-      onError: (error) => {
-        console.error('Gemini Live error:', error);
-        showTranscript(`Error: ${error.message}`);
-        setTimeout(() => {
-          stopListening();
-          hideTranscript();
-        }, 3000);
-      }
-    });
+        onError: (error) => {
+          console.error('Gemini Live error:', error);
+          showTranscript(`Error: ${error.message}`);
+          setTimeout(() => {
+            stopListening();
+            hideTranscript();
+          }, 3000);
+        }
+      }, systemPrompt);
 
     if (!initialized) {
       throw new Error('Failed to initialize Gemini Live');
