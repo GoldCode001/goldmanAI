@@ -55,6 +55,7 @@ window.chatCache = [];
 let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
 let currentMood = 'NEUTRAL'; // For canvas face
+let currentAudioLevel = 0; // Current audio amplitude for face animation
 
 /* ================= BOOT ================= */
 
@@ -566,6 +567,9 @@ async function startListening() {
     // Initialize Gemini Live
     const initialized = await initGeminiLive(apiKey, {
       onAudioLevel: (amplitude) => {
+        // Store current audio level
+        currentAudioLevel = amplitude;
+        
         // Update canvas face with audio level and current text
         // Estimate speech progress based on time (simple approximation)
         const progress = window.speechStartTime 
@@ -613,7 +617,7 @@ async function startListening() {
             currentMood = emotion ? emotion.toUpperCase() : 'NEUTRAL';
             
             // Update face with text for viseme detection
-            updateFaceState(currentMood, audioLevel || 0, true, text, 0);
+            updateFaceState(currentMood, currentAudioLevel || 0, true, text, 0);
           
           // Save AI message to database
           try {

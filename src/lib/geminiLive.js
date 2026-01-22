@@ -258,19 +258,24 @@ function startAudioLevelMonitoring() {
   const dataArray = new Uint8Array(bufferLength);
   
   function update() {
-    if (!isConnected || !analyserNode) return;
+    if (!isConnected || !analyserNode) {
+      requestAnimationFrame(update);
+      return;
+    }
     
-    analyserNode.getByteFrequencyData(dataArray);
+    // Use time domain data for better amplitude detection
+    analyserNode.getByteTimeDomainData(dataArray);
     
-    // Calculate average amplitude
+    // Calculate RMS (Root Mean Square) for amplitude
     let sum = 0;
     for (let i = 0; i < dataArray.length; i++) {
-      sum += dataArray[i];
+      const normalized = (dataArray[i] - 128) / 128.0;
+      sum += normalized * normalized;
     }
-    const average = sum / dataArray.length;
+    const rms = Math.sqrt(sum / dataArray.length);
     
-    // Normalize 0-255 to 0-1 (using 128 as midpoint for better sensitivity)
-    const normalized = average / 128.0;
+    // Normalize to 0-1 range (multiply by 2 for better sensitivity)
+    const normalized = Math.min(rms * 2.0, 1.0);
     
     if (onAudioLevelUpdate) {
       onAudioLevelUpdate(normalized);
