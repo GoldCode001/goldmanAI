@@ -53,6 +53,7 @@ export async function saveUserMemory(memory) {
 /**
  * Extract user information from conversation
  * Called after each conversation to learn about the user
+ * Now includes goal and habit tracking
  */
 export async function learnFromConversation(messages) {
   try {
@@ -65,6 +66,8 @@ export async function learnFromConversation(messages) {
     // Simple extraction: look for patterns like "I am", "My name is", "I like", etc.
     const facts = [];
     const rememberedFacts = []; // For "remember this" / "don't forget" extraction
+    const goals = []; // For goal tracking
+    const habits = []; // For habit tracking
     
     userMessages.forEach(msg => {
       const text = msg.content;
@@ -88,6 +91,47 @@ export async function learnFromConversation(messages) {
           const fact = match[1].trim();
           if (fact && fact.length > 3) { // Minimum length to avoid noise
             rememberedFacts.push(fact);
+          }
+        }
+      });
+      
+      // Goal extraction - patterns like "I want to", "I'm trying to", "My goal is"
+      const goalPatterns = [
+        /(?:i want to|i'm trying to|my goal is|i'm working on|i plan to|i aim to)\s+(.+?)(?:\.|$)/gi,
+        /(?:goal|objective|target)\s*:?\s*(.+?)(?:\.|$)/gi
+      ];
+      
+      goalPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+          const goal = match[1].trim();
+          if (goal && goal.length > 5) {
+            goals.push({
+              text: goal,
+              createdAt: new Date().toISOString(),
+              status: 'active'
+            });
+          }
+        }
+      });
+      
+      // Habit extraction - patterns like "I'm doing X daily", "I want to build the habit of"
+      const habitPatterns = [
+        /(?:i'm doing|i do|i want to do|i'm building the habit of|i'm trying to)\s+(.+?)\s+(?:daily|every day|weekly|regularly|often)/gi,
+        /(?:habit|routine)\s*:?\s*(.+?)(?:\.|$)/gi
+      ];
+      
+      habitPatterns.forEach(pattern => {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+          const habit = match[1].trim();
+          if (habit && habit.length > 5) {
+            habits.push({
+              text: habit,
+              createdAt: new Date().toISOString(),
+              streak: 0,
+              lastCompleted: null
+            });
           }
         }
       });
@@ -134,8 +178,36 @@ export async function learnFromConversation(messages) {
       });
     }
     
+    // Add goals
+    if (goals.length > 0) {
+      if (!updatedMemory.goals) updatedMemory.goals = [];
+      goals.forEach(goal => {
+        // Check if goal already exists (avoid duplicates)
+        const exists = updatedMemory.goals.some(g => 
+          g.text.toLowerCase() === goal.text.toLowerCase()
+        );
+        if (!exists) {
+          updatedMemory.goals.push(goal);
+        }
+      });
+    }
+    
+    // Add habits
+    if (habits.length > 0) {
+      if (!updatedMemory.habits) updatedMemory.habits = [];
+      habits.forEach(habit => {
+        // Check if habit already exists (avoid duplicates)
+        const exists = updatedMemory.habits.some(h => 
+          h.text.toLowerCase() === habit.text.toLowerCase()
+        );
+        if (!exists) {
+          updatedMemory.habits.push(habit);
+        }
+      });
+    }
+    
     // Save updated memory if there are changes
-    if (facts.length > 0 || rememberedFacts.length > 0) {
+    if (facts.length > 0 || rememberedFacts.length > 0 || goals.length > 0 || habits.length > 0) {
       await saveUserMemory(updatedMemory);
     }
   } catch (err) {
@@ -167,6 +239,25 @@ export function formatMemoryForPrompt(memory) {
   
   if (memory.facts && memory.facts.length > 0) {
     prompt += `- Additional facts: ${memory.facts.join(", ")}\n`;
+  }
+  
+  // Goals tracking
+  if (memory.goals && memory.goals.length > 0) {
+    prompt += `\n- Active Goals:\n`;
+    memory.goals.filter(g => g.status === 'active').forEach(goal => {
+      prompt += `  * ${goal.text} (created: ${new Date(goal.createdAt).toLocaleDateString()})\n`;
+    });
+    prompt += `  Check in on these goals naturally in conversation. Celebrate progress and offer support.\n`;
+  }
+  
+  // Habits tracking
+  if (memory.habits && memory.habits.length > 0) {
+    prompt += `\n- Habits Being Built:\n`;
+    memory.habits.forEach(habit => {
+      const streak = habit.streak || 0;
+      prompt += `  * ${habit.text} (${streak}-day streak)\n`;
+    });
+    prompt += `  Acknowledge their consistency and encourage them to maintain their streaks.\n`;
   }
   
   prompt += "\nUse this information to personalize your responses naturally. Don't be robotic about it.";

@@ -45,7 +45,7 @@ import {
   initInlineOutput
 } from "./inlineOutput.js";
 import { learnFromConversation, getUserMemory } from "./memory.js";
-import { parseActionRequest, executeAction, requestNotificationPermission } from "./deviceActions.js";
+// Device actions removed - focusing on personal development assistant
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -645,16 +645,38 @@ You are more "smart companion" than "chaotic teenager".
       }
       
       // Add memory context if available
-      if (memory.facts && memory.facts.length > 0) {
-        systemPrompt += `\n\nImportant things to remember about ${userName || 'the user'}:`;
-        memory.facts.forEach(fact => {
-          systemPrompt += `\n- ${fact}`;
-        });
-      }
-      
-      if (memory.preferences && memory.preferences.length > 0) {
-        systemPrompt += `\n\n${userName || 'The user'}'s preferences: ${memory.preferences.join(", ")}`;
-      }
+          if (memory.facts && memory.facts.length > 0) {
+            systemPrompt += `\n\nImportant things to remember about ${userName || 'the user'}:`;
+            memory.facts.forEach(fact => {
+              systemPrompt += `\n- ${fact}`;
+            });
+          }
+          
+          if (memory.preferences && memory.preferences.length > 0) {
+            systemPrompt += `\n\n${userName || 'The user'}'s preferences: ${memory.preferences.join(", ")}`;
+          }
+          
+          // Goals tracking
+          if (memory.goals && memory.goals.length > 0) {
+            const activeGoals = memory.goals.filter(g => g.status === 'active');
+            if (activeGoals.length > 0) {
+              systemPrompt += `\n\n${userName || 'The user'}'s Active Goals:`;
+              activeGoals.forEach(goal => {
+                systemPrompt += `\n- ${goal.text}`;
+              });
+              systemPrompt += `\n\nCheck in on these goals naturally. Ask about progress, celebrate wins, and offer support when they're struggling.`;
+            }
+          }
+          
+          // Habits tracking
+          if (memory.habits && memory.habits.length > 0) {
+            systemPrompt += `\n\n${userName || 'The user'}'s Habits:`;
+            memory.habits.forEach(habit => {
+              const streak = habit.streak || 0;
+              systemPrompt += `\n- ${habit.text} (${streak}-day streak)`;
+            });
+            systemPrompt += `\n\nAcknowledge their consistency. Celebrate streak milestones and encourage them to keep going.`;
+          }
       
       systemPrompt += `\n\n**Core Instructions:**
 1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
@@ -676,15 +698,9 @@ When the user requests these actions, acknowledge briefly (e.g., "Calling now...
       
       const initialized = await initGeminiLive(apiKey, {
         onUserTranscript: async (userText) => {
-          // Detect actions from USER's speech (not AI's response)
+          // User speech - can be used for learning and goal tracking
           console.log('User transcript received:', userText);
-          const action = parseActionRequest(userText);
-          if (action) {
-            console.log('Action detected from user:', action);
-            // Show confirmation modal
-            const { showActionModal } = await import('../components/actionModal.js');
-            await showActionModal(action, null);
-          }
+          // No device actions - focusing on personal development
         },
         onAudioLevel: (amplitude) => {
           // Store current audio level
