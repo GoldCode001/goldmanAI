@@ -51,13 +51,29 @@ export function parseActionRequest(text) {
     }
   }
   
-  // Show on map / get location - More flexible patterns to handle missed words
-  // Match: "show map", "show me map", "show on map", "map", "location", "where am i", etc.
-  if (/\b(?:show|display|find|open|see|get|my|the)\s*(?:me\s*)?(?:on\s*)?(?:the\s*)?(?:map|location)\b/i.test(text) ||
-      /\b(?:map|location)\b/i.test(text) ||
-      /\b(?:where|where's|where\s+am|where\s+is)\s*(?:am\s*)?(?:i\s*)?(?:located|at|now|here)\b/i.test(text) ||
-      /\b(?:show|display|find)\s*(?:my|me|current)\s*(?:location|position|where)\b/i.test(text)) {
-    return { type: ActionTypes.SHOW_MAP, params: {} };
+  // Show on map / get location - Extract search query if user specified one
+  const mapMatch = text.match(/\b(?:show|display|find|open|see|get|where)\s*(?:me\s*)?(?:on\s*)?(?:the\s*)?(?:map|location)\s*(?:near|around|nearby)?\s*(.+)?/i);
+  if (mapMatch || /\b(?:map|location)\b/i.test(text) || /\b(?:where|where's|where\s+am|where\s+is)\s*(?:am\s*)?(?:i\s*)?(?:located|at|now|here)\b/i.test(text)) {
+    // Extract search query (e.g., "gas stations", "coffee shops", "restaurants")
+    let searchQuery = null;
+    if (mapMatch && mapMatch[1]) {
+      // Remove common words and extract the actual search term
+      const query = mapMatch[1].trim();
+      if (query && !query.match(/^(me|my|current|here|there)$/i)) {
+        searchQuery = query;
+      }
+    }
+    
+    // Also check for patterns like "find gas stations", "show coffee shops"
+    const findMatch = text.match(/\b(?:find|show|display|search\s+for)\s+(.+?)(?:\s+(?:on|in|near|around|nearby|the)\s+(?:map|location))?/i);
+    if (findMatch && findMatch[1]) {
+      searchQuery = findMatch[1].trim();
+    }
+    
+    return { 
+      type: ActionTypes.SHOW_MAP, 
+      params: { searchQuery: searchQuery || null } 
+    };
   }
   
   // Set alarm - More flexible
@@ -115,7 +131,7 @@ export async function executeAction(action) {
         } catch (err) {
           console.log('Native location not available, using web fallback');
         }
-        return await getLocation();
+        return await getLocation(action.params?.searchQuery || null);
       
       case ActionTypes.SET_ALARM:
         // Try native first, fallback to web
@@ -192,22 +208,22 @@ async function makeCall(phoneNumber) {
     
     const telUrl = `tel:${cleanNumber}`;
     
-    // For iOS, we MUST use a link click from user interaction
-    // Create link and trigger immediately (we're in a user interaction context)
+    // Create link synchronously in user interaction context
     const link = document.createElement('a');
     link.href = telUrl;
     link.style.display = 'none';
+    link.target = '_self';
     document.body.appendChild(link);
     
-    // Trigger immediately - we're in a click handler context
+    // Click immediately - we're in a click handler
     link.click();
     
-    // Clean up after a moment
-    setTimeout(() => {
+    // Clean up
+    requestAnimationFrame(() => {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
-    }, 100);
+    });
     
     return { 
       success: true, 
@@ -216,7 +232,7 @@ async function makeCall(phoneNumber) {
     };
   } catch (err) {
     console.error('Call error:', err);
-    return { success: false, error: 'Failed to initiate call. Please dial manually.' };
+    return { success: false, error: 'Failed to initiate call' };
   }
 }
 
@@ -235,18 +251,18 @@ async function sendText(phoneNumber, message = '') {
       ? `sms:${cleanNumber}?body=${encodeURIComponent(message)}`
       : `sms:${cleanNumber}`;
     
-    // Use link click for iOS compatibility
     const link = document.createElement('a');
     link.href = smsUrl;
     link.style.display = 'none';
+    link.target = '_self';
     document.body.appendChild(link);
     link.click();
     
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       if (document.body.contains(link)) {
         document.body.removeChild(link);
       }
-    }, 100);
+    });
     
     return { 
       success: true, 
@@ -257,7 +273,7 @@ async function sendText(phoneNumber, message = '') {
     console.error('SMS error:', err);
     return { 
       success: false, 
-      error: 'Failed to open SMS. Please use your phone to send text messages.' 
+      error: 'Failed to open SMS' 
     };
   }
 }
@@ -284,7 +300,7 @@ async function requestGeolocationPermission() {
 /**
  * Get current location and show on map
  */
-async function getLocation() {
+async function getLocation(searchQuery = null) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
       resolve({ 
@@ -319,9 +335,9 @@ async function getLocation() {
           console.error('Reverse geocoding failed:', err);
         }
         
-        // Show inline map instead of navigating away
+        // Show inline map with search query
         const { showInlineMap } = await import('../components/actionModal.js');
-        showInlineMap(latitude, longitude);
+        showInlineMap(latitude, longitude, searchQuery);
         
         resolve({
           success: true,

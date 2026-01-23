@@ -49,7 +49,13 @@ export function initActionModal() {
 /**
  * Show inline Google Maps embed
  */
-export function showInlineMap(latitude, longitude) {
+export function showInlineMap(latitude, longitude, searchQuery = null) {
+  // Don't reopen if user manually closed it
+  if (modalManuallyClosed) {
+    console.log('Modal was manually closed, not reopening');
+    return;
+  }
+  
   if (!inlineMapContainer || !inlineMap) {
     console.error('Map elements not found');
     return;
@@ -73,8 +79,13 @@ export function showInlineMap(latitude, longitude) {
     inlineMapContainer.classList.remove('hidden');
   }
   
-  // Use a working Google Maps embed URL
-  const mapUrl = `https://www.google.com/maps?q=restaurants+near+${latitude},${longitude}&output=embed`;
+  // Build map URL with search query or default to location
+  let mapUrl;
+  if (searchQuery) {
+    mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(searchQuery)}+near+${latitude},${longitude}&output=embed`;
+  } else {
+    mapUrl = `https://www.google.com/maps?q=${latitude},${longitude}&output=embed`;
+  }
   inlineMap.src = mapUrl;
   
   // Hide action buttons (map is interactive)
@@ -84,7 +95,11 @@ export function showInlineMap(latitude, longitude) {
   
   // Update title
   if (actionModalTitle) {
-    actionModalTitle.textContent = 'Your Location & Nearby Restaurants';
+    if (searchQuery) {
+      actionModalTitle.textContent = `Your Location & Nearby ${searchQuery}`;
+    } else {
+      actionModalTitle.textContent = 'Your Location';
+    }
   }
   
   // Ensure close button works
@@ -98,6 +113,8 @@ export function showInlineMap(latitude, longitude) {
  * Show action modal with action details
  */
 export async function showActionModal(action, result) {
+  modalManuallyClosed = false; // Reset when showing new modal
+  
   if (!actionModal || !actionModalContent) {
     console.error('Action modal not initialized');
     return;
@@ -255,7 +272,30 @@ async function confirmAction() {
   if (cancelBtn) cancelBtn.disabled = true;
   
   try {
-    // Execute the action
+    // For call/text, execute immediately in user interaction context
+    if (currentAction.type === 'make_call' || currentAction.type === 'emergency_call' || currentAction.type === 'send_text') {
+      const { executeAction } = await import('../lib/deviceActions.js');
+      // Execute synchronously to maintain user interaction context
+      const result = await executeAction(currentAction);
+      
+      if (result.success) {
+        actionModalMessage.textContent = result.message || 'Action executed successfully!';
+        actionModalMessage.style.color = '#4CAF50';
+        // Re-enable buttons
+        if (confirmBtn) confirmBtn.disabled = false;
+        if (saveBtn) saveBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+      } else {
+        actionModalMessage.textContent = result.error || 'Action failed';
+        actionModalMessage.style.color = '#ef4444';
+        if (confirmBtn) confirmBtn.disabled = false;
+        if (saveBtn) saveBtn.disabled = false;
+        if (cancelBtn) cancelBtn.disabled = false;
+      }
+      return; // Don't continue for call/text
+    }
+    
+    // For other actions (map, alarm, etc.)
     const { executeAction } = await import('../lib/deviceActions.js');
     const result = await executeAction(currentAction);
     
