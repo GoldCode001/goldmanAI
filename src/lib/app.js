@@ -90,9 +90,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   
   // Initialize inline output panel
   initInlineOutput();
-  
-  // Request notification permission for alarms
-  requestNotificationPermission();
 });
 
 /* ================= EVENTS ================= */
