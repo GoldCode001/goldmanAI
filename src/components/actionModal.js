@@ -229,6 +229,8 @@ export async function showActionModal(action, result) {
  * Hide action modal
  */
 export function hideActionModal() {
+  modalManuallyClosed = true; // Mark as manually closed
+  
   if (actionModal && actionModalContent) {
     actionModalContent.classList.remove('show');
     setTimeout(() => {
