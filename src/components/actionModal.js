@@ -8,8 +8,11 @@ let actionModalContent = null;
 let actionModalTitle = null;
 let actionModalMessage = null;
 let actionModalActions = null;
+let inlineMapContainer = null;
+let inlineMap = null;
 let currentAction = null;
 let currentActionResult = null;
+let modalManuallyClosed = false; // Track if user manually closed modal
 
 /**
  * Initialize action modal
