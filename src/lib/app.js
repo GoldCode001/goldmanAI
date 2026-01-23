@@ -741,6 +741,19 @@ When the user requests these actions, acknowledge briefly (e.g., "Calling now...
             window.currentSpeechDuration = text.length * 50; // ~50ms per character
             window.speechStartTime = Date.now();
             
+            // Check if response should be shown inline (code, long text, structured content)
+            if (shouldShowInline(text)) {
+              console.log('AI response should be shown inline');
+              const inlineContent = extractInlineContent(text);
+              const summary = generateSummary(text);
+              
+              // Show inline panel with full content
+              showInlineOutput(inlineContent);
+              
+              // Update transcript with summary instead of full response
+              showTranscript(`${currentAiName}: ${summary}`);
+            }
+            
             // Update messages for chat overlay
             const newMessage = {
               id: Date.now().toString(),
@@ -749,9 +762,6 @@ When the user requests these actions, acknowledge briefly (e.g., "Calling now...
               timestamp: Date.now()
             };
             updateMessages([newMessage]);
-            
-            // Note: Action detection is now handled in onUserTranscript callback
-            // This onTranscript callback only receives AI responses
             
             // Set facial expression based on text
             const emotion = setExpressionFromText(text);
