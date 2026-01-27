@@ -46,6 +46,8 @@ import {
 } from "./inlineOutput.js";
 import { learnFromConversation, getUserMemory } from "./memory.js";
 import { showOnboarding } from "../components/onboarding.js";
+import { initWakeWord, startWakeWordListening, stopWakeWordListening, setWakePhrase } from "./wakeWord.js";
+import { initProactiveReminders, getProactiveContext } from "./proactiveReminders.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -93,6 +95,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Show onboarding for new users (requests permissions)
   showOnboarding();
+
+  // Initialize wake word detection
+  initWakeWordDetection();
+
+  // Initialize proactive reminders
+  initProactiveReminders((reminder) => {
+    console.log('[App] Reminder due:', reminder.message);
+    // If PAL is active, let it announce the reminder
+    if (isListening && window.onTranscriptUpdate) {
+      // PAL will naturally handle this via the reminder event
+    }
+  });
 });
 
 /* ================= EVENTS ================= */
@@ -594,6 +608,36 @@ async function ensureUser(user) {
   });
 }
 
+/* ================= WAKE WORD ================= */
+
+/**
+ * Initialize wake word detection ("Hey PAL")
+ */
+async function initWakeWordDetection() {
+  // Get user's custom AI name if set
+  const memory = await getUserMemory() || {};
+  const aiName = memory.aiName || 'PAL';
+
+  // Initialize wake word with custom phrase
+  const initialized = initWakeWord({
+    customPhrase: `hey ${aiName.toLowerCase()}`,
+    onDetected: async (transcript) => {
+      console.log('[WakeWord] Wake phrase detected:', transcript);
+
+      // Activate PAL
+      if (!isListening) {
+        await startListening();
+      }
+    }
+  });
+
+  if (initialized) {
+    // Start listening for wake word
+    startWakeWordListening();
+    console.log('[WakeWord] Now listening for "Hey ' + aiName + '"');
+  }
+}
+
 /* ================= VOICE (PAL-Style: Continuous Listening with VAD) ================= */
 
 /**
@@ -614,6 +658,9 @@ async function handleFaceTap() {
  */
 async function startListening() {
   try {
+    // Stop wake word listening while PAL is active
+    stopWakeWordListening();
+
     // Get Gemini API key from backend
     const keyRes = await fetch(`${API}/api/gemini/key`);
     if (!keyRes.ok) {
@@ -673,7 +720,13 @@ You are more "smart companion" than "chaotic teenager".
             });
             systemPrompt += `\n\nAcknowledge their consistency. Celebrate streak milestones and encourage them to keep going.`;
           }
-      
+
+          // Add proactive context (reminders, today's habits)
+          const proactiveContext = await getProactiveContext();
+          if (proactiveContext) {
+            systemPrompt += `\n\n**Current Context (mention naturally if relevant):**\n${proactiveContext}`;
+          }
+
       systemPrompt += `\n\n**Core Instructions:**
 1. **NEVER OUTPUT YOUR THINKING**: Do NOT write out your thought process, reasoning, or internal notes. No "**Acknowledge**", no "My response will...", no meta-commentary. Just respond naturally like a human would.
 2. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
@@ -896,4 +949,7 @@ function stopListening() {
   updateConnectionState(false); // Update chat overlay
   updateFaceState('NEUTRAL', 0, false); // Reset canvas face
   console.log('Stopped Gemini Live');
+
+  // Resume wake word listening
+  startWakeWordListening();
 }
