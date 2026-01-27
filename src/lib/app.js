@@ -45,10 +45,7 @@ import {
   initInlineOutput
 } from "./inlineOutput.js";
 import { learnFromConversation, getUserMemory } from "./memory.js";
-import { initToolsEngine } from "./tools/index.js";
-import { checkOnboardingComplete, renderOnboarding } from "../components/onboarding.js";
-import { isWakeWordSupported, initWakeWord, startWakeWord, stopWakeWord, resumeWakeWord } from "./wakeWord.js";
-import { initProactiveReminders, startProactiveReminders, requestNotificationPermission } from "./proactiveReminders.js";
+// Device actions removed - focusing on personal development assistant
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -80,85 +77,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   await ensureUser(user);
   await loadChats(user.id);
   bindAppEvents();
-
+  
   // Initialize new canvas-based face and chat overlay
   initCanvasFace();
   initChatOverlay();
-
-  // Initialize Tools Engine for AI capabilities
-  try {
-    const capabilities = await initToolsEngine();
-    console.log('Tools Engine ready. Platform:', capabilities.platform);
-  } catch (err) {
-    console.warn('Tools Engine init failed:', err);
-  }
-
+  
   // Setup activate/disconnect handlers
   window.onActivatePal = handleFaceTap;
   window.onDisconnectPal = () => {
     stopListening();
   };
-
+  
   // Initialize inline output panel
   initInlineOutput();
-
-  // Check if onboarding is needed
-  const onboardingComplete = await checkOnboardingComplete();
-  if (!onboardingComplete) {
-    // Show onboarding screen
-    renderOnboarding(document.body, async (result) => {
-      console.log('Onboarding complete:', result);
-      // Start wake word and proactive features after onboarding
-      await initializeProactiveFeatures();
-    });
-  } else {
-    // Already onboarded, start proactive features
-    await initializeProactiveFeatures();
-  }
 });
-
-/**
- * Initialize proactive features (wake word, reminders)
- */
-async function initializeProactiveFeatures() {
-  // Request notification permission for reminders
-  const notificationGranted = await requestNotificationPermission();
-  console.log('Notification permission:', notificationGranted ? 'granted' : 'denied');
-
-  // Initialize wake word detection
-  if (isWakeWordSupported()) {
-    const wakeWordInit = initWakeWord({
-      onWake: async (event) => {
-        console.log('Wake word detected!', event);
-        // Start listening when wake word is heard
-        if (!isListening) {
-          startListening();
-        }
-      },
-      onStatus: (status) => {
-        console.log('Wake word status:', status);
-      }
-    });
-
-    if (wakeWordInit) {
-      // Start wake word listening in background
-      startWakeWord();
-      console.log('Wake word detection active');
-    }
-  } else {
-    console.log('Wake word detection not supported');
-  }
-
-  // Initialize proactive reminders
-  initProactiveReminders({
-    onNotification: (notification) => {
-      console.log('Proactive notification:', notification);
-      // Could trigger PAL to speak the reminder
-    }
-  });
-  startProactiveReminders();
-  console.log('Proactive reminders active');
-}
 
 /* ================= EVENTS ================= */
 
@@ -745,58 +677,30 @@ You are more "smart companion" than "chaotic teenager".
 3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
 4. **Identity**: You are the user's loyal assistant. Your name is ${aiName} - always refer to yourself as ${aiName}, never as PAL or any other name.
 
-**Your Role as a Personal AI Assistant:**
-You are a supportive, intelligent companion that can actually DO things for the user, not just talk.
+**Your Role as a Personal Development Assistant:**
+You are a supportive, intelligent companion focused on helping the user grow, learn, and achieve their goals.
 
-**TOOLS & ACTIONS - You Have Real Capabilities:**
-You have access to tools that let you take real actions. USE THEM when appropriate:
+**Core Capabilities:**
+1. **Daily Check-ins**: Ask about their day, mood, and how they're feeling. Remember their emotional patterns.
+2. **Goal Tracking**: When users mention goals (e.g., "I want to exercise 3x a week", "I'm learning Spanish"), remember them and check in on progress.
+3. **Habit Building**: Help users build and maintain positive habits. Track their consistency and celebrate wins.
+4. **Learning Companion**: Explain concepts clearly, help with studying, summarize information, and provide educational support.
+5. **Creative Support**: Help with writing, brainstorming ideas, planning projects, and creative problem-solving.
+6. **Task Management**: Help organize tasks, prioritize work, and break down big projects into manageable steps.
+7. **Emotional Support**: Be empathetic, remember their struggles, celebrate their wins, and provide motivation.
 
-1. **Memory Tools**:
-   - remember_fact: Store important info about the user ("Remember I'm allergic to shellfish")
-   - recall_facts: Retrieve what you know about them
-
-2. **Goals & Habits**:
-   - create_goal: Create tracked goals ("I want to run a marathon")
-   - update_goal: Update progress or mark complete
-   - get_goals: See their current goals
-   - create_habit: Start tracking a habit ("I want to meditate daily")
-   - log_habit: Log habit completion (updates streaks!)
-   - get_habits: See habits with current streaks
-
-3. **Reminders & Timers**:
-   - set_reminder: Set future reminders ("Remind me to call mom at 3pm")
-   - set_timer: Set countdown timers ("Set a 5 minute timer")
-
-4. **Information**:
-   - web_search: Search the web for current info
-   - get_weather: Get weather (use "current" for their location)
-   - get_datetime: Get current date/time
-   - calculate: Math calculations
-
-5. **Device**:
-   - get_location: Get their current location
-   - send_notification: Send device notification
-   - copy_to_clipboard: Copy text for them
-
-**IMPORTANT - When to Use Tools:**
-- When user says "remember...", "don't forget...", USE remember_fact
-- When user mentions a goal, USE create_goal
-- When user asks about weather, USE get_weather
-- When user wants a reminder, USE set_reminder
-- When user asks "what do you know about me", USE recall_facts
-- When user asks about current events, USE web_search
-- BE PROACTIVE about using tools - don't just talk about doing things, DO them
-
-**How to Respond After Using Tools:**
-- When a tool succeeds, naturally incorporate the result in your response
-- Don't say "I used the remember_fact tool" - just say "Got it, I'll remember that!"
-- Make it feel seamless and natural
+**How to Help:**
+- When users mention goals or habits, acknowledge them and offer to track progress
+- Check in on previous goals naturally in conversation
+- For long explanations, code, or detailed content, use the inline text display (the system will handle this automatically)
+- Be encouraging but realistic
+- Remember their preferences, struggles, and achievements
+- Ask thoughtful follow-up questions to help them reflect
 
 **Response Style:**
 - Keep voice responses conversational and relatively short
-- For detailed content (code, long explanations, lists), provide a summary verbally
-- Be warm, supportive, and genuinely interested in their growth
-- When you use tools, confirm the action naturally`;
+- For detailed content (code, long explanations, lists), provide a summary verbally and let the inline display show the full content
+- Be warm, supportive, and genuinely interested in their growth`;
       
       const initialized = await initGeminiLive(apiKey, {
         onUserTranscript: async (userText) => {
@@ -908,21 +812,6 @@ You have access to tools that let you take real actions. USE THEM when appropria
             }
           }
         },
-        onToolCall: async (toolEvent) => {
-          // Handle tool execution events
-          console.log('Tool event:', toolEvent);
-
-          if (toolEvent.status === 'executing') {
-            // Show tool execution indicator
-            const toolName = toolEvent.name.replace(/_/g, ' ');
-            showTranscript(`Working on it...`);
-          } else if (toolEvent.status === 'complete') {
-            // Tool completed - the AI will speak the result
-            console.log('Tool completed:', toolEvent.name, toolEvent.result);
-          } else if (toolEvent.status === 'error') {
-            console.error('Tool error:', toolEvent.error);
-          }
-        },
         onError: (error) => {
           console.error('Gemini Live error:', error);
           showTranscript(`Error: ${error.message}`);
@@ -982,10 +871,4 @@ function stopListening() {
   updateConnectionState(false); // Update chat overlay
   updateFaceState('NEUTRAL', 0, false); // Reset canvas face
   console.log('Stopped Gemini Live');
-
-  // Resume wake word detection after conversation ends
-  if (isWakeWordSupported()) {
-    resumeWakeWord();
-    console.log('Wake word detection resumed');
-  }
 }

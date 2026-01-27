@@ -1,11 +1,9 @@
 /**
  * Gemini Live API Integration
  * Real-time bidirectional audio streaming with Google Gemini
- * With Function Calling / Tools support
  * Based on: gemini-2.5-flash-native-audio-preview-12-2025
+ * Reference: geminiapp/hooks/useLivePal.ts
  */
-
-import { getToolsForGemini, handleGeminiFunctionCall } from './tools/index.js';
 
 let geminiApiKey = null;
 let liveSession = null;
@@ -18,49 +16,32 @@ let isConnected = false;
 let onAudioLevelUpdate = null; // Callback for lip sync (amplitude 0-1)
 let onTranscriptUpdate = null; // Callback for text updates (AI responses)
 let onUserTranscriptUpdate = null; // Callback for user speech transcripts
-let onToolCall = null; // Callback for tool execution notifications
 let onError = null;
 let microphoneStream = null;
 let nextStartTime = 0; // For scheduling audio chunks
 let sessionPromise = null;
 let customSystemPrompt = null; // Custom system prompt for personalization
-let customTools = null; // Tools configuration for function calling
 let userSpeechRecognition = null; // Web Speech API for user transcript
 
 /**
  * Initialize Gemini Live connection
  * @param {string} apiKey - Google AI Studio API key
- * @param {Object} callbacks - { onAudioLevel, onTranscript, onUserTranscript, onToolCall, onError }
- * @param {string} systemPromptOverride - Custom system prompt
- * @param {Array} tools - Tools configuration for function calling
+ * @param {Object} callbacks - { onAudioLevel, onTranscript, onError }
  */
-export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverride = null, tools = null) {
+export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverride = null) {
   try {
     geminiApiKey = apiKey;
     onAudioLevelUpdate = callbacks.onAudioLevel;
     onTranscriptUpdate = callbacks.onTranscript;
-    onUserTranscriptUpdate = callbacks.onUserTranscript;
-    onToolCall = callbacks.onToolCall; // Callback when tool is executed
+    onUserTranscriptUpdate = callbacks.onUserTranscript; // New: user transcript callback
     onError = callbacks.onError;
     customSystemPrompt = systemPromptOverride;
-    customTools = tools;
 
     if (!geminiApiKey) {
       throw new Error('Gemini API key is required');
     }
 
-    // If no tools provided, get default tools
-    if (!customTools) {
-      try {
-        customTools = await getToolsForGemini();
-        console.log('Loaded', customTools.length, 'tools for Gemini');
-      } catch (e) {
-        console.warn('Could not load tools:', e);
-        customTools = [];
-      }
-    }
-
-    console.log('Gemini Live initialized with', customTools?.length || 0, 'tools');
+    console.log('Gemini Live initialized');
     return true;
   } catch (err) {
     console.error('Failed to initialize Gemini Live:', err);
@@ -90,79 +71,6 @@ function createPcmBlob(data) {
     data: b64,
     mimeType: 'audio/pcm;rate=16000',
   };
-}
-
-/**
- * Handle tool/function call from Gemini
- * Executes the tool and sends response back
- */
-async function handleToolCallMessage(functionCall) {
-  try {
-    const { name, args } = functionCall;
-    console.log(`Executing tool: ${name}`, args);
-
-    // Notify UI that a tool is being executed
-    if (onToolCall) {
-      onToolCall({ name, args, status: 'executing' });
-    }
-
-    // Execute the tool
-    const result = await handleGeminiFunctionCall({ name, args });
-    console.log(`Tool ${name} result:`, result);
-
-    // Notify UI of completion
-    if (onToolCall) {
-      onToolCall({ name, args, status: 'complete', result: result.response });
-    }
-
-    // Send function response back to Gemini
-    if (liveSession && liveSession.sendToolResponse) {
-      await liveSession.sendToolResponse({
-        functionResponses: [{
-          name: result.name,
-          response: result.response
-        }]
-      });
-      console.log('Sent tool response to Gemini');
-    } else if (liveSession && liveSession.send) {
-      // Alternative method - send as client content
-      await liveSession.send({
-        toolResponse: {
-          functionResponses: [{
-            name: result.name,
-            response: result.response
-          }]
-        }
-      });
-      console.log('Sent tool response via send()');
-    }
-  } catch (err) {
-    console.error('Error handling tool call:', err);
-
-    // Notify UI of error
-    if (onToolCall) {
-      onToolCall({ name: functionCall.name, status: 'error', error: err.message });
-    }
-
-    // Send error response back to Gemini
-    if (liveSession) {
-      try {
-        const errorResponse = {
-          functionResponses: [{
-            name: functionCall.name,
-            response: { success: false, error: err.message }
-          }]
-        };
-        if (liveSession.sendToolResponse) {
-          await liveSession.sendToolResponse(errorResponse);
-        } else if (liveSession.send) {
-          await liveSession.send({ toolResponse: errorResponse });
-        }
-      } catch (e) {
-        console.error('Failed to send error response:', e);
-      }
-    }
-  }
 }
 
 /**
@@ -252,36 +160,6 @@ export async function startGeminiLive() {
       return false;
     }
 
-    // Build config with tools
-    const liveConfig = {
-      responseModalities: [Modality.AUDIO],
-      systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
-Your persona is a highly intelligent, witty, and helpful personal assistant.
-You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
-You are more "smart companion" than "chaotic teenager".
-
-**Core Instructions:**
-1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
-2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
-3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
-4. **Identity**: You are the user's loyal assistant. You are PAL.`,
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: 'Kore'
-          }
-        }
-      }
-    };
-
-    // Add tools if available
-    if (customTools && customTools.length > 0) {
-      liveConfig.tools = [{
-        functionDeclarations: customTools
-      }];
-      console.log('Gemini Live config includes', customTools.length, 'tools');
-    }
-
     // Connect to Live API
     const sessionPromiseValue = ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -296,43 +174,26 @@ You are more "smart companion" than "chaotic teenager".
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
-          // 1. Handle Tool/Function Calls
-          const toolCall = msg.toolCall;
-          if (toolCall) {
-            console.log('Received tool call:', toolCall);
-            await handleToolCallMessage(toolCall);
-            return; // Tool calls don't have audio
-          }
-
-          // Also check for function calls in serverContent
-          const functionCalls = msg.serverContent?.modelTurn?.parts?.filter(p => p.functionCall);
-          if (functionCalls && functionCalls.length > 0) {
-            console.log('Received function calls in parts:', functionCalls);
-            for (const part of functionCalls) {
-              await handleToolCallMessage(part.functionCall);
-            }
-          }
-
-          // 2. Handle Audio Output
+          // 1. Handle Audio Output
           const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData) {
             try {
               const audioBuffer = await decodeAudioData(audioData, outputCtx);
-
+              
               const source = outputCtx.createBufferSource();
               source.buffer = audioBuffer;
-
+              
               // Connect to Analyser for Visuals, then Destination
               source.connect(analyserNode);
               analyserNode.connect(outputCtx.destination);
-
+              
               // Scheduling
               if (nextStartTime < outputCtx.currentTime) {
                 nextStartTime = outputCtx.currentTime;
               }
               source.start(nextStartTime);
               nextStartTime += audioBuffer.duration;
-
+              
               source.onended = () => {
                 // Check if queue is empty to revert mood
                 if (outputCtx.currentTime >= nextStartTime - 0.1) {
@@ -344,16 +205,7 @@ You are more "smart companion" than "chaotic teenager".
             }
           }
 
-          // 3. Handle Text Transcripts (if available)
-          const textParts = msg.serverContent?.modelTurn?.parts?.filter(p => p.text);
-          if (textParts && textParts.length > 0) {
-            const fullText = textParts.map(p => p.text).join('');
-            if (fullText && onTranscriptUpdate) {
-              onTranscriptUpdate(fullText);
-            }
-          }
-
-          // 4. Handle turn complete
+          // 2. Handle Text Transcripts (if available)
           if (msg.serverContent?.turnComplete) {
             // Turn complete, can process text if available
           }
@@ -367,7 +219,26 @@ You are more "smart companion" than "chaotic teenager".
           if (onError) onError(err);
         }
       },
-      config: liveConfig
+      config: {
+        responseModalities: [Modality.AUDIO],
+        systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
+Your persona is a highly intelligent, witty, and helpful personal assistant.
+You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
+You are more "smart companion" than "chaotic teenager".
+
+**Core Instructions:**
+1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
+2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
+3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
+4. **Identity**: You are the user's loyal assistant. You are PAL.`,
+        speechConfig: {
+          voiceConfig: { 
+            prebuiltVoiceConfig: { 
+              voiceName: 'Kore' 
+            } 
+          }
+        }
+      }
     });
     
     sessionPromise = sessionPromiseValue;
