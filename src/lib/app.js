@@ -149,7 +149,9 @@ function bindAppEvents() {
     
     const saved = await saveUserMemory(memory);
     if (saved) {
-      alert('AI name saved!');
+      // Update wake word to use new AI name
+      setWakePhrase(aiName);
+      alert(`AI name saved! Wake word is now "Hey ${aiName}"`);
     } else {
       alert('Failed to save AI name');
     }
