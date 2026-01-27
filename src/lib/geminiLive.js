@@ -5,6 +5,8 @@
  * Reference: geminiapp/hooks/useLivePal.ts
  */
 
+import { getToolsForGemini, executeTool } from './tools.js';
+
 let geminiApiKey = null;
 let liveSession = null;
 let inputAudioContext = null; // 16kHz for input
@@ -174,26 +176,62 @@ export async function startGeminiLive() {
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
-          // 1. Handle Audio Output
+          // 1. Handle Function Calls (Tools)
+          const functionCalls = msg.toolCall?.functionCalls;
+          if (functionCalls && functionCalls.length > 0) {
+            console.log('[PAL Tools] Function calls received:', functionCalls);
+
+            const functionResponses = [];
+            for (const call of functionCalls) {
+              try {
+                const result = await executeTool(call.name, call.args || {});
+                functionResponses.push({
+                  id: call.id,
+                  name: call.name,
+                  response: result
+                });
+                console.log(`[PAL Tools] ${call.name} result:`, result);
+              } catch (err) {
+                console.error(`[PAL Tools] Error executing ${call.name}:`, err);
+                functionResponses.push({
+                  id: call.id,
+                  name: call.name,
+                  response: { success: false, error: err.message }
+                });
+              }
+            }
+
+            // Send function responses back to Gemini
+            if (liveSession && functionResponses.length > 0) {
+              try {
+                await liveSession.sendToolResponse({ functionResponses });
+                console.log('[PAL Tools] Sent tool responses back to Gemini');
+              } catch (err) {
+                console.error('[PAL Tools] Failed to send tool response:', err);
+              }
+            }
+          }
+
+          // 2. Handle Audio Output
           const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
           if (audioData) {
             try {
               const audioBuffer = await decodeAudioData(audioData, outputCtx);
-              
+
               const source = outputCtx.createBufferSource();
               source.buffer = audioBuffer;
-              
+
               // Connect to Analyser for Visuals, then Destination
               source.connect(analyserNode);
               analyserNode.connect(outputCtx.destination);
-              
+
               // Scheduling
               if (nextStartTime < outputCtx.currentTime) {
                 nextStartTime = outputCtx.currentTime;
               }
               source.start(nextStartTime);
               nextStartTime += audioBuffer.duration;
-              
+
               source.onended = () => {
                 // Check if queue is empty to revert mood
                 if (outputCtx.currentTime >= nextStartTime - 0.1) {
@@ -205,7 +243,7 @@ export async function startGeminiLive() {
             }
           }
 
-          // 2. Handle Text Transcripts (if available)
+          // 3. Handle Text Transcripts (if available)
           if (msg.serverContent?.turnComplete) {
             // Turn complete, can process text if available
           }
@@ -223,7 +261,7 @@ export async function startGeminiLive() {
         responseModalities: [Modality.AUDIO],
         systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
 Your persona is a highly intelligent, witty, and helpful personal assistant.
-You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
+You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
 You are more "smart companion" than "chaotic teenager".
 
 **Core Instructions:**
@@ -232,12 +270,15 @@ You are more "smart companion" than "chaotic teenager".
 3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
 4. **Identity**: You are the user's loyal assistant. You are PAL.`,
         speechConfig: {
-          voiceConfig: { 
-            prebuiltVoiceConfig: { 
-              voiceName: 'Kore' 
-            } 
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: 'Kore'
+            }
           }
-        }
+        },
+        tools: [{
+          functionDeclarations: getToolsForGemini()
+        }]
       }
     });
     
