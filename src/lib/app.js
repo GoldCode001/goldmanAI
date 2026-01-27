@@ -45,7 +45,7 @@ import {
   initInlineOutput
 } from "./inlineOutput.js";
 import { learnFromConversation, getUserMemory } from "./memory.js";
-// Device actions removed - focusing on personal development assistant
+import { showOnboarding } from "../components/onboarding.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -77,19 +77,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   await ensureUser(user);
   await loadChats(user.id);
   bindAppEvents();
-  
+
   // Initialize new canvas-based face and chat overlay
   initCanvasFace();
   initChatOverlay();
-  
+
   // Setup activate/disconnect handlers
   window.onActivatePal = handleFaceTap;
   window.onDisconnectPal = () => {
     stopListening();
   };
-  
+
   // Initialize inline output panel
   initInlineOutput();
+
+  // Show onboarding for new users (requests permissions)
+  showOnboarding();
 });
 
 /* ================= EVENTS ================= */
