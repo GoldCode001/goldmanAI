@@ -3,20 +3,65 @@
  * Implements the actual functionality for each tool
  */
 
-import { Geolocation } from '@capacitor/geolocation';
-import { LocalNotifications } from '@capacitor/local-notifications';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { supabase } from '../supabase.js';
 import { hasCapability, detectCapabilities } from './capabilities.js';
 
-// Dynamic imports for optional plugins (may not be installed)
+// All Capacitor plugins are loaded dynamically to avoid breaking web builds
+let Geolocation = null;
+let LocalNotifications = null;
+let Filesystem = null;
+let Directory = null;
+let Encoding = null;
 let Calendar = null;
 let Contacts = null;
+
+// Check if we're in a Capacitor native environment
+function isNative() {
+  return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform();
+}
+
+async function loadGeolocationPlugin() {
+  if (Geolocation) return Geolocation;
+  try {
+    const module = await import('https://cdn.jsdelivr.net/npm/@capacitor/geolocation@5/dist/esm/index.js');
+    Geolocation = module.Geolocation;
+    return Geolocation;
+  } catch (e) {
+    console.warn('Geolocation plugin not available:', e);
+    return null;
+  }
+}
+
+async function loadNotificationsPlugin() {
+  if (LocalNotifications) return LocalNotifications;
+  try {
+    const module = await import('https://cdn.jsdelivr.net/npm/@capacitor/local-notifications@5/dist/esm/index.js');
+    LocalNotifications = module.LocalNotifications;
+    return LocalNotifications;
+  } catch (e) {
+    console.warn('LocalNotifications plugin not available:', e);
+    return null;
+  }
+}
+
+async function loadFilesystemPlugin() {
+  if (Filesystem) return { Filesystem, Directory, Encoding };
+  try {
+    const module = await import('https://cdn.jsdelivr.net/npm/@capacitor/filesystem@5/dist/esm/index.js');
+    Filesystem = module.Filesystem;
+    Directory = module.Directory;
+    Encoding = module.Encoding;
+    return { Filesystem, Directory, Encoding };
+  } catch (e) {
+    console.warn('Filesystem plugin not available:', e);
+    return { Filesystem: null, Directory: null, Encoding: null };
+  }
+}
 
 async function loadCalendarPlugin() {
   if (Calendar) return Calendar;
   try {
-    const module = await import('@ebarooni/capacitor-calendar');
+    const module = await import('https://cdn.jsdelivr.net/npm/@ebarooni/capacitor-calendar/dist/esm/index.js');
     Calendar = module.Calendar;
     return Calendar;
   } catch (e) {
@@ -28,7 +73,7 @@ async function loadCalendarPlugin() {
 async function loadContactsPlugin() {
   if (Contacts) return Contacts;
   try {
-    const module = await import('@capgo/capacitor-contacts');
+    const module = await import('https://cdn.jsdelivr.net/npm/@capgo/capacitor-contacts/dist/esm/index.js');
     Contacts = module.Contacts;
     return Contacts;
   } catch (e) {
@@ -418,15 +463,18 @@ export async function executeSetReminder({ message, time }) {
     const caps = await detectCapabilities();
     if (caps.nativeNotifications) {
       try {
-        await LocalNotifications.schedule({
-          notifications: [{
-            id: parseInt(id.slice(-8), 36) % 2147483647, // Convert to valid int32
-            title: 'Reminder',
-            body: message,
-            schedule: { at: reminderTime },
-            sound: 'default'
-          }]
-        });
+        const notifications = await loadNotificationsPlugin();
+        if (notifications) {
+          await notifications.schedule({
+            notifications: [{
+              id: parseInt(id.slice(-8), 36) % 2147483647, // Convert to valid int32
+              title: 'Reminder',
+              body: message,
+              schedule: { at: reminderTime },
+              sound: 'default'
+            }]
+          });
+        }
       } catch (e) {
         console.warn('Native notification failed, using fallback:', e);
       }
@@ -481,14 +529,17 @@ export async function executeSetTimer({ duration, label }) {
 
       if (caps.nativeNotifications) {
         try {
-          await LocalNotifications.schedule({
-            notifications: [{
-              id: parseInt(id.slice(-8), 36) % 2147483647,
-              title: 'Timer Complete',
-              body: label || 'Your timer has finished!',
-              sound: 'default'
-            }]
-          });
+          const notifications = await loadNotificationsPlugin();
+          if (notifications) {
+            await notifications.schedule({
+              notifications: [{
+                id: parseInt(id.slice(-8), 36) % 2147483647,
+                title: 'Timer Complete',
+                body: label || 'Your timer has finished!',
+                sound: 'default'
+              }]
+            });
+          }
         } catch (e) {
           console.warn('Native notification failed:', e);
         }
@@ -694,15 +745,18 @@ export async function executeSendNotification({ title, body }) {
     const caps = await detectCapabilities();
 
     if (caps.nativeNotifications) {
-      await LocalNotifications.schedule({
-        notifications: [{
-          id: Math.floor(Math.random() * 2147483647),
-          title,
-          body,
-          sound: 'default'
-        }]
-      });
-      return { success: true, message: 'Notification sent' };
+      const notifications = await loadNotificationsPlugin();
+      if (notifications) {
+        await notifications.schedule({
+          notifications: [{
+            id: Math.floor(Math.random() * 2147483647),
+            title,
+            body,
+            sound: 'default'
+          }]
+        });
+        return { success: true, message: 'Notification sent' };
+      }
     }
 
     if ('Notification' in window) {
@@ -745,10 +799,13 @@ async function getCurrentPosition(highAccuracy = false) {
 
   if (caps.nativeGeolocation) {
     try {
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: highAccuracy
-      });
-      return position;
+      const geo = await loadGeolocationPlugin();
+      if (geo) {
+        const position = await geo.getCurrentPosition({
+          enableHighAccuracy: highAccuracy
+        });
+        return position;
+      }
     } catch (e) {
       console.warn('Native geolocation failed:', e);
     }
@@ -1113,20 +1170,26 @@ export async function executeSaveNote({ filename, content }) {
 
     if (caps.isNative) {
       // Use Capacitor Filesystem
-      await Filesystem.writeFile({
-        path: `${NOTES_FOLDER}/${safeName}`,
-        data: content,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8,
-        recursive: true
-      });
+      const fs = await loadFilesystemPlugin();
+      if (fs.Filesystem) {
+        await fs.Filesystem.writeFile({
+          path: `${NOTES_FOLDER}/${safeName}`,
+          data: content,
+          directory: fs.Directory.Documents,
+          encoding: fs.Encoding.UTF8,
+          recursive: true
+        });
 
-      return {
-        success: true,
-        filename: safeName,
-        message: `Saved note "${filename}"`
-      };
-    } else {
+        return {
+          success: true,
+          filename: safeName,
+          message: `Saved note "${filename}"`
+        };
+      }
+    }
+
+    // Web fallback or native not available
+    {
       // Web fallback - use localStorage
       const notes = JSON.parse(localStorage.getItem('pal_notes') || '{}');
       notes[safeName] = {
@@ -1153,18 +1216,24 @@ export async function executeReadNote({ filename }) {
     const safeName = filename.endsWith('.txt') ? filename : filename + '.txt';
 
     if (caps.isNative) {
-      const result = await Filesystem.readFile({
-        path: `${NOTES_FOLDER}/${safeName}`,
-        directory: Directory.Documents,
-        encoding: Encoding.UTF8
-      });
+      const fs = await loadFilesystemPlugin();
+      if (fs.Filesystem) {
+        const result = await fs.Filesystem.readFile({
+          path: `${NOTES_FOLDER}/${safeName}`,
+          directory: fs.Directory.Documents,
+          encoding: fs.Encoding.UTF8
+        });
 
-      return {
-        success: true,
-        filename: safeName,
-        content: result.data
-      };
-    } else {
+        return {
+          success: true,
+          filename: safeName,
+          content: result.data
+        };
+      }
+    }
+
+    // Web fallback
+    {
       // Web fallback
       const notes = JSON.parse(localStorage.getItem('pal_notes') || '{}');
       const note = notes[safeName];
@@ -1191,20 +1260,23 @@ export async function executeListNotes() {
 
     if (caps.isNative) {
       try {
-        const result = await Filesystem.readdir({
-          path: NOTES_FOLDER,
-          directory: Directory.Documents
-        });
+        const fs = await loadFilesystemPlugin();
+        if (fs.Filesystem) {
+          const result = await fs.Filesystem.readdir({
+            path: NOTES_FOLDER,
+            directory: fs.Directory.Documents
+          });
 
-        const notes = result.files
-          .filter(f => f.name.endsWith('.txt'))
-          .map(f => f.name.replace('.txt', ''));
+          const notes = result.files
+            .filter(f => f.name.endsWith('.txt'))
+            .map(f => f.name.replace('.txt', ''));
 
-        return {
-          success: true,
-          notes,
-          count: notes.length
-        };
+          return {
+            success: true,
+            notes,
+            count: notes.length
+          };
+        }
       } catch (e) {
         // Folder might not exist yet
         return {
@@ -1214,7 +1286,10 @@ export async function executeListNotes() {
           message: 'No notes saved yet'
         };
       }
-    } else {
+    }
+
+    // Web fallback
+    {
       // Web fallback
       const notes = JSON.parse(localStorage.getItem('pal_notes') || '{}');
       const noteNames = Object.keys(notes).map(n => n.replace('.txt', ''));

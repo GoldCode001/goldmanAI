@@ -3,10 +3,16 @@
  * Detects what features are available on the current platform
  */
 
-import { Capacitor } from '@capacitor/core';
-
 // Cache capabilities after first detection
 let cachedCapabilities = null;
+
+// Check if Capacitor is available (works in both web and native)
+function getCapacitor() {
+  if (typeof window !== 'undefined' && window.Capacitor) {
+    return window.Capacitor;
+  }
+  return null;
+}
 
 /**
  * Detect all available capabilities
@@ -16,8 +22,9 @@ export async function detectCapabilities() {
     return cachedCapabilities;
   }
 
-  const isNative = Capacitor.isNativePlatform();
-  const platform = Capacitor.getPlatform(); // 'web', 'ios', 'android'
+  const Capacitor = getCapacitor();
+  const isNative = Capacitor ? Capacitor.isNativePlatform() : false;
+  const platform = Capacitor ? Capacitor.getPlatform() : 'web';
 
   const capabilities = {
     platform,

@@ -79,3 +79,5 @@ geminiapp/
 ios/
 android/
 .capacitor/
+# Desktop app (not in use)
+desktop/
