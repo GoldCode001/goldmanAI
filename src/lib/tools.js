@@ -1345,7 +1345,12 @@ export function getToolsForGemini() {
   // Filter tools based on current platform
   const filteredTools = toolDefinitions.filter(tool => {
     // Android-only tools
-    if (tool.name === 'run_autonomous_task' || tool.name === 'check_agent_status') {
+    const androidTools = [
+      'open_app', 'click_on_screen', 'type_text', 'scroll_screen',
+      'go_back', 'go_home', 'get_screen_content',
+      'run_autonomous_task', 'check_agent_status'
+    ];
+    if (androidTools.includes(tool.name)) {
       return platformType === 'android';
     }
 
