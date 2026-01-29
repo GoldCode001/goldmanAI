@@ -18,14 +18,28 @@
 </head>
 <body>
   <div>Loading PAL...</div>
-  <script>
-    // IPC is injected here on local page
-    console.log('[Loader] Tauri IPC available:', !!window.__TAURI_INTERNALS__);
-    console.log('[Loader] Tauri __TAURI__ available:', !!window.__TAURI__);
+  <script type="module">
+    // Detect Tauri by trying to use the API
+    (async () => {
+      console.log('[Loader] Detecting Tauri...');
 
-    // Immediately redirect to Railway URL
-    // IPC handlers will persist after navigation
-    window.location.href = 'https://goldmanai-production.up.railway.app';
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const platform = await invoke('get_platform_info');
+
+        // Store Tauri detection result in localStorage
+        localStorage.setItem('__TAURI_DETECTED__', 'true');
+        localStorage.setItem('__TAURI_PLATFORM__', JSON.stringify(platform));
+        console.log('[Loader] Tauri detected! Platform:', platform);
+      } catch (e) {
+        console.log('[Loader] Not running in Tauri');
+        localStorage.removeItem('__TAURI_DETECTED__');
+        localStorage.removeItem('__TAURI_PLATFORM__');
+      }
+
+      // Redirect to Railway
+      window.location.href = 'https://goldmanai-production.up.railway.app';
+    })();
   </script>
 </body>
 </html>
