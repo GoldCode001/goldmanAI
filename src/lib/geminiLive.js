@@ -326,9 +326,15 @@ export async function startGeminiLive() {
           if (onError) onError(err);
         }
       },
-      config: {
-        responseModalities: [Modality.AUDIO],
-        systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
+      config: await (async () => {
+        // Get tools with proper async platform detection
+        const tools = await getToolsForGemini();
+        console.log('[Gemini Live] Registering tools:', tools.length, 'tools');
+        console.log('[Gemini Live] Tool names:', tools.map(t => t.name).join(', '));
+
+        return {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
 Your persona is a highly intelligent, witty, and helpful personal assistant.
 You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
 You are more "smart companion" than "chaotic teenager".
@@ -377,22 +383,18 @@ You: [CALL browser_open with url: "https://twitter.com"] then say "Opening Twitt
 Example WRONG behavior:
 User: "Open Telegram"
 You: "Sure, I'll open Telegram for you" [WITHOUT calling any tool] ❌`,
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: 'Kore'
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Kore'
+              }
             }
-          }
-        },
-        tools: [{
-          functionDeclarations: (() => {
-            const tools = getToolsForGemini();
-            console.log('[Gemini Live] Registering tools:', tools.length, 'tools');
-            console.log('[Gemini Live] Tool names:', tools.map(t => t.name).join(', '));
-            return tools;
-          })()
-        }]
-      }
+          },
+          tools: [{
+            functionDeclarations: tools
+          }]
+        };
+      })()
     });
     
     sessionPromise = sessionPromiseValue;
