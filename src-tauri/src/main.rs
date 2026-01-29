@@ -3,7 +3,7 @@
 
 use tauri::Manager;
 use std::process::Command;
-use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key};
+use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key, Axis};
 
 // Desktop automation commands
 #[tauri::command]
@@ -70,17 +70,14 @@ fn mouse_click(button: String) -> Result<String, String> {
 #[tauri::command]
 fn mouse_scroll(amount: i32) -> Result<String, String> {
     let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
-    let direction = if amount > 0 { Direction::Down } else { Direction::Up };
-    let scroll_amount = amount.abs();
-    for _ in 0..scroll_amount {
-        enigo.scroll(1, direction).map_err(|e| e.to_string())?;
-    }
+    // Positive = scroll down, negative = scroll up
+    enigo.scroll(amount, enigo::Axis::Vertical).map_err(|e| e.to_string())?;
     Ok(format!("Scrolled mouse by {}", amount))
 }
 
 #[tauri::command]
 fn get_mouse_position() -> Result<(i32, i32), String> {
-    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
+    let enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
     let (x, y) = enigo.location().map_err(|e| e.to_string())?;
     Ok((x, y))
 }
