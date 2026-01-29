@@ -11,56 +11,27 @@ let invokeFunction = null;
 export async function initDesktopAgent() {
   try {
     console.log('[Desktop Agent] Checking for Tauri environment...');
-    console.log('[Desktop Agent] window.__TAURI_INTERNALS__ exists?', typeof window !== 'undefined' && typeof window.__TAURI_INTERNALS__ !== 'undefined');
-    console.log('[Desktop Agent] window.__TAURI__ exists?', typeof window !== 'undefined' && typeof window.__TAURI__ !== 'undefined');
 
-    // Check for Tauri v2 (uses __TAURI_INTERNALS__)
-    if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
-      console.log('[Desktop Agent] Tauri v2 detected via __TAURI_INTERNALS__');
+    // Try to import Tauri's invoke function
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      invokeFunction = invoke;
 
-      // In Tauri v2, invoke is available globally
-      if (window.__TAURI_INTERNALS__.invoke) {
-        invokeFunction = window.__TAURI_INTERNALS__.invoke;
+      // Test if invoke actually works by calling get_platform_info
+      try {
+        platformInfo = await invoke('get_platform_info');
         tauriAvailable = true;
-        console.log('[Desktop Agent] Tauri invoke function found! Desktop agent ENABLED');
-
-        // Try to get platform info
-        try {
-          platformInfo = await invokeFunction('get_platform_info');
-          console.log('[Desktop Agent] Platform info:', platformInfo);
-        } catch (e) {
-          console.warn('[Desktop Agent] Could not get platform info:', e);
-          platformInfo = { os: 'unknown', arch: 'unknown', family: 'unknown' };
-        }
-
+        console.log('[Desktop Agent] Tauri detected! Platform:', platformInfo);
         return true;
+      } catch (invokeError) {
+        console.log('[Desktop Agent] Tauri API imported but invoke failed:', invokeError.message);
+        // Invoke import succeeded but call failed - not in Tauri
+        return false;
       }
+    } catch (importError) {
+      console.log('[Desktop Agent] Tauri API not available:', importError.message);
+      return false;
     }
-
-    // Fallback: Check for older Tauri structure
-    if (typeof window !== 'undefined' && window.__TAURI__) {
-      console.log('[Desktop Agent] Tauri detected via __TAURI__');
-
-      if (window.__TAURI__.core && window.__TAURI__.core.invoke) {
-        invokeFunction = window.__TAURI__.core.invoke;
-        tauriAvailable = true;
-        console.log('[Desktop Agent] Tauri core.invoke found! Desktop agent ENABLED');
-
-        try {
-          platformInfo = await invokeFunction('get_platform_info');
-          console.log('[Desktop Agent] Platform info:', platformInfo);
-        } catch (e) {
-          console.warn('[Desktop Agent] Could not get platform info:', e);
-          platformInfo = { os: 'unknown', arch: 'unknown', family: 'unknown' };
-        }
-
-        return true;
-      }
-    }
-
-    console.log('[Desktop Agent] Tauri not detected - Running in web browser');
-    console.log('[Desktop Agent] Available window properties:', typeof window !== 'undefined' ? Object.keys(window).filter(k => k.includes('TAURI') || k.includes('tauri')).join(', ') : 'none');
-    return false;
 
   } catch (error) {
     console.error('[Desktop Agent] Init error:', error);
