@@ -181,7 +181,8 @@ export const toolDefinitions = [
     description: 'Get the user\'s habits with current streaks.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
 
@@ -205,7 +206,8 @@ export const toolDefinitions = [
     description: 'Get the current date and time.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -272,7 +274,8 @@ export const toolDefinitions = [
     description: 'Press the back button. Use to navigate back in apps.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -280,7 +283,8 @@ export const toolDefinitions = [
     description: 'Press the home button to go to the home screen.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -288,7 +292,8 @@ export const toolDefinitions = [
     description: 'See what is currently on the screen. Use to understand the current state before taking action.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -308,7 +313,8 @@ export const toolDefinitions = [
     description: 'Check if the autonomous agent is enabled. If not, guide the user to enable it in accessibility settings.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
 
@@ -386,7 +392,8 @@ export const toolDefinitions = [
     description: 'Get information about the current platform (OS, architecture). Available on desktop only.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
   {
@@ -441,7 +448,8 @@ export const toolDefinitions = [
     description: 'Get current mouse cursor position. Desktop only.',
     parameters: {
       type: 'object',
-      properties: {}
+      properties: {},
+      required: []
     }
   },
 
@@ -468,22 +476,21 @@ export const toolDefinitions = [
       required: ['key']
     }
   },
-  // DISABLED: Gemini Live doesn't support array parameters
-  // {
-  //   name: 'keyboard_shortcut',
-  //   description: 'Execute a keyboard shortcut (e.g., Ctrl+C, Alt+Tab). Desktop only.',
-  //   parameters: {
-  //     type: 'object',
-  //     properties: {
-  //       keys: {
-  //         type: 'array',
-  //         items: { type: 'string' },
-  //         description: 'Array of keys to press together (e.g., ["ctrl", "c"] for Ctrl+C, ["alt", "tab"] for Alt+Tab)'
-  //       }
-  //     },
-  //     required: ['keys']
-  //   }
-  // },
+  {
+    name: 'keyboard_shortcut',
+    description: 'Execute a keyboard shortcut (e.g., Ctrl+C, Alt+Tab). Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        keys: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of keys to press together (e.g., ["ctrl", "c"] for Ctrl+C, ["alt", "tab"] for Alt+Tab)'
+        }
+      },
+      required: ['keys']
+    }
+  },
 
   // ============ BROWSER AUTOMATION TOOLS ============
   {
@@ -1343,7 +1350,7 @@ export function getToolsForGemini() {
       'run_command', 'open_external', 'read_file', 'write_file',
       'list_files', 'create_directory', 'run_desktop_task', 'get_platform_info',
       'mouse_move', 'mouse_click', 'mouse_scroll', 'get_mouse_position',
-      'keyboard_type', 'keyboard_press', // keyboard_shortcut removed (array params not supported)
+      'keyboard_type', 'keyboard_press', 'keyboard_shortcut',
       'browser_open', 'browser_automate'
     ];
     if (desktopTools.includes(tool.name)) {
