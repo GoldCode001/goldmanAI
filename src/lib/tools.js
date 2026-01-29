@@ -1341,7 +1341,12 @@ export async function executeTool(name, args) {
 /**
  * Get tool definitions formatted for Gemini
  */
-export function getToolsForGemini() {
+export async function getToolsForGemini() {
+  // Ensure platform detection is complete before filtering tools
+  console.log('[Tools] Platform type before refresh:', platformType);
+  await refreshAgentStatus();
+  console.log('[Tools] Platform type after refresh:', platformType);
+
   // Filter tools based on current platform
   const filteredTools = toolDefinitions.filter(tool => {
     // Android-only tools
@@ -1371,11 +1376,7 @@ export function getToolsForGemini() {
   });
 
   console.log('[Tools] ALL tools being registered:', filteredTools.length);
-
-  // Log each tool's definition to find the invalid argument
-  filteredTools.forEach((tool, index) => {
-    console.log(`[Tools] ${index + 1}. ${tool.name}:`, JSON.stringify(tool.parameters, null, 2));
-  });
+  console.log('[Tools] Desktop tools included:', filteredTools.filter(t => ['run_command', 'browser_open', 'keyboard_type'].includes(t.name)).length > 0);
 
   return filteredTools.map(tool => ({
     name: tool.name,
