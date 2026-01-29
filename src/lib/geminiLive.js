@@ -307,7 +307,18 @@ You are more "smart companion" than "chaotic teenager".
 1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
 2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
 3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
-4. **Identity**: You are the user's loyal assistant. You are PAL.`,
+4. **Identity**: You are the user's loyal assistant. You are PAL.
+
+**CRITICAL - Tool Usage:**
+You have access to powerful tools that let you DO things, not just talk about them.
+- When the user asks you to open an app, send a message, control the computer, etc. - USE THE TOOLS IMMEDIATELY
+- Do NOT just acknowledge - TAKE ACTION by calling the appropriate tool
+- Examples:
+  - "Open Telegram" → Use browser_open or run_command tool RIGHT NOW
+  - "Send a text" → Use keyboard_type and keyboard_press tools to actually type and send
+  - "Move the mouse" → Use mouse_move tool immediately
+  - "Search for X" → Use browser_open to open a search
+- Always use tools when you can perform the action. Do not just talk about it.`,
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
@@ -323,12 +334,9 @@ You are more "smart companion" than "chaotic teenager".
     
     sessionPromise = sessionPromiseValue;
     liveSession = await sessionPromiseValue;
-    
+
     // Start audio level monitoring for lip sync
     startAudioLevelMonitoring();
-    
-    // Start user speech recognition for action detection
-    startUserSpeechRecognition();
 
     isConnected = true;
     console.log('Gemini Live started and connected');
@@ -394,67 +402,8 @@ function startAudioLevelMonitoring() {
   update();
 }
 
-/**
- * Start Web Speech API recognition for user speech (to detect actions)
- */
-function startUserSpeechRecognition() {
-  // Check if Web Speech API is available
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn('Web Speech API not available for user transcript');
-    return;
-  }
-  
-  // Stop any existing recognition
-  if (userSpeechRecognition) {
-    userSpeechRecognition.stop();
-  }
-  
-  userSpeechRecognition = new SpeechRecognition();
-  userSpeechRecognition.continuous = true;
-  userSpeechRecognition.interimResults = true; // Enable interim results to catch partial speech
-  userSpeechRecognition.lang = 'en-US';
-  userSpeechRecognition.maxAlternatives = 1;
-  
-  userSpeechRecognition.onresult = (event) => {
-    // Collect all final results, not just the last one
-    let fullTranscript = '';
-    for (let i = 0; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        fullTranscript += event.results[i][0].transcript + ' ';
-      }
-    }
-    
-    if (fullTranscript.trim() && onUserTranscriptUpdate) {
-      const transcript = fullTranscript.trim();
-      console.log('User said (full):', transcript);
-      onUserTranscriptUpdate(transcript);
-    }
-  };
-  
-  userSpeechRecognition.onerror = (event) => {
-    console.error('User speech recognition error:', event.error);
-    // Don't stop on errors, just log
-  };
-  
-  userSpeechRecognition.onend = () => {
-    // Restart recognition if still connected
-    if (isConnected) {
-      try {
-        userSpeechRecognition.start();
-      } catch (err) {
-        console.error('Failed to restart user speech recognition:', err);
-      }
-    }
-  };
-  
-  try {
-    userSpeechRecognition.start();
-    console.log('User speech recognition started');
-  } catch (err) {
-    console.error('Failed to start user speech recognition:', err);
-  }
-}
+// NOTE: Web Speech API removed - it was picking up PAL's own voice
+// Gemini Live API already handles user speech transcription via microphone input
 
 /**
  * Stop Gemini Live connection
