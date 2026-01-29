@@ -293,7 +293,7 @@ export const toolDefinitions = [
   },
   {
     name: 'run_autonomous_task',
-    description: 'Run a multi-step autonomous task. PAL will figure out the steps and execute them. Use for complex tasks like "send a message to John on WhatsApp" or "search for cats on YouTube".',
+    description: '**ANDROID ONLY** - Run a multi-step autonomous task on Android device. Requires accessibility service enabled. DO NOT use on desktop/Windows - use run_desktop_task instead. Use for Android tasks like "send a message to John on WhatsApp" or "search for cats on YouTube".',
     parameters: {
       type: 'object',
       properties: {
@@ -1102,7 +1102,26 @@ export async function executeTool(name, args) {
  * Get tool definitions formatted for Gemini
  */
 export function getToolsForGemini() {
-  return toolDefinitions.map(tool => ({
+  // Filter tools based on current platform
+  const filteredTools = toolDefinitions.filter(tool => {
+    // Android-only tools
+    if (tool.name === 'run_autonomous_task' || tool.name === 'check_agent_status') {
+      return platformType === 'android';
+    }
+
+    // Desktop-only tools
+    if (tool.name === 'run_command' || tool.name === 'open_external' ||
+        tool.name === 'read_file' || tool.name === 'write_file' ||
+        tool.name === 'list_files' || tool.name === 'create_directory' ||
+        tool.name === 'run_desktop_task' || tool.name === 'get_platform_info') {
+      return platformType === 'desktop';
+    }
+
+    // All other tools are available on all platforms
+    return true;
+  });
+
+  return filteredTools.map(tool => ({
     name: tool.name,
     description: tool.description,
     parameters: tool.parameters
