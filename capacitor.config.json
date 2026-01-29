@@ -1,9 +1,27 @@
 {
   "appId": "com.goldmanai.app",
   "appName": "Goldman AI",
-  "webDir": ".",
+  "webDir": "www",
   "server": {
     "url": "https://goldmanai-production.up.railway.app",
     "cleartext": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#00d4ff",
+      "sound": "default"
+    },
+    "Geolocation": {
+      "enableHighAccuracy": true
+    }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#0a0a1a"
+  },
+  "ios": {
+    "backgroundColor": "#0a0a1a",
+    "contentInset": "automatic"
   }
 }

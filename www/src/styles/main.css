@@ -1,0 +1,1077 @@
+* {
+  box-sizing: border-box;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #000000;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+/* Selection styling (sci-fi look) */
+::selection {
+  background: #00ffff;
+  color: #000000;
+}
+
+::-moz-selection {
+  background: #00ffff;
+  color: #000000;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==================== AUTH SCREEN ==================== */
+
+.auth-screen {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+}
+
+.auth-box {
+  background: #111;
+  padding: 40px;
+  border-radius: 16px;
+  width: 360px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.auth-box h1 {
+  margin: 0 0 32px 0;
+  text-align: center;
+  font-size: 32px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.auth-tabs button {
+  flex: 1;
+  padding: 12px;
+  background: transparent;
+  border: 1px solid #333;
+  color: #666;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.auth-tabs button.active {
+  background: #222;
+  border-color: #555;
+  color: #fff;
+}
+
+input, textarea, button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: white;
+  font-size: 15px;
+  transition: all 0.2s;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: #555;
+  background: #222;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button:hover {
+  background: #222;
+  border-color: #555;
+}
+
+#authStatus {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+}
+
+/* ==================== PAL INTERFACE (Voice-First) ==================== */
+
+.pal-interface {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: #000000;
+  overflow: hidden;
+  selection: {
+    background: #00ffff;
+    color: #000;
+  }
+}
+
+/* Canvas-based PAL Face */
+.pal-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chat Overlay */
+.chat-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  padding: 1rem 2rem;
+}
+
+/* Ensure settings button is above overlay */
+.pal-interface .settings-btn {
+  z-index: 100;
+}
+
+@media (max-width: 768px) {
+  .chat-overlay {
+    padding: 1rem;
+  }
+}
+
+/* Overlay Header */
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: auto;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 1rem 1.5rem;
+  margin: -1rem -2rem 0 -2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+.header-left:hover {
+  opacity: 1;
+}
+
+.terminal-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.terminal-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.pal-version {
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.875rem;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.status-dot.standby {
+  background: #6b7280;
+}
+
+.status-dot.live {
+  background: #ef4444;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+}
+
+/* Activate Section - Moved down to not cover face */
+.activate-section {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.activate-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 6rem;
+  height: 6rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.activate-button:hover {
+  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.button-glow {
+  display: none; /* Removed glowing effect per user request */
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.button-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: #fff;
+  transition: color 0.3s;
+}
+
+.button-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.activate-button:hover .button-icon {
+  color: #06b6d4;
+}
+
+.button-label {
+  position: absolute;
+  bottom: -2.5rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.3s;
+  font-weight: 300;
+}
+
+.activate-button:hover .button-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Live Controls - Moved down to not cover face */
+.live-controls {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  pointer-events: auto;
+}
+
+.listening-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.listening-dot {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.1);
+}
+
+.listening-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.listening-dot svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #ef4444;
+}
+
+.listening-text {
+  font-size: 0.625rem;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  font-weight: 300;
+}
+
+.disconnect-button {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: rgba(31, 41, 55, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.disconnect-button:hover {
+  background: rgba(31, 41, 55, 0.5);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.power-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #d1d5db;
+}
+
+.power-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Transcript Section - REMOVED per user request */
+
+/* ==================== ASSISTANT FACE (Fixed Position, Expressive) ==================== */
+
+.assistant-face {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  z-index: 10;
+}
+
+.assistant-face:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.assistant-face svg {
+  width: 300px;
+  height: 300px;
+  stroke: #ccc;
+  fill: #ccc;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.assistant-face svg * {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  filter: none !important;
+}
+
+/* Idle breathing animation */
+.assistant-face.idle svg {
+  /* animation: idle-breath 4s ease-in-out infinite; */
+  animation: none !important;
+}
+
+/* Speaking animation */
+.assistant-face.speaking svg {
+  /* animation: speaking-pulse 0.6s ease-in-out infinite; */
+  animation: none !important;
+}
+
+/* Recording state */
+.assistant-face.recording svg {
+  stroke: #00bcd4;
+  fill: #00bcd4;
+  /* animation: recording-pulse 1s ease-in-out infinite; */
+  animation: none !important;
+}
+
+/* Mouth animation during speech */
+.assistant-face.speaking path {
+  transition: d 0.05s ease;
+}
+
+/* Status text below face */
+.status-text {
+  margin-top: 32px;
+  font-size: 18px;
+  color: #666;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.assistant-face.recording .status-text {
+  color: #00bcd4;
+}
+
+.assistant-face.speaking .status-text {
+  color: #fff;
+}
+
+/* ==================== PAL EVIL MODE ==================== */
+
+.evil-mode {
+  /* No background on the face container itself, but we can affect children */
+}
+
+/* When in evil mode, the SVG should look glitchy */
+.evil-mode svg {
+  filter: drop-shadow(0 0 20px #ff0000) contrast(1.2) sepia(100%) hue-rotate(-50deg) !important;
+  animation: glitch-shake 0.2s infinite !important;
+}
+
+.evil-mode svg * {
+  stroke: #ff0000 !important;
+  fill: #ff0000 !important;
+}
+
+/* Also change the background of the app to red/black gradient */
+body:has(.evil-mode) {
+  background: radial-gradient(circle at center, #300 0%, #000 100%);
+}
+
+@keyframes glitch-shake {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-2px, 2px); }
+  50% { transform: translate(2px, -2px); }
+  75% { transform: translate(-2px, -2px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ==================== TRANSCRIPT OVERLAY ==================== */
+
+.transcript-overlay {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 600px;
+  width: 90%;
+  padding: 24px 32px;
+  background: rgba(17, 17, 17, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid #333;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  opacity: 0;
+  animation: slideUp 0.3s ease forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.transcript-overlay p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #fff;
+  text-align: center;
+}
+
+/* ==================== INLINE TEXT OUTPUT ==================== */
+
+.inline-output {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  width: 90%;
+  max-width: 700px;
+  max-height: 60vh;
+  background: #111;
+  border: 0.5px solid rgba(255, 255, 255, 0.1); /* Thinner, more subtle */
+  border-radius: 12px;
+  padding: 20px; /* Slightly more padding */
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  z-index: 100;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(10px); /* Glass morphism */
+}
+
+.inline-output:not(.hidden) {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.inline-output-header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.copy-inline-btn,
+.close-inline-btn {
+  padding: 6px 12px;
+  background: #222;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  width: auto;
+  margin: 0;
+}
+
+.copy-inline-btn:hover,
+.close-inline-btn:hover {
+  background: #333;
+  border-color: #555;
+}
+
+.close-inline-btn {
+  width: 32px;
+  padding: 6px;
+  font-size: 20px;
+  line-height: 1;
+}
+
+#inlineOutputContent {
+  flex: 1;
+  overflow-y: auto;
+  background: #0a0a0a;
+  border: 0.5px solid rgba(255, 255, 255, 0.08); /* Thinner border */
+  border-radius: 8px;
+  padding: 20px; /* More padding */
+  color: #e5e5e5;
+  font-family: 'Space Grotesk', monospace; /* Use app font */
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+#inlineOutputContent::-webkit-scrollbar {
+  width: 8px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-track {
+  background: #111;
+  border-radius: 4px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+#inlineOutputContent::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* ==================== SETTINGS BUTTON (Top Right) ==================== */
+
+.settings-btn {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.settings-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: rotate(90deg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* ==================== SETTINGS PANEL (Slide from Right) ==================== */
+
+.settings-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  background: #111;
+  border-left: 1px solid #333;
+  padding: 24px;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0,0,0,0.4);
+  z-index: 200; /* Higher than settings button */
+}
+
+.settings-panel:not(.hidden) {
+  transform: translateX(0);
+}
+
+/* Hide assistant face when settings is open */
+.pal-interface:has(.settings-panel:not(.hidden)) .assistant-face {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Hide activate button and live controls when settings is open */
+.pal-interface:has(.settings-panel:not(.hidden)) .activate-section,
+.pal-interface:has(.settings-panel:not(.hidden)) .live-controls {
+  display: none !important;
+}
+
+.close-settings {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 8px;
+  z-index: 201; /* Higher than panel */
+}
+
+.close-settings:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.user-email {
+  margin: 40px 0 24px 0;
+  color: #888;
+  font-size: 14px;
+}
+
+.panel-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.panel-btn:hover {
+  background: #222;
+  border-color: #555;
+}
+
+/* ==================== CHAT LIST ==================== */
+
+.chat-list-section {
+  margin: 24px 0 16px 0;
+  border-bottom: 1px solid #222;
+  padding-bottom: 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.new-chat-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.new-chat-icon-btn:hover {
+  background: #222;
+  border-color: #555;
+}
+
+.chat-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chat-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-list::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 2px;
+}
+
+.no-chats {
+  color: #555;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+  margin: 0;
+}
+
+.chat-item {
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  background: #1a1a1a;
+  border: 1px solid #222;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chat-item:hover {
+  background: #222;
+  border-color: #333;
+}
+
+.chat-item.active {
+  background: #222;
+  border-color: #4CAF50;
+}
+
+.chat-item-title {
+  font-size: 13px;
+  color: #ccc;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-item-date {
+  font-size: 10px;
+  color: #666;
+}
+
+/* ==================== PERSONALIZATION SETTINGS ==================== */
+
+.personalization-section {
+  margin: 24px 0;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #222;
+}
+
+.personalization-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setting-item label {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.setting-item input {
+  padding: 10px 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: all 0.2s;
+}
+
+.setting-item input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  background: #222;
+}
+
+.save-btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-self: flex-start;
+}
+
+.save-btn:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+}
+
+.save-btn:active {
+  transform: translateY(0);
+}
+
+/* ==================== CONVERSATION HISTORY ==================== */
+
+.conversation-history {
+  margin: 24px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.conversation-history h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.history-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: #0a0a0a;
+  border: 1px solid #222;
+  border-radius: 8px;
+  max-height: 400px;
+}
+
+.history-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.history-container::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.history-container::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.history-container::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+.no-history {
+  color: #555;
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+  margin: 0;
+}
+
+.history-message {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border-left: 3px solid #333;
+}
+
+.history-message.user {
+  border-left-color: #666;
+}
+
+.history-message.assistant {
+  border-left-color: #4CAF50;
+}
+
+.history-message .role {
+  font-size: 11px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.history-message .content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ccc;
+  word-wrap: break-word;
+}
+
+.history-message .timestamp {
+  font-size: 10px;
+  color: #555;
+  margin-top: 6px;
+}
+
+/* ==================== ACTION MODAL ==================== */
+
+/* Action modal and map styles removed - focusing on personal development assistant */
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .assistant-face svg {
+    width: 160px;
+    height: 160px;
+  }
+
+  .status-text {
+    font-size: 16px;
+  }
+
+  .transcript-overlay {
+    max-width: 90%;
+    bottom: 60px;
+    padding: 20px;
+  }
+
+  .transcript-overlay p {
+    font-size: 16px;
+  }
+
+  .settings-panel {
+    width: 100%;
+  }
+}

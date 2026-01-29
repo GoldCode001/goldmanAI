@@ -200,6 +200,156 @@ export async function pathExists(path) {
   return result.success && result.output.includes('EXISTS');
 }
 
+// ============ MOUSE CONTROL ============
+
+/**
+ * Move mouse to specific coordinates
+ */
+export async function mouseMove(x, y) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('mouse_move', { x, y });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Click mouse button
+ */
+export async function mouseClick(button = 'left') {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('mouse_click', { button });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Scroll mouse
+ */
+export async function mouseScroll(amount) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('mouse_scroll', { amount });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Get current mouse position
+ */
+export async function getMousePosition() {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const position = await invokeFunction('get_mouse_position');
+    return { success: true, x: position[0], y: position[1] };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+// ============ KEYBOARD CONTROL ============
+
+/**
+ * Type text using keyboard
+ */
+export async function keyboardType(text) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('keyboard_type', { text });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Press a special key (Enter, Tab, Escape, etc.)
+ */
+export async function keyboardPress(key) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('keyboard_press', { key });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Execute keyboard shortcut (e.g., Ctrl+C, Alt+Tab)
+ */
+export async function keyboardShortcut(keys) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('keyboard_shortcut', { keys });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+// ============ BROWSER AUTOMATION ============
+
+/**
+ * Open URL in default browser
+ */
+export async function browserOpen(url) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('browser_open', { url });
+    return { success: true, message: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
+/**
+ * Run a Playwright script for advanced browser automation
+ */
+export async function runPlaywrightScript(script) {
+  if (!tauriAvailable || !invokeFunction) {
+    throw new Error('Desktop agent not available');
+  }
+
+  try {
+    const result = await invokeFunction('run_playwright_script', { script });
+    return { success: true, output: result };
+  } catch (error) {
+    return { success: false, error: error.toString() };
+  }
+}
+
 /**
  * Run autonomous task on desktop
  * Similar to mobile agent but uses desktop-specific capabilities
