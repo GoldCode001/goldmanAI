@@ -12,26 +12,29 @@ export async function initDesktopAgent() {
   try {
     console.log('[Desktop Agent] Checking for Tauri environment...');
 
-    // Try to import Tauri's invoke function
-    try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      invokeFunction = invoke;
+    // Check if loader detected Tauri (stored in localStorage)
+    const tauriDetected = localStorage.getItem('__TAURI_DETECTED__');
+    const platformStr = localStorage.getItem('__TAURI_PLATFORM__');
 
-      // Test if invoke actually works by calling get_platform_info
+    if (tauriDetected === 'true' && platformStr) {
+      platformInfo = JSON.parse(platformStr);
+      tauriAvailable = true;
+
+      // Import invoke function for actual API calls
       try {
-        platformInfo = await invoke('get_platform_info');
-        tauriAvailable = true;
-        console.log('[Desktop Agent] Tauri detected! Platform:', platformInfo);
+        const { invoke } = await import('@tauri-apps/api/core');
+        invokeFunction = invoke;
+        console.log('[Desktop Agent] Tauri detected from loader! Platform:', platformInfo);
         return true;
-      } catch (invokeError) {
-        console.log('[Desktop Agent] Tauri API imported but invoke failed:', invokeError.message);
-        // Invoke import succeeded but call failed - not in Tauri
+      } catch (importError) {
+        console.error('[Desktop Agent] Tauri detected but API import failed:', importError);
+        tauriAvailable = false;
         return false;
       }
-    } catch (importError) {
-      console.log('[Desktop Agent] Tauri API not available:', importError.message);
-      return false;
     }
+
+    console.log('[Desktop Agent] Not running in Tauri');
+    return false;
 
   } catch (error) {
     console.error('[Desktop Agent] Init error:', error);
