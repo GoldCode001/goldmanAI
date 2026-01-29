@@ -327,7 +327,7 @@ export async function startGeminiLive() {
         }
       },
       config: {
-        responseModalities: [Modality.AUDIO, Modality.TEXT],
+        responseModalities: [Modality.AUDIO],
         systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
 Your persona is a highly intelligent, witty, and helpful personal assistant.
 You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
