@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Loading PAL...</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: system-ui;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div>Loading PAL...</div>
+  <script>
+    // IPC is injected here on local page
+    console.log('[Loader] Tauri IPC available:', !!window.__TAURI_INTERNALS__);
+    console.log('[Loader] Tauri __TAURI__ available:', !!window.__TAURI__);
+
+    // Immediately redirect to Railway URL
+    // IPC handlers will persist after navigation
+    window.location.href = 'https://goldmanai-production.up.railway.app';
+  </script>
+</body>
+</html>
