@@ -13,7 +13,7 @@ let inputAudioContext = null; // 16kHz for input
 let outputAudioContext = null; // 24kHz for output
 let analyserNode = null;
 let microphoneSource = null;
-let scriptProcessor = null;
+let audioWorkletNode = null;
 let isConnected = false;
 let onAudioLevelUpdate = null; // Callback for lip sync (amplitude 0-1)
 let onTranscriptUpdate = null; // Callback for text updates (AI responses)
@@ -128,27 +128,44 @@ export async function startGeminiLive() {
     // Setup Gemini Client
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-    // Start Microphone Stream
+    // Start Microphone Stream with AudioWorklet (modern, low-latency)
     try {
-      microphoneStream = await navigator.mediaDevices.getUserMedia({ 
+      microphoneStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          sampleRate: 16000 // Request 16kHz directly
         }
       });
-      
+
+      // Load AudioWorklet processor
+      await inputAudioContext.audioWorklet.addModule('src/lib/audio-processor.worklet.js');
+
       microphoneSource = inputAudioContext.createMediaStreamSource(microphoneStream);
-      scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
-      
-      scriptProcessor.onaudioprocess = (e) => {
+      audioWorkletNode = new AudioWorkletNode(inputAudioContext, 'gemini-audio-processor');
+
+      // Listen for processed audio from worklet
+      audioWorkletNode.port.onmessage = (event) => {
         // Only process audio if connected
         if (!isConnected || !sessionPromise) {
           return;
         }
 
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcmBlob = createPcmBlob(inputData);
+        const { data } = event.data;
+
+        // Convert Uint8Array to base64
+        let binary = '';
+        const len = data.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(data[i]);
+        }
+        const b64 = btoa(binary);
+
+        const pcmBlob = {
+          data: b64,
+          mimeType: 'audio/pcm;rate=16000',
+        };
 
         sessionPromise.then(session => {
           // Double-check connection state before sending
@@ -169,9 +186,11 @@ export async function startGeminiLive() {
           }
         });
       };
-      
-      microphoneSource.connect(scriptProcessor);
-      scriptProcessor.connect(inputAudioContext.destination);
+
+      microphoneSource.connect(audioWorkletNode);
+      audioWorkletNode.connect(inputAudioContext.destination);
+
+      console.log('[Gemini Live] Using AudioWorklet for low-latency audio processing');
     } catch (err) {
       console.error("Mic Error:", err);
       if (onError) onError(err);
@@ -272,9 +291,9 @@ export async function startGeminiLive() {
           isConnected = false;
 
           // Stop audio processing when connection closes
-          if (scriptProcessor) {
-            scriptProcessor.disconnect();
-            scriptProcessor = null;
+          if (audioWorkletNode) {
+            audioWorkletNode.disconnect();
+            audioWorkletNode = null;
           }
 
           if (microphoneSource) {
@@ -415,9 +434,9 @@ export function stopGeminiLive() {
     userSpeechRecognition = null;
   }
   
-  if (scriptProcessor) {
-    scriptProcessor.disconnect();
-    scriptProcessor = null;
+  if (audioWorkletNode) {
+    audioWorkletNode.disconnect();
+    audioWorkletNode = null;
   }
   
   if (microphoneSource) {
