@@ -214,9 +214,9 @@ export async function startGeminiLive() {
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
-          // Debug: log all messages
-          if (msg.serverContent || msg.toolCall) {
-            console.log('[Gemini Live] Message received:', JSON.stringify(msg, null, 2));
+          // Debug: log tool calls only (not audio/text messages)
+          if (msg.toolCall) {
+            console.log('[Gemini Live] Tool call received:', msg.toolCall.functionCalls?.map(c => c.name).join(', '));
           }
 
           // 1. Handle Function Calls (Tools)
