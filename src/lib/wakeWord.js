@@ -63,29 +63,45 @@ export function initWakeWord(options = {}) {
   recognition.onerror = (event) => {
     console.warn('[WakeWord] Error:', event.error);
 
-    // Auto-restart on certain errors
-    if (event.error === 'no-speech' || event.error === 'aborted') {
-      // These are normal, restart
+    // Auto-restart on ALL errors except 'not-allowed' (permission denied)
+    if (event.error !== 'not-allowed') {
       if (isListening) {
         setTimeout(() => {
           try {
+            console.log('[WakeWord] Auto-restarting after error...');
             recognition.start();
           } catch (e) {
-            // Ignore
+            console.warn('[WakeWord] Restart failed, will try again:', e.message);
+            // Try again in 1 second if first restart fails
+            setTimeout(() => {
+              if (isListening) {
+                try {
+                  recognition.start();
+                } catch (e2) {
+                  console.error('[WakeWord] Second restart failed:', e2.message);
+                }
+              }
+            }, 1000);
           }
         }, 100);
       }
+    } else {
+      console.error('[WakeWord] Microphone permission denied. Cannot restart.');
     }
   };
 
   recognition.onend = () => {
+    console.log('[WakeWord] Recognition ended');
     // Auto-restart if we should still be listening
     if (isListening) {
-      try {
-        recognition.start();
-      } catch (e) {
-        // Ignore
-      }
+      setTimeout(() => {
+        try {
+          console.log('[WakeWord] Restarting...');
+          recognition.start();
+        } catch (e) {
+          console.warn('[WakeWord] Restart on end failed:', e.message);
+        }
+      }, 100);
     }
   };
 

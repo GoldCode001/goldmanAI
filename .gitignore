@@ -81,3 +81,7 @@ android/
 .capacitor/
 # Desktop app (not in use)
 desktop/
+
+# Tauri build artifacts (Rust)
+src-tauri/target/
+src-tauri/gen/
