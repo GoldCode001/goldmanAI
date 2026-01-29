@@ -20,6 +20,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Goldman AI",
         "width": 1200,
         "height": 800,
@@ -28,7 +29,22 @@
         "transparent": false,
         "decorations": true,
         "alwaysOnTop": false,
+        "visible": false,
         "url": "https://goldmanai-production.up.railway.app"
+      },
+      {
+        "label": "bubble",
+        "title": "PAL",
+        "width": 120,
+        "height": 120,
+        "resizable": false,
+        "fullscreen": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": true,
+        "url": "bubble.html"
       }
     ],
     "security": {

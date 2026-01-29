@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAL Bubble</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 120px;
+      height: 120px;
+      overflow: hidden;
+      background: transparent;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-app-region: drag; /* Make entire window draggable */
+      cursor: move;
+    }
+
+    .bubble-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .bubble {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-app-region: no-drag; /* Allow clicking */
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bubble:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 48px rgba(102, 126, 234, 0.6);
+    }
+
+    .bubble:active {
+      transform: scale(0.95);
+    }
+
+    /* PAL Face - Minimal */
+    .face {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .eyes {
+      display: flex;
+      gap: 16px;
+    }
+
+    .eye {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.9;
+    }
+
+    .mouth {
+      width: 24px;
+      height: 12px;
+      border: 2px solid white;
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      opacity: 0.9;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Speaking animation */
+    .bubble.speaking .mouth {
+      animation: speak 0.3s ease-in-out infinite;
+    }
+
+    @keyframes speak {
+      0%, 100% { height: 12px; }
+      50% { height: 16px; }
+    }
+
+    /* Listening pulse */
+    .bubble.listening::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.2; }
+      50% { transform: scale(1.1); opacity: 0.4; }
+    }
+
+    /* Status indicator */
+    .status-dot {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+      -webkit-app-region: no-drag;
+    }
+
+    .status-dot.standby {
+      background: #fbbf24;
+      box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);
+    }
+
+    .status-dot.offline {
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div class="bubble-container">
+    <div class="bubble" id="bubble">
+      <div class="face">
+        <div class="eyes">
+          <div class="eye"></div>
+          <div class="eye"></div>
+        </div>
+        <div class="mouth"></div>
+      </div>
+    </div>
+    <div class="status-dot standby" id="statusDot"></div>
+  </div>
+
+  <script type="module">
+    const bubble = document.getElementById('bubble');
+    const statusDot = document.getElementById('statusDot');
+
+    let tauriInvoke = null;
+    let tauriListen = null;
+
+    // Initialize Tauri API
+    (async () => {
+      try {
+        const { invoke } = await import('https://esm.sh/@tauri-apps/api@2/core');
+        const { listen } = await import('https://esm.sh/@tauri-apps/api@2/event');
+        tauriInvoke = invoke;
+        tauriListen = listen;
+        console.log('[Bubble] Tauri API loaded');
+
+        // Listen for bubble updates from main window
+        if (tauriListen) {
+          await tauriListen('bubble-update', (event) => {
+            const { type, data } = event.payload;
+            handleBubbleUpdate(type, data);
+          });
+          console.log('[Bubble] Listening for updates');
+        }
+      } catch (err) {
+        console.error('[Bubble] Failed to load Tauri API:', err);
+      }
+    })();
+
+    // Click to expand to full window
+    bubble.addEventListener('click', async () => {
+      if (!tauriInvoke) {
+        console.error('[Bubble] Tauri API not loaded');
+        return;
+      }
+
+      try {
+        await tauriInvoke('expand_from_bubble');
+      } catch (err) {
+        console.error('[Bubble] Failed to expand window:', err);
+      }
+    });
+
+    // Handle bubble updates
+    function handleBubbleUpdate(type, data) {
+      console.log('[Bubble] Update received:', type, data);
+
+      if (type === 'status') {
+        // Update status dot
+        statusDot.className = 'status-dot ' + data.status;
+      }
+
+      if (type === 'speaking') {
+        if (data.speaking) {
+          bubble.classList.add('speaking');
+        } else {
+          bubble.classList.remove('speaking');
+        }
+      }
+
+      if (type === 'listening') {
+        if (data.listening) {
+          bubble.classList.add('listening');
+        } else {
+          bubble.classList.remove('listening');
+        }
+      }
+    }
+
+    // Initial state
+    statusDot.className = 'status-dot standby';
+  </script>
+</body>
+</html>
