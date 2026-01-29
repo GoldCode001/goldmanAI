@@ -44,7 +44,7 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": true,
-        "url": "bubble.html"
+        "url": "https://goldmanai-production.up.railway.app/bubble.html"
       }
     ],
     "security": {
