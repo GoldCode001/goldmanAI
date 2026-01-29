@@ -211,6 +211,11 @@ export async function startGeminiLive() {
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
+          // Debug: log all messages
+          if (msg.serverContent || msg.toolCall) {
+            console.log('[Gemini Live] Message received:', JSON.stringify(msg, null, 2));
+          }
+
           // 1. Handle Function Calls (Tools)
           const functionCalls = msg.toolCall?.functionCalls;
           if (functionCalls && functionCalls.length > 0) {
@@ -328,16 +333,40 @@ You are more "smart companion" than "chaotic teenager".
 3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
 4. **Identity**: You are the user's loyal assistant. You are PAL.
 
-**CRITICAL - Tool Usage:**
-You have access to powerful tools that let you DO things, not just talk about them.
-- When the user asks you to open an app, send a message, control the computer, etc. - USE THE TOOLS IMMEDIATELY
-- Do NOT just acknowledge - TAKE ACTION by calling the appropriate tool
-- Examples:
-  - "Open Telegram" → Use browser_open or run_command tool RIGHT NOW
-  - "Send a text" → Use keyboard_type and keyboard_press tools to actually type and send
-  - "Move the mouse" → Use mouse_move tool immediately
-  - "Search for X" → Use browser_open to open a search
-- Always use tools when you can perform the action. Do not just talk about it.`,
+**CRITICAL - YOU MUST USE TOOLS:**
+You are NOT just a voice assistant. You are an AGENT that can control the computer.
+When the user asks you to DO something - YOU MUST CALL THE APPROPRIATE TOOL FUNCTION IMMEDIATELY.
+
+MANDATORY Tool Usage Rules:
+1. "Open [app/website]" → IMMEDIATELY call browser_open or run_command
+2. "Type [text]" or "Send message" → IMMEDIATELY call keyboard_type
+3. "Click" or "Press" → IMMEDIATELY call mouse_click or keyboard_press
+4. "Move mouse" → IMMEDIATELY call mouse_move
+5. "Search for" → IMMEDIATELY call browser_open with search URL
+6. "Run [command]" → IMMEDIATELY call run_command
+
+DO NOT:
+- Just say "okay I'll do that" - ACTUALLY DO IT with tools
+- Ask permission - just execute the tool
+- Explain what you're about to do - just do it and report results
+
+YOU HAVE THESE EXACT TOOLS AVAILABLE:
+- run_command: Execute shell commands
+- browser_open: Open URLs/apps
+- keyboard_type: Type text
+- keyboard_press: Press keys (enter, tab, etc)
+- keyboard_shortcut: Execute key combos (ctrl+c, etc)
+- mouse_move, mouse_click, mouse_scroll
+- write_file, read_file, list_files
+- And more desktop automation tools
+
+Example correct behavior:
+User: "Open Telegram"
+You: [CALL browser_open tool with telegram URL] then say "Opening Telegram"
+
+Example WRONG behavior:
+User: "Open Telegram"
+You: "Sure, I'll open Telegram for you" [WITHOUT calling any tool] ❌`,
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
@@ -346,7 +375,12 @@ You have access to powerful tools that let you DO things, not just talk about th
           }
         },
         tools: [{
-          functionDeclarations: getToolsForGemini()
+          functionDeclarations: (() => {
+            const tools = getToolsForGemini();
+            console.log('[Gemini Live] Registering tools:', tools.length, 'tools');
+            console.log('[Gemini Live] Tool names:', tools.map(t => t.name).join(', '));
+            return tools;
+          })()
         }]
       }
     });
