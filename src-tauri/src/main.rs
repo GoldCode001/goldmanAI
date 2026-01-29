@@ -4,6 +4,7 @@
 use tauri::Manager;
 use std::process::Command;
 use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key, Axis};
+use std::sync::Mutex;
 
 // Desktop automation commands
 #[tauri::command]
@@ -155,6 +156,53 @@ fn keyboard_shortcut(keys: Vec<String>) -> Result<String, String> {
     Ok(format!("Executed keyboard shortcut: {}", keys.join("+")))
 }
 
+// Window management commands
+#[tauri::command]
+fn toggle_main_window(app: tauri::AppHandle) -> Result<String, String> {
+    let main_window = app.get_webview_window("main")
+        .ok_or("Main window not found")?;
+    let bubble_window = app.get_webview_window("bubble")
+        .ok_or("Bubble window not found")?;
+
+    if main_window.is_visible().unwrap_or(false) {
+        // Hide main, show bubble
+        main_window.hide().map_err(|e| e.to_string())?;
+        bubble_window.show().map_err(|e| e.to_string())?;
+        bubble_window.set_focus().ok();
+        Ok("Switched to bubble mode".to_string())
+    } else {
+        // Show main, keep bubble visible
+        main_window.show().map_err(|e| e.to_string())?;
+        main_window.set_focus().map_err(|e| e.to_string())?;
+        Ok("Switched to main window".to_string())
+    }
+}
+
+#[tauri::command]
+fn minimize_to_bubble(app: tauri::AppHandle) -> Result<String, String> {
+    let main_window = app.get_webview_window("main")
+        .ok_or("Main window not found")?;
+    let bubble_window = app.get_webview_window("bubble")
+        .ok_or("Bubble window not found")?;
+
+    main_window.hide().map_err(|e| e.to_string())?;
+    bubble_window.show().map_err(|e| e.to_string())?;
+    bubble_window.set_focus().ok();
+
+    Ok("Minimized to bubble".to_string())
+}
+
+#[tauri::command]
+fn expand_from_bubble(app: tauri::AppHandle) -> Result<String, String> {
+    let main_window = app.get_webview_window("main")
+        .ok_or("Main window not found")?;
+
+    main_window.show().map_err(|e| e.to_string())?;
+    main_window.set_focus().map_err(|e| e.to_string())?;
+
+    Ok("Expanded to main window".to_string())
+}
+
 // Browser automation with Playwright
 #[tauri::command]
 fn browser_open(url: String) -> Result<String, String> {
@@ -216,7 +264,10 @@ fn main() {
             keyboard_press,
             keyboard_shortcut,
             browser_open,
-            run_playwright_script
+            run_playwright_script,
+            toggle_main_window,
+            minimize_to_bubble,
+            expand_from_bubble
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]

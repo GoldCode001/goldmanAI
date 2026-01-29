@@ -56,6 +56,38 @@ const API = "https://aibackend-production-a44f.up.railway.app";
 window.currentChatId = null;
 window.chatCache = [];
 
+// Bubble window communication (Tauri only)
+let isTauriApp = false;
+let tauriInvoke = null;
+let tauriEmit = null;
+
+// Check if running in Tauri
+(async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const { emit } = await import('@tauri-apps/api/event');
+    tauriInvoke = invoke;
+    tauriEmit = emit;
+    isTauriApp = true;
+    console.log('[Bubble] Running in Tauri mode');
+  } catch (err) {
+    console.log('[Bubble] Running in web mode');
+  }
+})();
+
+// Notify bubble window of status changes
+async function notifyBubble(type, data) {
+  if (!isTauriApp || !tauriEmit) return;
+
+  try {
+    // Emit event to bubble window
+    await tauriEmit('bubble-update', { type, data });
+    console.log('[Bubble] Notify:', type, data);
+  } catch (err) {
+    console.error('[Bubble] Failed to notify:', err);
+  }
+}
+
 // Voice state (Gemini Live)
 let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
@@ -215,6 +247,25 @@ function bindAppEvents() {
   // Settings panel
   document.getElementById("settingsBtn")?.addEventListener("click", openSettings);
   document.getElementById("closeSettings")?.addEventListener("click", closeSettings);
+
+  // Minimize to bubble (Tauri only)
+  const minimizeBubbleBtn = document.getElementById("minimizeBubbleBtn");
+  if (minimizeBubbleBtn) {
+    minimizeBubbleBtn.addEventListener("click", async () => {
+      if (tauriInvoke) {
+        try {
+          await tauriInvoke('minimize_to_bubble');
+        } catch (err) {
+          console.error('Failed to minimize to bubble:', err);
+        }
+      }
+    });
+
+    // Show button only in Tauri
+    if (isTauriApp) {
+      minimizeBubbleBtn.style.display = 'flex';
+    }
+  }
   
   // AI Name save handler
   document.getElementById("saveAiNameBtn")?.addEventListener("click", async () => {
@@ -985,6 +1036,7 @@ Desktop:
               isAISpeaking = true;
               currentMood = 'HAPPY'; // Set mood when speaking
               window.speechStartTime = Date.now();
+              notifyBubble('speaking', { speaking: true }); // Notify bubble
             }
           } else {
             if (isAISpeaking) {
@@ -992,6 +1044,7 @@ Desktop:
               currentMood = 'NEUTRAL';
               window.speechStartTime = null;
               window.currentSpeechText = '';
+              notifyBubble('speaking', { speaking: false }); // Notify bubble
             }
           }
         },
@@ -1111,6 +1164,8 @@ Desktop:
       isListening = true;
       updateConnectionState(true); // Update chat overlay
       updateFaceState('NEUTRAL', 0, true); // Update canvas face
+      notifyBubble('listening', { listening: true }); // Notify bubble
+      notifyBubble('status', { status: 'active' }); // Update status dot
       console.log('Started Gemini Live');
     } else {
       throw new Error('Failed to start Gemini Live');
@@ -1130,6 +1185,8 @@ function stopListening() {
   isListening = false;
   updateConnectionState(false); // Update chat overlay
   updateFaceState('NEUTRAL', 0, false); // Reset canvas face
+  notifyBubble('listening', { listening: false }); // Notify bubble
+  notifyBubble('status', { status: 'standby' }); // Update status dot
   console.log('Stopped Gemini Live');
 
   // Resume wake word listening
