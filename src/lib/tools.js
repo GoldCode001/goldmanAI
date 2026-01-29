@@ -1330,28 +1330,8 @@ export async function executeTool(name, args) {
  * Get tool definitions formatted for Gemini
  */
 export function getToolsForGemini() {
-  // Gemini Live has strict limits on number of tools
-  // Only register essential tools for voice interaction
-  const essentialTools = [
-    'browser_open',       // Open websites/apps
-    'keyboard_type',      // Type text
-    'keyboard_press',     // Press keys
-    'mouse_click',        // Click
-    'run_command',        // Execute commands
-    'web_search',         // Search the web
-    'get_datetime',       // Get current time
-    'set_reminder',       // Set reminders
-    'remember_fact',      // Remember information
-    'recall_facts'        // Recall information
-  ];
-
-  // Filter tools based on current platform AND essential list
+  // Filter tools based on current platform
   const filteredTools = toolDefinitions.filter(tool => {
-    // Must be in essential tools list
-    if (!essentialTools.includes(tool.name)) {
-      return false;
-    }
-
     // Android-only tools
     if (tool.name === 'run_autonomous_task' || tool.name === 'check_agent_status') {
       return platformType === 'android';
@@ -1373,7 +1353,12 @@ export function getToolsForGemini() {
     return true;
   });
 
-  console.log('[Tools] Filtered to', filteredTools.length, 'essential tools for Gemini Live');
+  console.log('[Tools] ALL tools being registered:', filteredTools.length);
+
+  // Log each tool's definition to find the invalid argument
+  filteredTools.forEach((tool, index) => {
+    console.log(`[Tools] ${index + 1}. ${tool.name}:`, JSON.stringify(tool.parameters, null, 2));
+  });
 
   return filteredTools.map(tool => ({
     name: tool.name,
