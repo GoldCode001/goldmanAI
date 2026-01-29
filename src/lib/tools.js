@@ -109,7 +109,8 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         category: { type: 'string', description: 'Optional category to filter by' }
-      }
+      },
+      required: []
     }
   },
 
@@ -147,7 +148,8 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         status: { type: 'string', enum: ['active', 'completed', 'all'], description: 'Filter by status' }
-      }
+      },
+      required: []
     }
   },
 
@@ -373,7 +375,8 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         directory: { type: 'string', description: 'Directory path (defaults to current directory)' }
-      }
+      },
+      required: []
     }
   },
   {
@@ -429,7 +432,8 @@ export const toolDefinitions = [
       type: 'object',
       properties: {
         button: { type: 'string', description: 'Mouse button to click: "left", "right", or "middle" (default: "left")' }
-      }
+      },
+      required: []
     }
   },
   {
