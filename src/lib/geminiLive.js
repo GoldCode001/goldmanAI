@@ -142,16 +142,32 @@ export async function startGeminiLive() {
       scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
       
       scriptProcessor.onaudioprocess = (e) => {
+        // Only process audio if connected
+        if (!isConnected || !sessionPromise) {
+          return;
+        }
+
         const inputData = e.inputBuffer.getChannelData(0);
         const pcmBlob = createPcmBlob(inputData);
-        
-        if (sessionPromise) {
-          sessionPromise.then(session => {
-            if (session && session.sendRealtimeInput) {
+
+        sessionPromise.then(session => {
+          // Double-check connection state before sending
+          if (isConnected && session && session.sendRealtimeInput) {
+            try {
               session.sendRealtimeInput({ media: pcmBlob });
+            } catch (err) {
+              // Silently handle closed connection errors
+              if (!err.message.includes('CLOSING') && !err.message.includes('CLOSED')) {
+                console.error('[Gemini Live] Error sending audio:', err);
+              }
             }
-          });
-        }
+          }
+        }).catch(err => {
+          // Handle promise rejection silently if session is closing
+          if (isConnected && !err.message.includes('CLOSING') && !err.message.includes('CLOSED')) {
+            console.error('[Gemini Live] Session error:', err);
+          }
+        });
       };
       
       microphoneSource.connect(scriptProcessor);
@@ -202,12 +218,15 @@ export async function startGeminiLive() {
             }
 
             // Send function responses back to Gemini
-            if (liveSession && functionResponses.length > 0) {
+            if (isConnected && liveSession && functionResponses.length > 0) {
               try {
                 await liveSession.sendToolResponse({ functionResponses });
                 console.log('[PAL Tools] Sent tool responses back to Gemini');
               } catch (err) {
-                console.error('[PAL Tools] Failed to send tool response:', err);
+                // Only log errors if we're still connected
+                if (isConnected && !err.message?.includes('CLOSING') && !err.message?.includes('CLOSED')) {
+                  console.error('[PAL Tools] Failed to send tool response:', err);
+                }
               }
             }
           }
@@ -251,6 +270,26 @@ export async function startGeminiLive() {
         onclose: () => {
           console.log("PAL Live Session Closed");
           isConnected = false;
+
+          // Stop audio processing when connection closes
+          if (scriptProcessor) {
+            scriptProcessor.disconnect();
+            scriptProcessor = null;
+          }
+
+          if (microphoneSource) {
+            microphoneSource.disconnect();
+            microphoneSource = null;
+          }
+
+          // Stop user speech recognition
+          if (userSpeechRecognition) {
+            try {
+              userSpeechRecognition.stop();
+            } catch (err) {
+              // Ignore errors when stopping
+            }
+          }
         },
         onerror: (err) => {
           console.error("PAL Live Error:", err);
