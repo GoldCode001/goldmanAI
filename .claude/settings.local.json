@@ -39,7 +39,8 @@
       "Bash(npx @tauri-apps/cli icon:*)",
       "Bash(git rm:*)",
       "Bash(gh api:*)",
-      "Bash(cargo check:*)"
+      "Bash(cargo check:*)",
+      "WebFetch(domain:ai.google.dev)"
     ]
   }
 }
