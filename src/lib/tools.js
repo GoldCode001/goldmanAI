@@ -468,21 +468,22 @@ export const toolDefinitions = [
       required: ['key']
     }
   },
-  {
-    name: 'keyboard_shortcut',
-    description: 'Execute a keyboard shortcut (e.g., Ctrl+C, Alt+Tab). Desktop only.',
-    parameters: {
-      type: 'object',
-      properties: {
-        keys: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of keys to press together (e.g., ["ctrl", "c"] for Ctrl+C, ["alt", "tab"] for Alt+Tab)'
-        }
-      },
-      required: ['keys']
-    }
-  },
+  // DISABLED: Gemini Live doesn't support array parameters
+  // {
+  //   name: 'keyboard_shortcut',
+  //   description: 'Execute a keyboard shortcut (e.g., Ctrl+C, Alt+Tab). Desktop only.',
+  //   parameters: {
+  //     type: 'object',
+  //     properties: {
+  //       keys: {
+  //         type: 'array',
+  //         items: { type: 'string' },
+  //         description: 'Array of keys to press together (e.g., ["ctrl", "c"] for Ctrl+C, ["alt", "tab"] for Alt+Tab)'
+  //       }
+  //     },
+  //     required: ['keys']
+  //   }
+  // },
 
   // ============ BROWSER AUTOMATION TOOLS ============
   {
@@ -1342,7 +1343,7 @@ export function getToolsForGemini() {
       'run_command', 'open_external', 'read_file', 'write_file',
       'list_files', 'create_directory', 'run_desktop_task', 'get_platform_info',
       'mouse_move', 'mouse_click', 'mouse_scroll', 'get_mouse_position',
-      'keyboard_type', 'keyboard_press', 'keyboard_shortcut',
+      'keyboard_type', 'keyboard_press', // keyboard_shortcut removed (array params not supported)
       'browser_open', 'browser_automate'
     ];
     if (desktopTools.includes(tool.name)) {
