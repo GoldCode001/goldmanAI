@@ -1,0 +1,15 @@
+{
+  "identifier": "remote-api-access",
+  "description": "Allow Railway domain to access desktop automation APIs",
+  "windows": ["main", "bubble"],
+  "remote": {
+    "urls": ["https://goldmanai-production.up.railway.app"]
+  },
+  "permissions": [
+    "core:default",
+    "core:app:default",
+    "core:window:default",
+    "core:event:default",
+    "shell:default"
+  ]
+}
