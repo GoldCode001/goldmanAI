@@ -30,7 +30,7 @@
         "decorations": true,
         "alwaysOnTop": false,
         "visible": false,
-        "url": "https://goldmanai-production.up.railway.app"
+        "url": "loader.html"
       },
       {
         "label": "bubble",
@@ -44,7 +44,7 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": true,
-        "url": "https://goldmanai-production.up.railway.app/bubble.html"
+        "url": "loader-bubble.html"
       }
     ],
     "security": {
