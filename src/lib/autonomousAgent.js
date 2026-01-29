@@ -4,10 +4,28 @@
  * Works on Android via Accessibility Service
  */
 
-import { registerPlugin } from '@capacitor/core';
+// Lazily initialize the native plugin
+let PalAgent = null;
+let pluginInitialized = false;
 
-// Register the native plugin
-const PalAgent = registerPlugin('PalAgent');
+async function initPlugin() {
+  if (pluginInitialized) return PalAgent;
+
+  pluginInitialized = true;
+
+  // Check if running in Capacitor environment
+  if (typeof window !== 'undefined' && window.Capacitor) {
+    try {
+      const { registerPlugin } = await import('@capacitor/core');
+      PalAgent = registerPlugin('PalAgent');
+      console.log('[Agent] Capacitor plugin initialized');
+    } catch (e) {
+      console.warn('[Agent] Capacitor not available, running in web/desktop mode');
+    }
+  }
+
+  return PalAgent;
+}
 
 // Agent state
 let isAgentRunning = false;
@@ -22,7 +40,10 @@ let onStatusUpdate = null;
  */
 export async function isServiceEnabled() {
   try {
-    const result = await PalAgent.isServiceEnabled();
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+
+    const result = await plugin.isServiceEnabled();
     return result.enabled;
   } catch (e) {
     console.warn('[Agent] Plugin not available (web mode):', e);
@@ -35,7 +56,9 @@ export async function isServiceEnabled() {
  */
 export async function openAccessibilitySettings() {
   try {
-    await PalAgent.openAccessibilitySettings();
+    const plugin = await initPlugin();
+    if (!plugin) return;
+    await plugin.openAccessibilitySettings();
   } catch (e) {
     console.error('[Agent] Failed to open settings:', e);
   }
@@ -46,7 +69,9 @@ export async function openAccessibilitySettings() {
  */
 export async function getScreenContent() {
   try {
-    const result = await PalAgent.getScreenContent();
+    const plugin = await initPlugin();
+    if (!plugin) return null;
+    const result = await plugin.getScreenContent();
     return JSON.parse(result.content);
   } catch (e) {
     console.error('[Agent] Failed to get screen:', e);
@@ -59,7 +84,9 @@ export async function getScreenContent() {
  */
 export async function findElements(text) {
   try {
-    const result = await PalAgent.findElements({ text });
+    const plugin = await initPlugin();
+    if (!plugin) return [];
+    const result = await plugin.findElements({ text });
     return JSON.parse(result.elements);
   } catch (e) {
     console.error('[Agent] Failed to find elements:', e);
@@ -71,7 +98,9 @@ export async function findElements(text) {
 
 export async function click(x, y) {
   try {
-    const result = await PalAgent.click({ x, y });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.click({ x, y });
     return result.success;
   } catch (e) {
     console.error('[Agent] Click failed:', e);
@@ -81,7 +110,9 @@ export async function click(x, y) {
 
 export async function clickText(text) {
   try {
-    const result = await PalAgent.clickText({ text });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.clickText({ text });
     return result.success;
   } catch (e) {
     console.error('[Agent] Click text failed:', e);
@@ -91,7 +122,9 @@ export async function clickText(text) {
 
 export async function longPress(x, y) {
   try {
-    const result = await PalAgent.longPress({ x, y });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.longPress({ x, y });
     return result.success;
   } catch (e) {
     console.error('[Agent] Long press failed:', e);
@@ -101,7 +134,9 @@ export async function longPress(x, y) {
 
 export async function swipe(startX, startY, endX, endY, duration = 300) {
   try {
-    const result = await PalAgent.swipe({ startX, startY, endX, endY, duration });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.swipe({ startX, startY, endX, endY, duration });
     return result.success;
   } catch (e) {
     console.error('[Agent] Swipe failed:', e);
@@ -111,7 +146,9 @@ export async function swipe(startX, startY, endX, endY, duration = 300) {
 
 export async function typeText(text) {
   try {
-    const result = await PalAgent.typeText({ text });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.typeText({ text });
     return result.success;
   } catch (e) {
     console.error('[Agent] Type failed:', e);
@@ -121,7 +158,9 @@ export async function typeText(text) {
 
 export async function scroll(direction = 'down') {
   try {
-    const result = await PalAgent.scroll({ direction });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.scroll({ direction });
     return result.success;
   } catch (e) {
     console.error('[Agent] Scroll failed:', e);
@@ -131,7 +170,9 @@ export async function scroll(direction = 'down') {
 
 export async function pressBack() {
   try {
-    const result = await PalAgent.pressBack();
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.pressBack();
     return result.success;
   } catch (e) {
     console.error('[Agent] Back failed:', e);
@@ -141,7 +182,9 @@ export async function pressBack() {
 
 export async function pressHome() {
   try {
-    const result = await PalAgent.pressHome();
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.pressHome();
     return result.success;
   } catch (e) {
     console.error('[Agent] Home failed:', e);
@@ -151,7 +194,9 @@ export async function pressHome() {
 
 export async function openApp(packageName) {
   try {
-    const result = await PalAgent.openApp({ packageName });
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.openApp({ packageName });
     return result.success;
   } catch (e) {
     console.error('[Agent] Open app failed:', e);
@@ -161,7 +206,9 @@ export async function openApp(packageName) {
 
 export async function openNotifications() {
   try {
-    const result = await PalAgent.openNotifications();
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.openNotifications();
     return result.success;
   } catch (e) {
     console.error('[Agent] Open notifications failed:', e);
@@ -171,7 +218,9 @@ export async function openNotifications() {
 
 export async function takeScreenshot() {
   try {
-    const result = await PalAgent.takeScreenshot();
+    const plugin = await initPlugin();
+    if (!plugin) return false;
+    const result = await plugin.takeScreenshot();
     return result.success;
   } catch (e) {
     console.error('[Agent] Screenshot failed:', e);
