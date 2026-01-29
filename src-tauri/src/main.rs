@@ -3,8 +3,7 @@
 
 use tauri::Manager;
 use std::process::Command;
-use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key, Axis};
-use std::sync::Mutex;
+use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key};
 
 // Desktop automation commands
 #[tauri::command]
