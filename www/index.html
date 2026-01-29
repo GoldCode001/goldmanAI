@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PAL</title>
+
+  <link rel="icon" href="data:,">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/styles/main.css">
+
+  <!-- Anime.js for smooth animations -->
+  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+
+  <!-- Import Map for bare modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@coinbase/wallet-sdk": "https://esm.sh/@coinbase/wallet-sdk",
+        "ethers": "https://esm.sh/ethers",
+        "@google/genai": "https://esm.sh/@google/genai@^1.38.0"
+      }
+    }
+  </script>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-box">
+    <h1>PAL</h1>
+
+    <div class="auth-tabs">
+      <button id="signinTab" class="active">sign in</button>
+      <button id="signupTab">sign up</button>
+    </div>
+
+    <form id="signinForm">
+      <input id="signinEmail" type="email" placeholder="email" required>
+      <input id="signinPassword" type="password" placeholder="password" required>
+      <button type="submit">sign in</button>
+    </form>
+
+    <form id="signupForm" class="hidden">
+      <input id="signupName" type="text" placeholder="your name" required>
+      <input id="signupEmail" type="email" placeholder="email" required>
+      <input id="signupPassword" type="password" placeholder="password" required>
+      <input id="signupConfirm" type="password" placeholder="confirm password" required>
+      <button type="submit">create account</button>
+    </form>
+
+    <p id="authStatus"></p>
+  </div>
+</div>
+
+<!-- PAL Interface (Voice-First) -->
+<div id="mainApp" class="pal-interface hidden">
+  <!-- Canvas-based PAL Face (Full Screen) -->
+  <canvas id="palCanvas" class="pal-canvas"></canvas>
+
+  <!-- Chat Overlay UI -->
+  <div id="chatOverlay" class="chat-overlay">
+    <!-- Header / Status -->
+    <div class="overlay-header">
+      <div class="header-left">
+        <span class="terminal-icon" id="terminalIcon"></span>
+        <span class="pal-version">PAL v2.5 LIVE_OS</span>
+      </div>
+      
+      <div class="header-right">
+        <div class="status-indicator">
+          <div class="status-dot standby"></div>
+          <span class="status-text">STANDBY</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Action Area (When not connected) -->
+    <div class="activate-section">
+      <button id="activatePalBtn" class="activate-button">
+        <div class="button-glow"></div>
+        <span class="button-icon" id="micIcon"></span>
+        <span class="button-label">ACTIVATE PAL</span>
+      </button>
+    </div>
+
+    <!-- Live Controls (When connected) -->
+    <div class="live-controls" style="display: none;">
+      <div class="listening-indicator">
+        <div class="listening-dot">
+          <span id="listeningMicIcon"></span>
+        </div>
+        <span class="listening-text">Listening</span>
+      </div>
+      
+      <button id="disconnectPalBtn" class="disconnect-button">
+        <span class="power-icon" id="powerIcon"></span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Transcript Overlay (Legacy - for compatibility) -->
+  <div id="transcriptOverlay" class="transcript-overlay hidden">
+    <p id="transcriptText"></p>
+  </div>
+
+  <!-- Inline Text Output (for code, articles, long text) -->
+  <div id="inlineOutput" class="inline-output hidden">
+    <div class="inline-output-header">
+      <button id="copyInlineBtn" class="copy-inline-btn">Copy</button>
+      <button id="closeInlineBtn" class="close-inline-btn">×</button>
+    </div>
+    <pre id="inlineOutputContent"></pre>
+  </div>
+
+  <!-- Settings Button (Top Right Corner) -->
+  <button id="settingsBtn" class="settings-btn">⚙️</button>
+
+  <!-- Settings Panel (Slides in from right) -->
+  <aside id="settingsPanel" class="settings-panel hidden">
+    <button id="closeSettings" class="close-settings">✕</button>
+    <p id="userEmail" class="user-email"></p>
+
+    <!-- Personalization Settings -->
+    <div class="personalization-section">
+      <h3>Personalization</h3>
+      <div class="setting-item">
+        <label for="aiNameInput">AI's Name:</label>
+        <input id="aiNameInput" type="text" placeholder="e.g., PAL, Assistant" />
+        <button id="saveAiNameBtn" class="save-btn">Save</button>
+      </div>
+    </div>
+
+    <!-- Chat List Section -->
+    <div class="chat-list-section">
+      <div class="section-header">
+        <h3>Chats</h3>
+        <button id="newChatBtn" class="new-chat-icon-btn" title="New Chat">+</button>
+      </div>
+      <div id="chatListContainer" class="chat-list">
+        <p class="no-chats">No chats yet</p>
+      </div>
+    </div>
+
+    <!-- Current Conversation History -->
+    <div class="conversation-history">
+      <h3>Current Conversation</h3>
+      <div id="historyContainer" class="history-container">
+        <p class="no-history">No messages yet. Start talking!</p>
+      </div>
+    </div>
+
+    <button id="signOutBtn" class="panel-btn">Sign Out</button>
+  </aside>
+</div>
+
+  <!-- Action modal removed - focusing on personal development assistant -->
+
+  <script type="module" src="src/lib/app.js"></script>
+</body>
+</html>

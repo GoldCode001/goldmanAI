@@ -400,6 +400,114 @@ export const toolDefinitions = [
       },
       required: ['goal']
     }
+  },
+
+  // ============ MOUSE CONTROL TOOLS ============
+  {
+    name: 'mouse_move',
+    description: 'Move the mouse cursor to specific screen coordinates. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        x: { type: 'number', description: 'X coordinate on screen' },
+        y: { type: 'number', description: 'Y coordinate on screen' }
+      },
+      required: ['x', 'y']
+    }
+  },
+  {
+    name: 'mouse_click',
+    description: 'Click a mouse button at current position. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        button: { type: 'string', description: 'Mouse button to click: "left", "right", or "middle" (default: "left")' }
+      }
+    }
+  },
+  {
+    name: 'mouse_scroll',
+    description: 'Scroll the mouse wheel. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        amount: { type: 'number', description: 'Scroll amount (positive = down, negative = up)' }
+      },
+      required: ['amount']
+    }
+  },
+  {
+    name: 'get_mouse_position',
+    description: 'Get current mouse cursor position. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+
+  // ============ KEYBOARD CONTROL TOOLS ============
+  {
+    name: 'keyboard_type',
+    description: 'Type text using the keyboard as if the user is typing. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'Text to type' }
+      },
+      required: ['text']
+    }
+  },
+  {
+    name: 'keyboard_press',
+    description: 'Press a special keyboard key (Enter, Tab, Escape, Arrow keys, etc.). Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Key name: "enter", "tab", "escape", "backspace", "delete", "up", "down", "left", "right", "home", "end", "pageup", "pagedown", "space", "shift", "ctrl", "alt", "meta"' }
+      },
+      required: ['key']
+    }
+  },
+  {
+    name: 'keyboard_shortcut',
+    description: 'Execute a keyboard shortcut (e.g., Ctrl+C, Alt+Tab). Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        keys: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of keys to press together (e.g., ["ctrl", "c"] for Ctrl+C, ["alt", "tab"] for Alt+Tab)'
+        }
+      },
+      required: ['keys']
+    }
+  },
+
+  // ============ BROWSER AUTOMATION TOOLS ============
+  {
+    name: 'browser_open',
+    description: 'Open a URL in the default web browser. Desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'URL to open (e.g., "https://twitter.com")' }
+      },
+      required: ['url']
+    }
+  },
+  {
+    name: 'browser_automate',
+    description: 'Automate browser actions using Playwright (navigate, click, fill forms, screenshot, etc.). Desktop only. Requires Playwright installed.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'Action to perform: "navigate", "click", "type", "screenshot", "evaluate"' },
+        selector: { type: 'string', description: 'CSS selector for element (for click/type actions)' },
+        value: { type: 'string', description: 'Value to type or URL to navigate to' }
+      },
+      required: ['action']
+    }
   }
 ];
 
@@ -1072,6 +1180,126 @@ const executors = {
         getAIDecision: aiDecisionCallback
       });
     });
+  },
+
+  // ============ MOUSE CONTROL EXECUTORS ============
+
+  async mouse_move({ x, y }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Mouse control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.mouseMove(x, y);
+    return result;
+  },
+
+  async mouse_click({ button = 'left' }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Mouse control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.mouseClick(button);
+    return result;
+  },
+
+  async mouse_scroll({ amount }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Mouse control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.mouseScroll(amount);
+    return result;
+  },
+
+  async get_mouse_position() {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Mouse control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.getMousePosition();
+    return result;
+  },
+
+  // ============ KEYBOARD CONTROL EXECUTORS ============
+
+  async keyboard_type({ text }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Keyboard control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.keyboardType(text);
+    return result;
+  },
+
+  async keyboard_press({ key }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Keyboard control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.keyboardPress(key);
+    return result;
+  },
+
+  async keyboard_shortcut({ keys }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Keyboard control only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.keyboardShortcut(keys);
+    return result;
+  },
+
+  // ============ BROWSER AUTOMATION EXECUTORS ============
+
+  async browser_open({ url }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Browser automation only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.browserOpen(url);
+    return result;
+  },
+
+  async browser_automate({ action, selector, value }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. Browser automation only works on desktop apps.' };
+    }
+
+    // Build a simple Playwright script based on the action
+    let script = `
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: false });
+  const page = await browser.newPage();
+`;
+
+    switch (action) {
+      case 'navigate':
+        script += `  await page.goto('${value}');\n`;
+        script += `  await page.waitForLoadState('networkidle');\n`;
+        break;
+      case 'click':
+        script += `  await page.click('${selector}');\n`;
+        break;
+      case 'type':
+        script += `  await page.fill('${selector}', '${value}');\n`;
+        break;
+      case 'screenshot':
+        script += `  await page.screenshot({ path: '${value || 'screenshot.png'}' });\n`;
+        break;
+      case 'evaluate':
+        script += `  const result = await page.evaluate(() => ${value});\n`;
+        script += `  console.log(JSON.stringify(result));\n`;
+        break;
+      default:
+        return { success: false, error: `Unknown browser action: ${action}` };
+    }
+
+    script += `  await browser.close();\n`;
+    script += `})();`;
+
+    const result = await DesktopAgent.runPlaywrightScript(script);
+    return result;
   }
 };
 
@@ -1110,10 +1338,14 @@ export function getToolsForGemini() {
     }
 
     // Desktop-only tools
-    if (tool.name === 'run_command' || tool.name === 'open_external' ||
-        tool.name === 'read_file' || tool.name === 'write_file' ||
-        tool.name === 'list_files' || tool.name === 'create_directory' ||
-        tool.name === 'run_desktop_task' || tool.name === 'get_platform_info') {
+    const desktopTools = [
+      'run_command', 'open_external', 'read_file', 'write_file',
+      'list_files', 'create_directory', 'run_desktop_task', 'get_platform_info',
+      'mouse_move', 'mouse_click', 'mouse_scroll', 'get_mouse_position',
+      'keyboard_type', 'keyboard_press', 'keyboard_shortcut',
+      'browser_open', 'browser_automate'
+    ];
+    if (desktopTools.includes(tool.name)) {
       return platformType === 'desktop';
     }
 
