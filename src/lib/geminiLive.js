@@ -126,6 +126,8 @@ export async function startGeminiLive() {
     analyserNode.maxDecibels = -10;
 
     // Setup Gemini Client
+    console.log('[Gemini Live] API Key present:', !!geminiApiKey);
+    console.log('[Gemini Live] API Key length:', geminiApiKey?.length);
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
     // Start Microphone Stream with AudioWorklet (modern, low-latency)
@@ -198,6 +200,7 @@ export async function startGeminiLive() {
     }
 
     // Connect to Live API
+    console.log('[Gemini Live] Starting connection to Gemini Live API...');
     const sessionPromiseValue = ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       callbacks: {
@@ -291,8 +294,9 @@ export async function startGeminiLive() {
             // Turn complete, can process text if available
           }
         },
-        onclose: () => {
-          console.log("PAL Live Session Closed");
+        onclose: (event) => {
+          console.error("PAL Live Session Closed - Event:", event);
+          console.error("Close code:", event?.code, "Reason:", event?.reason);
           isConnected = false;
 
           // Stop audio processing when connection closes
@@ -317,6 +321,8 @@ export async function startGeminiLive() {
         },
         onerror: (err) => {
           console.error("PAL Live Error:", err);
+          console.error("Error type:", err?.type, "Message:", err?.message);
+          console.error("Full error object:", JSON.stringify(err, null, 2));
           if (onError) onError(err);
         }
       },
@@ -386,13 +392,30 @@ You: "Sure, I'll open Telegram for you" [WITHOUT calling any tool] ❌`,
     });
     
     sessionPromise = sessionPromiseValue;
-    liveSession = await sessionPromiseValue;
+
+    try {
+      liveSession = await sessionPromiseValue;
+      console.log('[Gemini Live] Session connected successfully');
+      console.log('[Gemini Live] Session object:', liveSession);
+      console.log('[Gemini Live] Session state:', liveSession?.readyState);
+    } catch (sessionError) {
+      console.error('[Gemini Live] Failed to await session:', sessionError);
+      console.error('[Gemini Live] Session error details:', JSON.stringify(sessionError, null, 2));
+      throw sessionError;
+    }
 
     // Start audio level monitoring for lip sync
     startAudioLevelMonitoring();
 
     isConnected = true;
     console.log('Gemini Live started and connected');
+
+    // Verify connection is still alive after a short delay
+    setTimeout(() => {
+      console.log('[Gemini Live] Connection check - isConnected:', isConnected);
+      console.log('[Gemini Live] Session still exists:', !!liveSession);
+    }, 1000);
+
     return true;
   } catch (err) {
     console.error('Failed to start Gemini Live:', err);
