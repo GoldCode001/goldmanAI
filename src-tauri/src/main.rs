@@ -3,7 +3,7 @@
 
 use tauri::Manager;
 use std::process::Command;
-use enigo::{Enigo, Key, KeyboardControllable, MouseButton, MouseControllable};
+use enigo::{Enigo, Settings, Coordinate, Direction, Mouse, Keyboard, Button, Key};
 
 // Desktop automation commands
 #[tauri::command]
@@ -49,49 +49,53 @@ struct PlatformInfo {
 // Mouse control commands
 #[tauri::command]
 fn mouse_move(x: i32, y: i32) -> Result<String, String> {
-    let mut enigo = Enigo::new();
-    enigo.mouse_move_to(x, y);
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
+    enigo.move_mouse(x, y, Coordinate::Abs).map_err(|e| e.to_string())?;
     Ok(format!("Moved mouse to ({}, {})", x, y))
 }
 
 #[tauri::command]
 fn mouse_click(button: String) -> Result<String, String> {
-    let mut enigo = Enigo::new();
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
     let mouse_button = match button.to_lowercase().as_str() {
-        "left" => MouseButton::Left,
-        "right" => MouseButton::Right,
-        "middle" => MouseButton::Middle,
+        "left" => Button::Left,
+        "right" => Button::Right,
+        "middle" => Button::Middle,
         _ => return Err(format!("Invalid button: {}. Use 'left', 'right', or 'middle'", button)),
     };
-    enigo.mouse_click(mouse_button);
+    enigo.button(mouse_button, Direction::Click).map_err(|e| e.to_string())?;
     Ok(format!("Clicked {} mouse button", button))
 }
 
 #[tauri::command]
 fn mouse_scroll(amount: i32) -> Result<String, String> {
-    let mut enigo = Enigo::new();
-    enigo.mouse_scroll_y(amount);
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
+    let direction = if amount > 0 { Direction::Down } else { Direction::Up };
+    let scroll_amount = amount.abs();
+    for _ in 0..scroll_amount {
+        enigo.scroll(1, direction).map_err(|e| e.to_string())?;
+    }
     Ok(format!("Scrolled mouse by {}", amount))
 }
 
 #[tauri::command]
 fn get_mouse_position() -> Result<(i32, i32), String> {
-    let enigo = Enigo::new();
-    let (x, y) = enigo.mouse_location();
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
+    let (x, y) = enigo.location().map_err(|e| e.to_string())?;
     Ok((x, y))
 }
 
 // Keyboard control commands
 #[tauri::command]
 fn keyboard_type(text: String) -> Result<String, String> {
-    let mut enigo = Enigo::new();
-    enigo.key_sequence(&text);
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
+    enigo.text(&text).map_err(|e| e.to_string())?;
     Ok(format!("Typed: {}", text))
 }
 
 #[tauri::command]
 fn keyboard_press(key: String) -> Result<String, String> {
-    let mut enigo = Enigo::new();
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
 
     let enigo_key = match key.to_lowercase().as_str() {
         "enter" | "return" => Key::Return,
@@ -115,13 +119,13 @@ fn keyboard_press(key: String) -> Result<String, String> {
         _ => return Err(format!("Unsupported key: {}. Use special key names like 'enter', 'tab', 'escape', etc.", key)),
     };
 
-    enigo.key_click(enigo_key);
+    enigo.key(enigo_key, Direction::Click).map_err(|e| e.to_string())?;
     Ok(format!("Pressed key: {}", key))
 }
 
 #[tauri::command]
 fn keyboard_shortcut(keys: Vec<String>) -> Result<String, String> {
-    let mut enigo = Enigo::new();
+    let mut enigo = Enigo::new(&Settings::default()).map_err(|e| e.to_string())?;
 
     // Press all keys down
     for key in &keys {
@@ -131,12 +135,12 @@ fn keyboard_shortcut(keys: Vec<String>) -> Result<String, String> {
             "alt" => Key::Alt,
             "meta" | "windows" | "cmd" | "command" => Key::Meta,
             single if single.len() == 1 => {
-                enigo.key_sequence(single);
+                enigo.text(single).map_err(|e| e.to_string())?;
                 continue;
             }
             _ => return Err(format!("Unsupported key in shortcut: {}", key)),
         };
-        enigo.key_down(enigo_key);
+        enigo.key(enigo_key, Direction::Press).map_err(|e| e.to_string())?;
     }
 
     // Release all keys
@@ -148,7 +152,7 @@ fn keyboard_shortcut(keys: Vec<String>) -> Result<String, String> {
             "meta" | "windows" | "cmd" | "command" => Key::Meta,
             _ => continue,
         };
-        enigo.key_up(enigo_key);
+        enigo.key(enigo_key, Direction::Release).map_err(|e| e.to_string())?;
     }
 
     Ok(format!("Executed keyboard shortcut: {}", keys.join("+")))
