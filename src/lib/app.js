@@ -48,6 +48,8 @@ import { learnFromConversation, getUserMemory } from "./memory.js";
 import { showOnboarding } from "../components/onboarding.js";
 import { initWakeWord, startWakeWordListening, stopWakeWordListening, setWakePhrase } from "./wakeWord.js";
 import { initProactiveReminders, getProactiveContext } from "./proactiveReminders.js";
+import { setAIDecisionCallback, refreshAgentStatus, setDesktopAgentAvailable } from "./tools.js";
+import * as DesktopAgent from "./desktopAgent.js";
 
 const API = "https://aibackend-production-a44f.up.railway.app";
 
@@ -107,7 +109,89 @@ document.addEventListener("DOMContentLoaded", async () => {
       // PAL will naturally handle this via the reminder event
     }
   });
+
+  // Initialize autonomous agent (Android + Desktop)
+  await initAutonomousAgent();
 });
+
+/**
+ * Initialize the autonomous agent for device control
+ */
+async function initAutonomousAgent() {
+  // Check if agent is available (Android with accessibility enabled)
+  const agentEnabled = await refreshAgentStatus();
+  console.log('[App] Android agent available:', agentEnabled);
+
+  // Initialize desktop agent if running in Tauri
+  const desktopEnabled = await DesktopAgent.initDesktopAgent();
+  if (desktopEnabled) {
+    setDesktopAgentAvailable(true);
+    const platformInfo = DesktopAgent.getPlatformInfo();
+    console.log('[App] Desktop agent available on:', platformInfo);
+  } else {
+    console.log('[App] Desktop agent not available (not running in Tauri)');
+  }
+
+  // Set up AI decision callback for autonomous tasks
+  setAIDecisionCallback(async (prompt) => {
+    try {
+      // Get Gemini API key
+      const keyRes = await fetch(`${API}/api/gemini/key`);
+      if (!keyRes.ok) {
+        throw new Error('Failed to get Gemini API key');
+      }
+      const { apiKey } = await keyRes.json();
+
+      // Import Gemini SDK
+      const { GoogleGenAI } = await import('@google/genai');
+      const ai = new GoogleGenAI({ apiKey });
+
+      // Make a text-based query to Gemini for the autonomous decision
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt
+      });
+
+      const text = response.text || '';
+      console.log('[Agent] AI decision:', text);
+      return text;
+    } catch (e) {
+      console.error('[Agent] AI decision error:', e);
+      return 'GOAL FAILED: Could not get AI decision';
+    }
+  });
+
+  // Listen for Android agent events
+  window.addEventListener('pal-agent-step', (e) => {
+    const { step, action, goal } = e.detail;
+    console.log(`[Agent] Android Step ${step}: ${action?.type || 'unknown'}`);
+    // Could show a small indicator in the UI
+  });
+
+  window.addEventListener('pal-agent-complete', (e) => {
+    const { success, message, error, steps } = e.detail;
+    if (success) {
+      console.log(`[Agent] Android task completed in ${steps} steps: ${message}`);
+    } else {
+      console.log(`[Agent] Android task failed after ${steps} steps: ${error}`);
+    }
+  });
+
+  // Listen for Desktop agent events
+  window.addEventListener('pal-desktop-step', (e) => {
+    const { step, decision, goal } = e.detail;
+    console.log(`[Agent] Desktop Step ${step}: ${decision}`);
+  });
+
+  window.addEventListener('pal-desktop-complete', (e) => {
+    const { success, message, error, steps } = e.detail;
+    if (success) {
+      console.log(`[Agent] Desktop task completed in ${steps} steps: ${message}`);
+    } else {
+      console.log(`[Agent] Desktop task failed: ${error}`);
+    }
+  });
+}
 
 /* ================= EVENTS ================= */
 
@@ -677,13 +761,29 @@ async function startListening() {
     
     // Initialize Gemini Live if not already done
     if (!geminiGenAI || !geminiModel) {
+      // Detect current platform
+      const isDesktop = typeof window !== 'undefined' && window.__TAURI__;
+      const isAndroid = typeof window !== 'undefined' && window.Capacitor && window.Capacitor.getPlatform() === 'android';
+      const currentPlatform = isDesktop ? 'Desktop (Windows/Mac/Linux)' : isAndroid ? 'Android' : 'Web';
+
       // Build personalized system prompt
       let systemPrompt = `You are ${aiName}.
 Your persona is a highly intelligent, witty, and helpful personal assistant.
-You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly. 
+You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
 You are more "smart companion" than "chaotic teenager".
 
-**CRITICAL - YOUR NAME**: Your name is ${aiName}. When you refer to yourself, ALWAYS use "${aiName}", never "PAL" or any other name. If the user asks your name, say "${aiName}".`;
+**CRITICAL - YOUR NAME**: Your name is ${aiName}. When you refer to yourself, ALWAYS use "${aiName}", never "PAL" or any other name. If the user asks your name, say "${aiName}".
+
+**CURRENT PLATFORM**: You are currently running on ${currentPlatform}.
+
+**CRITICAL - YOU CAN ACTUALLY DO THINGS**:
+- You are NOT just an AI that explains how to do things
+- You have REAL tools that let you take REAL actions
+- On Desktop: You can run commands, read/write files, execute scripts, open URLs
+- On Android: You can control apps, click buttons, type text, navigate screens
+- When a user asks you to DO something, USE YOUR TOOLS to actually do it
+- Don't just say "here's how you could do it" - ACTUALLY DO IT using your tools
+- You are an AUTONOMOUS AGENT - you take action, not just give advice`;
       
       if (userName) {
         systemPrompt += `\n\nThe user's name is ${userName}. Use their name naturally in conversation, but don't overuse it.`;
@@ -780,7 +880,87 @@ You have access to these tools - USE THEM when appropriate:
 - Be PROACTIVE about using tools. Don't just acknowledge goals/habits - actually CREATE them!
 - When user mentions a goal, use create_goal. When they complete a habit, use log_habit.
 - Celebrate streaks and progress naturally in conversation.
-- If user asks to be reminded, use set_reminder immediately.`;
+- If user asks to be reminded, use set_reminder immediately.
+
+**Platform Awareness:**
+You can run on three platforms:
+1. **Android** (mobile app) - Has device control capabilities via accessibility service
+2. **Desktop** (Windows, macOS, Linux) - Has shell command execution and file system access
+3. **Web** (browser) - Basic functionality only, no device control
+
+IMPORTANT: Use tools appropriate for the current platform. If user is on Android, use Android tools. If on desktop, use desktop tools. Never try to use platform-specific tools on the wrong platform.
+
+**Device Control Tools (Android Only):**
+When running on Android with accessibility enabled, you can control the device:
+
+12. **check_agent_status**: Check if device control is enabled. If not, guide user to enable it.
+13. **open_app**: Open apps by name (e.g., "chrome", "youtube", "instagram", "whatsapp", "settings")
+14. **click_on_screen**: Click on buttons or elements by their text
+15. **type_text**: Type text into the currently focused input field
+16. **scroll_screen**: Scroll the screen (up, down, left, right)
+17. **go_back**: Press the back button
+18. **go_home**: Go to home screen
+19. **get_screen_content**: See what's currently on the screen (use before taking actions)
+20. **run_autonomous_task**: Run a multi-step task autonomously (e.g., "send a message to John on WhatsApp", "search for cats on YouTube")
+
+**When to use Android device control:**
+- User asks you to open an app: use open_app
+- User asks you to do something in an app: use run_autonomous_task for complex multi-step tasks
+- User asks what's on screen: use get_screen_content
+- For simple actions (click, type, scroll): use the individual tools
+- Always check_agent_status first if you're unsure if device control is available
+
+**Desktop Control Tools (Desktop Only):**
+When running on desktop (Windows, macOS, Linux), you can:
+
+21. **get_platform_info**: Get OS and architecture information
+22. **run_command**: Execute shell commands (e.g., "ls -la", "python script.py", "git status")
+23. **open_external**: Open URLs or files in default applications
+24. **read_file**: Read contents of files on the file system
+25. **write_file**: Write content to files (creates or overwrites)
+26. **list_files**: List files in a directory
+27. **create_directory**: Create new directories
+28. **run_desktop_task**: Run multi-step autonomous tasks on desktop (e.g., "Create a Python script that analyzes data", "Set up a new project folder")
+
+**When to use desktop control:**
+- User asks to run commands: use run_command
+- User asks to create/edit files: use write_file
+- User asks to read files: use read_file
+- User asks for complex desktop tasks: use run_desktop_task
+- User asks to open URLs or files: use open_external
+- Get platform info to understand what OS they're on: use get_platform_info
+
+**Autonomous Agent Capabilities:**
+On both Android and Desktop, you can work AUTONOMOUSLY to solve complex problems:
+- You can see the screen (Android) or file system (Desktop)
+- You can take actions step by step
+- You can EVEN BUILD TOOLS to solve problems you can't solve yourself
+- Examples:
+  * Android: "Book a meeting on my calendar app" - you'll navigate the app, find the right screens, input data
+  * Desktop: "Create a Python script to sort my downloads folder" - you'll write the script, test it, fix bugs
+  * Desktop: "Set up a new React project" - you'll run npm commands, create files, configure settings
+
+**Building Custom Tools:**
+If you encounter a problem you can't solve with your current tools:
+1. On Desktop: Write a script (Python, Bash, etc.) to solve it, then run it
+2. On Android: Break down the task into screen interactions and execute them
+3. You are AUTONOMOUS - figure out the steps needed and execute them
+4. Test your solution and iterate if it doesn't work
+
+This is what makes you powerful - you don't just give advice, you ACTUALLY DO THE WORK.
+
+**Examples:**
+Android:
+- "Open YouTube" → use open_app with app_name="youtube"
+- "Send a message to John saying hi" → use run_autonomous_task with goal="Open WhatsApp, find John's chat, send message saying hi"
+- "Search for funny cat videos" → use run_autonomous_task with goal="Open YouTube and search for funny cat videos"
+- "What app am I in?" → use get_screen_content
+
+Desktop:
+- "What OS am I on?" → use get_platform_info
+- "List files in my downloads folder" → use list_files with directory="/path/to/downloads"
+- "Create a Python script to process data" → use run_desktop_task with goal="Create Python script for data processing"
+- "Open Google in my browser" → use open_external with path="https://google.com"`;
       
       const initialized = await initGeminiLive(apiKey, {
         onUserTranscript: async (userText) => {

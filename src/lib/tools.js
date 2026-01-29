@@ -1,12 +1,90 @@
 /**
  * PAL Tools Engine
  * Enables PAL to take real actions via Gemini function calling
- * All tools work on web - no Capacitor dependencies
+ * Includes autonomous agent capabilities for Android
  */
 
 import { supabase } from './supabase.js';
+import * as Agent from './autonomousAgent.js';
+import * as DesktopAgent from './desktopAgent.js';
 
 const API = "https://aibackend-production-a44f.up.railway.app";
+
+// Check if we're on Android with agent support
+let agentAvailable = false;
+let desktopAgentAvailable = false;
+let platformType = 'web'; // 'android', 'desktop', or 'web'
+let aiDecisionCallback = null; // For autonomous task AI decisions
+
+// Initialize agent detection
+Agent.isServiceEnabled().then(enabled => {
+  agentAvailable = enabled;
+  if (enabled) platformType = 'android';
+  console.log('[Tools] Android agent available:', enabled);
+}).catch(() => {
+  agentAvailable = false;
+});
+
+DesktopAgent.initDesktopAgent().then(available => {
+  desktopAgentAvailable = available;
+  if (available) platformType = 'desktop';
+  console.log('[Tools] Desktop agent available:', available);
+}).catch(() => {
+  desktopAgentAvailable = false;
+});
+
+/**
+ * Set the AI decision callback for autonomous tasks
+ * This should be called by the app with a function that queries Gemini
+ */
+export function setAIDecisionCallback(callback) {
+  aiDecisionCallback = callback;
+  console.log('[Tools] AI decision callback set');
+}
+
+/**
+ * Set desktop agent availability (called from app.js after Tauri init)
+ */
+export function setDesktopAgentAvailable(available) {
+  desktopAgentAvailable = available;
+  if (available && !agentAvailable) {
+    platformType = 'desktop';
+  }
+  console.log('[Tools] Desktop agent manually set to:', available);
+}
+
+/**
+ * Refresh agent availability status
+ */
+export async function refreshAgentStatus() {
+  try {
+    // Check Android agent
+    agentAvailable = await Agent.isServiceEnabled();
+
+    // Check desktop agent
+    desktopAgentAvailable = await DesktopAgent.initDesktopAgent();
+
+    // Set platform type
+    if (agentAvailable) platformType = 'android';
+    else if (desktopAgentAvailable) platformType = 'desktop';
+    else platformType = 'web';
+
+    console.log('[Tools] Agent status refreshed - Platform:', platformType);
+    return agentAvailable || desktopAgentAvailable;
+  } catch (e) {
+    agentAvailable = false;
+    desktopAgentAvailable = false;
+    platformType = 'web';
+    return false;
+  }
+}
+
+/**
+ * Get current platform type
+ */
+export function getPlatformType() {
+  return platformType;
+}
 
 // ============ TOOL DEFINITIONS FOR GEMINI ============
 
@@ -139,6 +217,188 @@ export const toolDefinitions = [
         query: { type: 'string', description: 'Search query' }
       },
       required: ['query']
+    }
+  },
+
+  // ============ AUTONOMOUS AGENT TOOLS ============
+  // These tools let PAL control the Android device
+
+  {
+    name: 'open_app',
+    description: 'Open an app on the device. Use when user asks to open Chrome, YouTube, Instagram, WhatsApp, Settings, etc.',
+    parameters: {
+      type: 'object',
+      properties: {
+        app_name: { type: 'string', description: 'Name of the app (e.g., "chrome", "youtube", "instagram", "whatsapp", "settings")' }
+      },
+      required: ['app_name']
+    }
+  },
+  {
+    name: 'click_on_screen',
+    description: 'Click on an element on the screen by its text. Use to tap buttons, links, or any clickable element.',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The text of the element to click' }
+      },
+      required: ['text']
+    }
+  },
+  {
+    name: 'type_text',
+    description: 'Type text into the currently focused input field. Use after clicking on a text field.',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The text to type' }
+      },
+      required: ['text']
+    }
+  },
+  {
+    name: 'scroll_screen',
+    description: 'Scroll the screen in a direction. Use to see more content.',
+    parameters: {
+      type: 'object',
+      properties: {
+        direction: { type: 'string', enum: ['up', 'down', 'left', 'right'], description: 'Direction to scroll' }
+      },
+      required: ['direction']
+    }
+  },
+  {
+    name: 'go_back',
+    description: 'Press the back button. Use to navigate back in apps.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'go_home',
+    description: 'Press the home button to go to the home screen.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'get_screen_content',
+    description: 'See what is currently on the screen. Use to understand the current state before taking action.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'run_autonomous_task',
+    description: 'Run a multi-step autonomous task. PAL will figure out the steps and execute them. Use for complex tasks like "send a message to John on WhatsApp" or "search for cats on YouTube".',
+    parameters: {
+      type: 'object',
+      properties: {
+        goal: { type: 'string', description: 'The goal to achieve (e.g., "Open YouTube and search for cooking videos")' },
+        max_steps: { type: 'number', description: 'Maximum steps to try (default 15)' }
+      },
+      required: ['goal']
+    }
+  },
+  {
+    name: 'check_agent_status',
+    description: 'Check if the autonomous agent is enabled. If not, guide the user to enable it in accessibility settings.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+
+  // ============ DESKTOP AGENT TOOLS ============
+  // These tools let PAL control desktop computers (Windows, macOS, Linux)
+
+  {
+    name: 'run_command',
+    description: 'Run a shell command on the desktop. Use for terminal commands, scripts, file operations, etc. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'The shell command to run (e.g., "ls -la", "cd ~/Documents && pwd", "python script.py")' }
+      },
+      required: ['command']
+    }
+  },
+  {
+    name: 'open_external',
+    description: 'Open a URL or file in the default application. Works with URLs, file paths, etc. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'URL or file path to open (e.g., "https://google.com", "/path/to/file.pdf")' }
+      },
+      required: ['path']
+    }
+  },
+  {
+    name: 'read_file',
+    description: 'Read contents of a file on the desktop. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        filepath: { type: 'string', description: 'Path to the file to read' }
+      },
+      required: ['filepath']
+    }
+  },
+  {
+    name: 'write_file',
+    description: 'Write content to a file on the desktop. Creates or overwrites the file. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        filepath: { type: 'string', description: 'Path to the file to write' },
+        content: { type: 'string', description: 'Content to write to the file' }
+      },
+      required: ['filepath', 'content']
+    }
+  },
+  {
+    name: 'list_files',
+    description: 'List files in a directory on the desktop. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        directory: { type: 'string', description: 'Directory path (defaults to current directory)' }
+      }
+    }
+  },
+  {
+    name: 'create_directory',
+    description: 'Create a new directory on the desktop. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        dirpath: { type: 'string', description: 'Path of directory to create' }
+      },
+      required: ['dirpath']
+    }
+  },
+  {
+    name: 'get_platform_info',
+    description: 'Get information about the current platform (OS, architecture). Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {}
+    }
+  },
+  {
+    name: 'run_desktop_task',
+    description: 'Run a multi-step autonomous task on desktop. PAL will figure out the steps using shell commands and file operations. Available on desktop only.',
+    parameters: {
+      type: 'object',
+      properties: {
+        goal: { type: 'string', description: 'The goal to achieve (e.g., "Create a Python script that sorts files by date")' },
+        max_steps: { type: 'number', description: 'Maximum steps to try (default 20)' }
+      },
+      required: ['goal']
     }
   }
 ];
@@ -449,6 +709,369 @@ const executors = {
       success: false,
       message: `I don't have web search available right now, but you can search for: "${query}"`
     };
+  },
+
+  // ============ AUTONOMOUS AGENT EXECUTORS ============
+
+  async open_app({ app_name }) {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const pkg = Agent.getAppPackage(app_name);
+    const success = await Agent.openApp(pkg);
+
+    if (success) {
+      return { success: true, message: `Opened ${app_name}` };
+    } else {
+      return { success: false, error: `Failed to open ${app_name}. App might not be installed.` };
+    }
+  },
+
+  async click_on_screen({ text }) {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const success = await Agent.clickText(text);
+
+    if (success) {
+      return { success: true, message: `Clicked on "${text}"` };
+    } else {
+      return { success: false, error: `Could not find or click "${text}" on screen` };
+    }
+  },
+
+  async type_text({ text }) {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const success = await Agent.typeText(text);
+
+    if (success) {
+      return { success: true, message: `Typed: "${text}"` };
+    } else {
+      return { success: false, error: 'Failed to type text. Make sure a text field is focused.' };
+    }
+  },
+
+  async scroll_screen({ direction }) {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const success = await Agent.scroll(direction);
+
+    if (success) {
+      return { success: true, message: `Scrolled ${direction}` };
+    } else {
+      return { success: false, error: 'Failed to scroll' };
+    }
+  },
+
+  async go_back() {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const success = await Agent.pressBack();
+
+    if (success) {
+      return { success: true, message: 'Pressed back' };
+    } else {
+      return { success: false, error: 'Failed to press back' };
+    }
+  },
+
+  async go_home() {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const success = await Agent.pressHome();
+
+    if (success) {
+      return { success: true, message: 'Went to home screen' };
+    } else {
+      return { success: false, error: 'Failed to go home' };
+    }
+  },
+
+  async get_screen_content() {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    const screen = await Agent.getScreenContent();
+
+    if (screen) {
+      // Format screen content for AI understanding
+      const elements = screen.elements || [];
+      const clickable = elements.filter(e => e.clickable && (e.text || e.contentDescription));
+      const texts = elements.filter(e => e.text && !e.clickable).map(e => e.text);
+
+      return {
+        success: true,
+        app: screen.packageName,
+        clickable_elements: clickable.slice(0, 20).map(e => e.text || e.contentDescription),
+        visible_text: texts.slice(0, 15),
+        element_count: elements.length
+      };
+    } else {
+      return { success: false, error: 'Could not read screen' };
+    }
+  },
+
+  async run_autonomous_task({ goal, max_steps = 15 }) {
+    if (!agentAvailable) {
+      return { success: false, error: 'Agent not enabled. Ask user to enable accessibility service.' };
+    }
+
+    if (!aiDecisionCallback) {
+      return { success: false, error: 'AI decision callback not configured. Cannot run autonomous task.' };
+    }
+
+    return new Promise((resolve) => {
+      Agent.runAutonomousTask(goal, {
+        maxSteps: max_steps,
+        onStep: (step) => {
+          console.log(`[Tools] Autonomous step ${step.step}:`, step.action);
+          // Dispatch event so UI can show progress
+          window.dispatchEvent(new CustomEvent('pal-agent-step', {
+            detail: { step: step.step, action: step.action, goal }
+          }));
+        },
+        onComplete: (result) => {
+          window.dispatchEvent(new CustomEvent('pal-agent-complete', {
+            detail: { success: true, message: result.message, steps: result.steps }
+          }));
+          resolve({
+            success: true,
+            message: result.message,
+            steps_taken: result.steps
+          });
+        },
+        onError: (error) => {
+          window.dispatchEvent(new CustomEvent('pal-agent-complete', {
+            detail: { success: false, error: error.message, steps: error.steps }
+          }));
+          resolve({
+            success: false,
+            error: error.message,
+            steps_taken: error.steps
+          });
+        },
+        getAIDecision: aiDecisionCallback
+      });
+    });
+  },
+
+  async check_agent_status() {
+    const enabled = await Agent.isServiceEnabled();
+
+    if (enabled) {
+      return {
+        success: true,
+        enabled: true,
+        message: 'Autonomous agent is enabled and ready!'
+      };
+    } else {
+      // Try to open settings
+      await Agent.openAccessibilitySettings();
+      return {
+        success: true,
+        enabled: false,
+        message: 'Accessibility service is not enabled. I\'ve opened the settings - please find "PAL" or "Goldman AI" and enable it to let me control the device.'
+      };
+    }
+  },
+
+  // ============ DESKTOP AGENT EXECUTORS ============
+
+  async run_command({ command }) {
+    console.log('[Tools] run_command called with:', command);
+    console.log('[Tools] desktopAgentAvailable:', desktopAgentAvailable);
+    console.log('[Tools] platformType:', platformType);
+
+    if (!desktopAgentAvailable) {
+      console.error('[Tools] run_command FAILED: Desktop agent not available');
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    console.log('[Tools] Calling DesktopAgent.runShellCommand...');
+    const result = await DesktopAgent.runShellCommand(command);
+    console.log('[Tools] Result:', result);
+
+    if (result.success) {
+      return {
+        success: true,
+        output: result.output,
+        message: `Executed: ${command}`
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error,
+        command: command
+      };
+    }
+  },
+
+  async open_external({ path }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.openExternal(path);
+
+    if (result.success) {
+      return { success: true, message: `Opened: ${path}` };
+    } else {
+      return { success: false, error: result.error };
+    }
+  },
+
+  async read_file({ filepath }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.readFile(filepath);
+
+    if (result.success) {
+      return {
+        success: true,
+        content: result.output,
+        filepath: filepath
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error,
+        filepath: filepath
+      };
+    }
+  },
+
+  async write_file({ filepath, content }) {
+    console.log('[Tools] write_file called with:', filepath);
+    console.log('[Tools] desktopAgentAvailable:', desktopAgentAvailable);
+
+    if (!desktopAgentAvailable) {
+      console.error('[Tools] write_file FAILED: Desktop agent not available');
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    console.log('[Tools] Calling DesktopAgent.writeFile...');
+    const result = await DesktopAgent.writeFile(filepath, content);
+    console.log('[Tools] Result:', result);
+
+    if (result.success) {
+      return {
+        success: true,
+        message: `Wrote to file: ${filepath}`,
+        filepath: filepath
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error,
+        filepath: filepath
+      };
+    }
+  },
+
+  async list_files({ directory }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    const files = await DesktopAgent.listFiles(directory);
+
+    return {
+      success: true,
+      files: files,
+      directory: directory || 'current directory'
+    };
+  },
+
+  async create_directory({ dirpath }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    const result = await DesktopAgent.createDirectory(dirpath);
+
+    if (result.success) {
+      return {
+        success: true,
+        message: `Created directory: ${dirpath}`,
+        dirpath: dirpath
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error,
+        dirpath: dirpath
+      };
+    }
+  },
+
+  async get_platform_info() {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    const info = DesktopAgent.getPlatformInfo();
+
+    return {
+      success: true,
+      platform: info
+    };
+  },
+
+  async run_desktop_task({ goal, max_steps = 20 }) {
+    if (!desktopAgentAvailable) {
+      return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    if (!aiDecisionCallback) {
+      return { success: false, error: 'AI decision callback not configured. Cannot run autonomous task.' };
+    }
+
+    return new Promise((resolve) => {
+      DesktopAgent.runDesktopTask(goal, {
+        maxSteps: max_steps,
+        onStep: (step) => {
+          console.log(`[Tools] Desktop task step ${step.step}:`, step.decision);
+          window.dispatchEvent(new CustomEvent('pal-desktop-step', {
+            detail: { step: step.step, decision: step.decision, goal }
+          }));
+        },
+        onComplete: (result) => {
+          window.dispatchEvent(new CustomEvent('pal-desktop-complete', {
+            detail: { success: true, message: result.message, steps: result.steps }
+          }));
+          resolve({
+            success: true,
+            message: `Desktop task completed in ${result.steps} steps`,
+            steps_taken: result.steps
+          });
+        },
+        onError: (error) => {
+          window.dispatchEvent(new CustomEvent('pal-desktop-complete', {
+            detail: { success: false, error: error.toString(), steps: error.steps }
+          }));
+          resolve({
+            success: false,
+            error: error.toString(),
+            steps_taken: error.steps || 0
+          });
+        },
+        getAIDecision: aiDecisionCallback
+      });
+    });
   }
 };
 
@@ -489,5 +1112,8 @@ export function getToolsForGemini() {
 export default {
   toolDefinitions,
   executeTool,
-  getToolsForGemini
+  getToolsForGemini,
+  setAIDecisionCallback,
+  setDesktopAgentAvailable,
+  refreshAgentStatus
 };
