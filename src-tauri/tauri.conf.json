@@ -48,7 +48,8 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": ["remote-api-access"]
     }
   },
   "plugins": {}
