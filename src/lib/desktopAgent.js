@@ -3,32 +3,41 @@
 
 let platformInfo = null;
 let tauriAvailable = false;
+let TauriCore = null;
+let TauriShell = null;
 
 /**
  * Initialize desktop agent and check Tauri availability
  */
 export async function initDesktopAgent() {
   try {
-    // Check if we're running in Tauri environment
-    if (typeof window !== 'undefined' && window.__TAURI__) {
-      tauriAvailable = true;
-      console.log('[Desktop Agent] Tauri detected! Desktop agent ENABLED');
+    // Try to import Tauri API (only available in Tauri environment)
+    console.log('[Desktop Agent] Checking for Tauri environment...');
 
-      // Try to get platform info but don't fail if it doesn't work
+    try {
+      // Dynamically import Tauri APIs
+      const coreModule = await import('@tauri-apps/api/core');
+      const shellModule = await import('@tauri-apps/api/shell');
+
+      TauriCore = coreModule;
+      TauriShell = shellModule;
+      tauriAvailable = true;
+
+      console.log('[Desktop Agent] Tauri APIs loaded! Desktop agent ENABLED');
+
+      // Try to get platform info
       try {
-        const { invoke } = window.__TAURI__.core;
-        platformInfo = await invoke('get_platform_info');
+        platformInfo = await TauriCore.invoke('get_platform_info');
         console.log('[Desktop Agent] Platform info:', platformInfo);
       } catch (e) {
         console.warn('[Desktop Agent] Could not get platform info:', e);
-        // Set default platform info
         platformInfo = { os: 'unknown', arch: 'unknown', family: 'unknown' };
       }
 
       return true;
-    } else {
-      console.log('[Desktop Agent] window.__TAURI__ not found - Not running in Tauri');
-      console.log('[Desktop Agent] window keys:', typeof window !== 'undefined' ? Object.keys(window).filter(k => k.includes('TAURI') || k.includes('tauri')) : 'no window');
+    } catch (importError) {
+      console.log('[Desktop Agent] Tauri APIs not available - Not running in Tauri');
+      console.log('[Desktop Agent] Import error:', importError.message);
       return false;
     }
   } catch (error) {
@@ -55,13 +64,12 @@ export function isDesktopAgentAvailable() {
  * Execute shell command on the system
  */
 export async function runShellCommand(command) {
-  if (!tauriAvailable) {
+  if (!tauriAvailable || !TauriCore) {
     throw new Error('Desktop agent not available');
   }
 
   try {
-    const { invoke } = window.__TAURI__.core;
-    const result = await invoke('run_shell_command', { command });
+    const result = await TauriCore.invoke('run_shell_command', { command });
     return { success: true, output: result };
   } catch (error) {
     return { success: false, error: error.toString() };
@@ -72,13 +80,12 @@ export async function runShellCommand(command) {
  * Open a URL or file in the default application
  */
 export async function openExternal(path) {
-  if (!tauriAvailable) {
+  if (!tauriAvailable || !TauriShell) {
     throw new Error('Desktop agent not available');
   }
 
   try {
-    const { open } = window.__TAURI__.shell;
-    await open(path);
+    await TauriShell.open(path);
     return { success: true };
   } catch (error) {
     return { success: false, error: error.toString() };
