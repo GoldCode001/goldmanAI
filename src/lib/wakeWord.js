@@ -8,6 +8,7 @@ let recognition = null;
 let isListening = false;
 let onWakeWordDetected = null;
 let wakePhrase = 'hey pal'; // Default wake phrase
+let isRestarting = false; // Prevent double restarts
 
 /**
  * Initialize wake word detection
@@ -64,44 +65,44 @@ export function initWakeWord(options = {}) {
     console.warn('[WakeWord] Error:', event.error);
 
     // Auto-restart on ALL errors except 'not-allowed' (permission denied)
-    if (event.error !== 'not-allowed') {
-      if (isListening) {
+    if (event.error !== 'not-allowed' && event.error !== 'aborted') {
+      if (isListening && !isRestarting) {
+        isRestarting = true;
         setTimeout(() => {
           try {
-            console.log('[WakeWord] Auto-restarting after error...');
-            recognition.start();
+            if (isListening) {
+              console.log('[WakeWord] Auto-restarting after error...');
+              recognition.start();
+              isRestarting = false;
+            }
           } catch (e) {
-            console.warn('[WakeWord] Restart failed, will try again:', e.message);
-            // Try again in 1 second if first restart fails
-            setTimeout(() => {
-              if (isListening) {
-                try {
-                  recognition.start();
-                } catch (e2) {
-                  console.error('[WakeWord] Second restart failed:', e2.message);
-                }
-              }
-            }, 1000);
+            console.warn('[WakeWord] Restart failed:', e.message);
+            isRestarting = false;
           }
-        }, 100);
+        }, 500);
       }
-    } else {
+    } else if (event.error === 'not-allowed') {
       console.error('[WakeWord] Microphone permission denied. Cannot restart.');
     }
   };
 
   recognition.onend = () => {
     console.log('[WakeWord] Recognition ended');
-    // Auto-restart if we should still be listening
-    if (isListening) {
+    // Auto-restart if we should still be listening (and not already restarting)
+    if (isListening && !isRestarting) {
+      isRestarting = true;
       setTimeout(() => {
         try {
-          console.log('[WakeWord] Restarting...');
-          recognition.start();
+          if (isListening) {
+            console.log('[WakeWord] Restarting...');
+            recognition.start();
+            isRestarting = false;
+          }
         } catch (e) {
           console.warn('[WakeWord] Restart on end failed:', e.message);
+          isRestarting = false;
         }
-      }, 100);
+      }, 300);
     }
   };
 
