@@ -40,7 +40,13 @@
       "Bash(git rm:*)",
       "Bash(gh api:*)",
       "Bash(cargo check:*)",
-      "WebFetch(domain:ai.google.dev)"
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)",
+      "Bash(wmic process where \"name=''goldman-ai.exe''\" get ProcessId,CommandLine)",
+      "Bash(del /F \"c:\\\\Users\\\\goldc\\\\Desktop\\\\ai-assistant-full\\\\src-tauri\\\\target\\\\debug\\\\goldman-ai.exe\")",
+      "Bash(dir:*)",
+      "WebFetch(domain:v2.tauri.app)"
     ]
   }
 }

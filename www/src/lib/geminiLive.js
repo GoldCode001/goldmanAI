@@ -1,11 +1,11 @@
 /**
  * Gemini Live API Integration
  * Real-time bidirectional audio streaming with Google Gemini
- * With Function Calling / Tools support
  * Based on: gemini-2.5-flash-native-audio-preview-12-2025
+ * Reference: geminiapp/hooks/useLivePal.ts
  */
 
-import { getToolsForGemini, handleGeminiFunctionCall } from './tools/index.js';
+import { getToolsForGemini, executeTool } from './tools.js';
 
 let geminiApiKey = null;
 let liveSession = null;
@@ -13,54 +13,37 @@ let inputAudioContext = null; // 16kHz for input
 let outputAudioContext = null; // 24kHz for output
 let analyserNode = null;
 let microphoneSource = null;
-let scriptProcessor = null;
+let audioWorkletNode = null;
 let isConnected = false;
 let onAudioLevelUpdate = null; // Callback for lip sync (amplitude 0-1)
 let onTranscriptUpdate = null; // Callback for text updates (AI responses)
 let onUserTranscriptUpdate = null; // Callback for user speech transcripts
-let onToolCall = null; // Callback for tool execution notifications
 let onError = null;
 let microphoneStream = null;
 let nextStartTime = 0; // For scheduling audio chunks
 let sessionPromise = null;
 let customSystemPrompt = null; // Custom system prompt for personalization
-let customTools = null; // Tools configuration for function calling
 let userSpeechRecognition = null; // Web Speech API for user transcript
 
 /**
  * Initialize Gemini Live connection
  * @param {string} apiKey - Google AI Studio API key
- * @param {Object} callbacks - { onAudioLevel, onTranscript, onUserTranscript, onToolCall, onError }
- * @param {string} systemPromptOverride - Custom system prompt
- * @param {Array} tools - Tools configuration for function calling
+ * @param {Object} callbacks - { onAudioLevel, onTranscript, onError }
  */
-export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverride = null, tools = null) {
+export async function initGeminiLive(apiKey, callbacks = {}, systemPromptOverride = null) {
   try {
     geminiApiKey = apiKey;
     onAudioLevelUpdate = callbacks.onAudioLevel;
     onTranscriptUpdate = callbacks.onTranscript;
-    onUserTranscriptUpdate = callbacks.onUserTranscript;
-    onToolCall = callbacks.onToolCall; // Callback when tool is executed
+    onUserTranscriptUpdate = callbacks.onUserTranscript; // New: user transcript callback
     onError = callbacks.onError;
     customSystemPrompt = systemPromptOverride;
-    customTools = tools;
 
     if (!geminiApiKey) {
       throw new Error('Gemini API key is required');
     }
 
-    // If no tools provided, get default tools
-    if (!customTools) {
-      try {
-        customTools = await getToolsForGemini();
-        console.log('Loaded', customTools.length, 'tools for Gemini');
-      } catch (e) {
-        console.warn('Could not load tools:', e);
-        customTools = [];
-      }
-    }
-
-    console.log('Gemini Live initialized with', customTools?.length || 0, 'tools');
+    console.log('Gemini Live initialized');
     return true;
   } catch (err) {
     console.error('Failed to initialize Gemini Live:', err);
@@ -90,79 +73,6 @@ function createPcmBlob(data) {
     data: b64,
     mimeType: 'audio/pcm;rate=16000',
   };
-}
-
-/**
- * Handle tool/function call from Gemini
- * Executes the tool and sends response back
- */
-async function handleToolCallMessage(functionCall) {
-  try {
-    const { name, args } = functionCall;
-    console.log(`Executing tool: ${name}`, args);
-
-    // Notify UI that a tool is being executed
-    if (onToolCall) {
-      onToolCall({ name, args, status: 'executing' });
-    }
-
-    // Execute the tool
-    const result = await handleGeminiFunctionCall({ name, args });
-    console.log(`Tool ${name} result:`, result);
-
-    // Notify UI of completion
-    if (onToolCall) {
-      onToolCall({ name, args, status: 'complete', result: result.response });
-    }
-
-    // Send function response back to Gemini
-    if (liveSession && liveSession.sendToolResponse) {
-      await liveSession.sendToolResponse({
-        functionResponses: [{
-          name: result.name,
-          response: result.response
-        }]
-      });
-      console.log('Sent tool response to Gemini');
-    } else if (liveSession && liveSession.send) {
-      // Alternative method - send as client content
-      await liveSession.send({
-        toolResponse: {
-          functionResponses: [{
-            name: result.name,
-            response: result.response
-          }]
-        }
-      });
-      console.log('Sent tool response via send()');
-    }
-  } catch (err) {
-    console.error('Error handling tool call:', err);
-
-    // Notify UI of error
-    if (onToolCall) {
-      onToolCall({ name: functionCall.name, status: 'error', error: err.message });
-    }
-
-    // Send error response back to Gemini
-    if (liveSession) {
-      try {
-        const errorResponse = {
-          functionResponses: [{
-            name: functionCall.name,
-            response: { success: false, error: err.message }
-          }]
-        };
-        if (liveSession.sendToolResponse) {
-          await liveSession.sendToolResponse(errorResponse);
-        } else if (liveSession.send) {
-          await liveSession.send({ toolResponse: errorResponse });
-        }
-      } catch (e) {
-        console.error('Failed to send error response:', e);
-      }
-    }
-  }
 }
 
 /**
@@ -216,73 +126,81 @@ export async function startGeminiLive() {
     analyserNode.maxDecibels = -10;
 
     // Setup Gemini Client
+    console.log('[Gemini Live] API Key present:', !!geminiApiKey);
+    console.log('[Gemini Live] API Key length:', geminiApiKey?.length);
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
 
-    // Start Microphone Stream
+    // Start Microphone Stream with AudioWorklet (modern, low-latency)
     try {
-      microphoneStream = await navigator.mediaDevices.getUserMedia({ 
+      microphoneStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+          sampleRate: 16000 // Request 16kHz directly
         }
       });
-      
+
+      // Load AudioWorklet processor
+      await inputAudioContext.audioWorklet.addModule('src/lib/audio-processor.worklet.js');
+
       microphoneSource = inputAudioContext.createMediaStreamSource(microphoneStream);
-      scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
-      
-      scriptProcessor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcmBlob = createPcmBlob(inputData);
-        
-        if (sessionPromise) {
-          sessionPromise.then(session => {
-            if (session && session.sendRealtimeInput) {
-              session.sendRealtimeInput({ media: pcmBlob });
-            }
-          });
+      audioWorkletNode = new AudioWorkletNode(inputAudioContext, 'gemini-audio-processor');
+
+      // Listen for processed audio from worklet
+      audioWorkletNode.port.onmessage = (event) => {
+        // Only process audio if connected
+        if (!isConnected || !sessionPromise) {
+          return;
         }
+
+        const { data } = event.data;
+
+        // Convert Uint8Array to base64
+        let binary = '';
+        const len = data.byteLength;
+        for (let i = 0; i < len; i++) {
+          binary += String.fromCharCode(data[i]);
+        }
+        const b64 = btoa(binary);
+
+        const pcmBlob = {
+          data: b64,
+          mimeType: 'audio/pcm;rate=16000',
+        };
+
+        sessionPromise.then(session => {
+          // Double-check connection state before sending
+          if (isConnected && session && session.sendRealtimeInput) {
+            try {
+              session.sendRealtimeInput({ media: pcmBlob });
+            } catch (err) {
+              // Silently handle closed connection errors
+              if (!err.message.includes('CLOSING') && !err.message.includes('CLOSED')) {
+                console.error('[Gemini Live] Error sending audio:', err);
+              }
+            }
+          }
+        }).catch(err => {
+          // Handle promise rejection silently if session is closing
+          if (isConnected && !err.message.includes('CLOSING') && !err.message.includes('CLOSED')) {
+            console.error('[Gemini Live] Session error:', err);
+          }
+        });
       };
-      
-      microphoneSource.connect(scriptProcessor);
-      scriptProcessor.connect(inputAudioContext.destination);
+
+      microphoneSource.connect(audioWorkletNode);
+      audioWorkletNode.connect(inputAudioContext.destination);
+
+      console.log('[Gemini Live] Using AudioWorklet for low-latency audio processing');
     } catch (err) {
       console.error("Mic Error:", err);
       if (onError) onError(err);
       return false;
     }
 
-    // Build config with tools
-    const liveConfig = {
-      responseModalities: [Modality.AUDIO],
-      systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
-Your persona is a highly intelligent, witty, and helpful personal assistant.
-You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
-You are more "smart companion" than "chaotic teenager".
-
-**Core Instructions:**
-1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
-2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
-3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
-4. **Identity**: You are the user's loyal assistant. You are PAL.`,
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: 'Kore'
-          }
-        }
-      }
-    };
-
-    // Add tools if available
-    if (customTools && customTools.length > 0) {
-      liveConfig.tools = [{
-        functionDeclarations: customTools
-      }];
-      console.log('Gemini Live config includes', customTools.length, 'tools');
-    }
-
     // Connect to Live API
+    console.log('[Gemini Live] Starting connection to Gemini Live API...');
     const sessionPromiseValue = ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       callbacks: {
@@ -296,20 +214,47 @@ You are more "smart companion" than "chaotic teenager".
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
-          // 1. Handle Tool/Function Calls
-          const toolCall = msg.toolCall;
-          if (toolCall) {
-            console.log('Received tool call:', toolCall);
-            await handleToolCallMessage(toolCall);
-            return; // Tool calls don't have audio
+          // Debug: log tool calls only (not audio/text messages)
+          if (msg.toolCall) {
+            console.log('[Gemini Live] Tool call received:', msg.toolCall.functionCalls?.map(c => c.name).join(', '));
           }
 
-          // Also check for function calls in serverContent
-          const functionCalls = msg.serverContent?.modelTurn?.parts?.filter(p => p.functionCall);
+          // 1. Handle Function Calls (Tools)
+          const functionCalls = msg.toolCall?.functionCalls;
           if (functionCalls && functionCalls.length > 0) {
-            console.log('Received function calls in parts:', functionCalls);
-            for (const part of functionCalls) {
-              await handleToolCallMessage(part.functionCall);
+            console.log('[PAL Tools] Function calls received:', functionCalls);
+
+            const functionResponses = [];
+            for (const call of functionCalls) {
+              try {
+                const result = await executeTool(call.name, call.args || {});
+                functionResponses.push({
+                  id: call.id,
+                  name: call.name,
+                  response: result
+                });
+                console.log(`[PAL Tools] ${call.name} result:`, result);
+              } catch (err) {
+                console.error(`[PAL Tools] Error executing ${call.name}:`, err);
+                functionResponses.push({
+                  id: call.id,
+                  name: call.name,
+                  response: { success: false, error: err.message }
+                });
+              }
+            }
+
+            // Send function responses back to Gemini
+            if (isConnected && liveSession && functionResponses.length > 0) {
+              try {
+                await liveSession.sendToolResponse({ functionResponses });
+                console.log('[PAL Tools] Sent tool responses back to Gemini');
+              } catch (err) {
+                // Only log errors if we're still connected
+                if (isConnected && !err.message?.includes('CLOSING') && !err.message?.includes('CLOSED')) {
+                  console.error('[PAL Tools] Failed to send tool response:', err);
+                }
+              }
             }
           }
 
@@ -345,42 +290,138 @@ You are more "smart companion" than "chaotic teenager".
           }
 
           // 3. Handle Text Transcripts (if available)
-          const textParts = msg.serverContent?.modelTurn?.parts?.filter(p => p.text);
-          if (textParts && textParts.length > 0) {
-            const fullText = textParts.map(p => p.text).join('');
-            if (fullText && onTranscriptUpdate) {
-              onTranscriptUpdate(fullText);
-            }
-          }
-
-          // 4. Handle turn complete
           if (msg.serverContent?.turnComplete) {
             // Turn complete, can process text if available
           }
         },
-        onclose: () => {
-          console.log("PAL Live Session Closed");
+        onclose: (event) => {
+          console.error("PAL Live Session Closed - Event:", event);
+          console.error("Close code:", event?.code, "Reason:", event?.reason);
           isConnected = false;
+
+          // Stop audio processing when connection closes
+          if (audioWorkletNode) {
+            audioWorkletNode.disconnect();
+            audioWorkletNode = null;
+          }
+
+          if (microphoneSource) {
+            microphoneSource.disconnect();
+            microphoneSource = null;
+          }
+
+          // Stop user speech recognition
+          if (userSpeechRecognition) {
+            try {
+              userSpeechRecognition.stop();
+            } catch (err) {
+              // Ignore errors when stopping
+            }
+          }
         },
         onerror: (err) => {
           console.error("PAL Live Error:", err);
+          console.error("Error type:", err?.type, "Message:", err?.message);
+          console.error("Full error object:", JSON.stringify(err, null, 2));
           if (onError) onError(err);
         }
       },
-      config: liveConfig
+      config: await (async () => {
+        // Get tools with proper async platform detection
+        const tools = await getToolsForGemini();
+        console.log('[Gemini Live] Registering tools:', tools.length, 'tools');
+        console.log('[Gemini Live] Tool names:', tools.map(t => t.name).join(', '));
+
+        return {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
+Your persona is a highly intelligent, witty, and helpful personal assistant.
+You are friendly and personal, but you do NOT use excessive slang like "slay" or "bestie" unless it fits the context perfectly.
+You are more "smart companion" than "chaotic teenager".
+
+**Core Instructions:**
+1. **Tone & Emotion**: Your voice and emotion must MATCH what you are saying. If you are delivering good news, sound happy. If you are explaining a problem, sound concerned. Do not default to a single tone.
+2. **Backchanneling**: Engage in natural conversation. Use brief verbal acknowledgments (e.g., "Right", "I see", "Uh-huh", "Go on") to show you are listening when appropriate.
+3. **Response Style**: Keep responses conversational, relatively short, and optimized for voice interaction.
+4. **Identity**: You are the user's loyal assistant. You are PAL.
+
+**CRITICAL - YOU MUST USE TOOLS:**
+You are NOT just a voice assistant. You are an AGENT that can control the computer.
+When the user asks you to DO something - YOU MUST CALL THE APPROPRIATE TOOL FUNCTION IMMEDIATELY.
+
+MANDATORY Tool Usage Rules:
+1. "Open [app]" → IMMEDIATELY call run_command with "start [appname]" on Windows
+2. "Open [website URL]" → IMMEDIATELY call browser_open with the URL
+3. "Type [text]" or "Send message" → IMMEDIATELY call keyboard_type
+4. "Click" or "Press" → IMMEDIATELY call mouse_click or keyboard_press
+5. "Move mouse" → IMMEDIATELY call mouse_move
+6. "Search for" → IMMEDIATELY call browser_open with search URL
+7. "Run [command]" → IMMEDIATELY call run_command
+
+DO NOT:
+- Just say "okay I'll do that" - ACTUALLY DO IT with tools
+- Ask permission - just execute the tool
+- Explain what you're about to do - just do it and report results
+
+YOU HAVE THESE EXACT TOOLS AVAILABLE:
+- run_command: Execute shell commands (USE THIS TO OPEN DESKTOP APPS)
+- browser_open: Open URLs in web browser
+- keyboard_type: Type text
+- keyboard_press: Press keys (enter, tab, etc)
+- keyboard_shortcut: Execute key combos (ctrl+c, etc)
+- mouse_move, mouse_click, mouse_scroll
+- write_file, read_file, list_files
+- And more desktop automation tools
+
+Example correct behavior:
+User: "Open Telegram"
+You: [CALL run_command with command: "start telegram"] then say "Opening Telegram"
+
+User: "Open Twitter"
+You: [CALL browser_open with url: "https://twitter.com"] then say "Opening Twitter"
+
+Example WRONG behavior:
+User: "Open Telegram"
+You: "Sure, I'll open Telegram for you" [WITHOUT calling any tool] ❌`,
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: 'Kore'
+              }
+            }
+          },
+          tools: [{
+            functionDeclarations: tools
+          }]
+        };
+      })()
     });
     
     sessionPromise = sessionPromiseValue;
-    liveSession = await sessionPromiseValue;
-    
+
+    try {
+      liveSession = await sessionPromiseValue;
+      console.log('[Gemini Live] Session connected successfully');
+      console.log('[Gemini Live] Session object:', liveSession);
+      console.log('[Gemini Live] Session state:', liveSession?.readyState);
+    } catch (sessionError) {
+      console.error('[Gemini Live] Failed to await session:', sessionError);
+      console.error('[Gemini Live] Session error details:', JSON.stringify(sessionError, null, 2));
+      throw sessionError;
+    }
+
     // Start audio level monitoring for lip sync
     startAudioLevelMonitoring();
-    
-    // Start user speech recognition for action detection
-    startUserSpeechRecognition();
 
     isConnected = true;
     console.log('Gemini Live started and connected');
+
+    // Verify connection is still alive after a short delay
+    setTimeout(() => {
+      console.log('[Gemini Live] Connection check - isConnected:', isConnected);
+      console.log('[Gemini Live] Session still exists:', !!liveSession);
+    }, 1000);
+
     return true;
   } catch (err) {
     console.error('Failed to start Gemini Live:', err);
@@ -443,67 +484,8 @@ function startAudioLevelMonitoring() {
   update();
 }
 
-/**
- * Start Web Speech API recognition for user speech (to detect actions)
- */
-function startUserSpeechRecognition() {
-  // Check if Web Speech API is available
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn('Web Speech API not available for user transcript');
-    return;
-  }
-  
-  // Stop any existing recognition
-  if (userSpeechRecognition) {
-    userSpeechRecognition.stop();
-  }
-  
-  userSpeechRecognition = new SpeechRecognition();
-  userSpeechRecognition.continuous = true;
-  userSpeechRecognition.interimResults = true; // Enable interim results to catch partial speech
-  userSpeechRecognition.lang = 'en-US';
-  userSpeechRecognition.maxAlternatives = 1;
-  
-  userSpeechRecognition.onresult = (event) => {
-    // Collect all final results, not just the last one
-    let fullTranscript = '';
-    for (let i = 0; i < event.results.length; i++) {
-      if (event.results[i].isFinal) {
-        fullTranscript += event.results[i][0].transcript + ' ';
-      }
-    }
-    
-    if (fullTranscript.trim() && onUserTranscriptUpdate) {
-      const transcript = fullTranscript.trim();
-      console.log('User said (full):', transcript);
-      onUserTranscriptUpdate(transcript);
-    }
-  };
-  
-  userSpeechRecognition.onerror = (event) => {
-    console.error('User speech recognition error:', event.error);
-    // Don't stop on errors, just log
-  };
-  
-  userSpeechRecognition.onend = () => {
-    // Restart recognition if still connected
-    if (isConnected) {
-      try {
-        userSpeechRecognition.start();
-      } catch (err) {
-        console.error('Failed to restart user speech recognition:', err);
-      }
-    }
-  };
-  
-  try {
-    userSpeechRecognition.start();
-    console.log('User speech recognition started');
-  } catch (err) {
-    console.error('Failed to start user speech recognition:', err);
-  }
-}
+// NOTE: Web Speech API removed - it was picking up PAL's own voice
+// Gemini Live API already handles user speech transcription via microphone input
 
 /**
  * Stop Gemini Live connection
@@ -515,9 +497,9 @@ export function stopGeminiLive() {
     userSpeechRecognition = null;
   }
   
-  if (scriptProcessor) {
-    scriptProcessor.disconnect();
-    scriptProcessor = null;
+  if (audioWorkletNode) {
+    audioWorkletNode.disconnect();
+    audioWorkletNode = null;
   }
   
   if (microphoneSource) {
