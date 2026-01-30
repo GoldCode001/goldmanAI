@@ -34,16 +34,36 @@ export async function initDesktopAgent() {
     } else if (window.__TAURI_INTERNALS__) {
       console.log('[Desktop Agent] Using window.__TAURI_INTERNALS__');
       invokeFunction = window.__TAURI_INTERNALS__.invoke;
+
+      // DEBUG: Show we're using INTERNALS
+      if (document.body) {
+        const infoDiv = document.createElement('div');
+        infoDiv.style.cssText = 'position:fixed;top:100px;left:10px;background:green;color:white;padding:10px;z-index:99999;font-size:12px;max-width:300px;';
+        infoDiv.textContent = 'Using __TAURI_INTERNALS__.invoke';
+        document.body.appendChild(infoDiv);
+        setTimeout(() => infoDiv.remove(), 10000);
+      }
     } else {
       throw new Error('Tauri API not available - neither __TAURI__ nor __TAURI_INTERNALS__ found');
     }
 
     // Get platform info
+    console.log('[Desktop Agent] Calling get_platform_info...');
     platformInfo = await invokeFunction('get_platform_info');
     tauriAvailable = true;
 
     console.log('[Desktop Agent] SUCCESS! Tauri detected');
     console.log('[Desktop Agent] Platform:', platformInfo);
+
+    // DEBUG: Show success
+    if (document.body) {
+      const successDiv = document.createElement('div');
+      successDiv.style.cssText = 'position:fixed;top:150px;left:10px;background:blue;color:white;padding:10px;z-index:99999;font-size:12px;max-width:300px;';
+      successDiv.innerHTML = `SUCCESS!<br>Platform: ${JSON.stringify(platformInfo)}`;
+      document.body.appendChild(successDiv);
+      setTimeout(() => successDiv.remove(), 10000);
+    }
+
     return true;
 
   } catch (error) {
