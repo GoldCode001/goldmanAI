@@ -106,27 +106,70 @@ export async function runShellCommand(command) {
   }
 
   try {
-    // On Windows, if it's a "start appname" command, try adding .exe
+    // On Windows, if it's a "start appname" command, try multiple approaches
     if (platformInfo?.os === 'windows' && command.toLowerCase().startsWith('start ')) {
-      const appName = command.substring(6).trim(); // Remove "start "
+      const appName = command.substring(6).trim().toLowerCase();
+
+      // Common app locations and names
+      const appPaths = {
+        'telegram': [
+          '%APPDATA%\\Telegram Desktop\\Telegram.exe',
+          '%LOCALAPPDATA%\\Telegram Desktop\\Telegram.exe',
+          'C:\\Program Files\\Telegram Desktop\\Telegram.exe'
+        ],
+        'chrome': [
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+        ],
+        'discord': [
+          '%LOCALAPPDATA%\\Discord\\app-*\\Discord.exe'
+        ],
+        'vscode': [
+          'C:\\Program Files\\Microsoft VS Code\\Code.exe',
+          '%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe'
+        ]
+      };
 
       // Try original command first
       try {
         const result = await invokeFunction('run_shell_command', { command });
         return { success: true, output: result };
       } catch (firstError) {
-        // If failed and doesn't have .exe, try adding it
-        if (!appName.toLowerCase().endsWith('.exe')) {
+        // Try with .exe
+        if (!appName.endsWith('.exe')) {
           try {
             const cmdWithExe = `start ${appName}.exe`;
             const result = await invokeFunction('run_shell_command', { command: cmdWithExe });
             return { success: true, output: result };
           } catch (secondError) {
-            // Return original error
-            return { success: false, error: firstError.toString() };
+            // Try known paths for common apps
+            const baseAppName = appName.replace('.exe', '');
+            if (appPaths[baseAppName]) {
+              for (const path of appPaths[baseAppName]) {
+                try {
+                  const cmdWithPath = `start "" "${path}"`;
+                  const result = await invokeFunction('run_shell_command', { command: cmdWithPath });
+                  return { success: true, output: result };
+                } catch (pathError) {
+                  // Continue trying other paths
+                }
+              }
+            }
           }
         }
-        return { success: false, error: firstError.toString() };
+
+        // Last resort: Try using PowerShell to find the exe
+        try {
+          const searchCmd = `powershell -command "Get-Process -Name '${baseAppName}' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path -First 1 | ForEach-Object { if ($_) { Start-Process -FilePath $_ } else { Get-ChildItem -Path $env:LOCALAPPDATA,$env:APPDATA,'C:\\Program Files','C:\\Program Files (x86)' -Filter '${baseAppName}.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 | ForEach-Object { Start-Process -FilePath $_.FullName } } }"`;
+          const result = await invokeFunction('run_shell_command', { command: searchCmd });
+          return { success: true, output: result };
+        } catch (psError) {
+          // All attempts failed
+          return {
+            success: false,
+            error: `Could not find or start ${appName}. Make sure it's installed.`
+          };
+        }
       }
     }
 

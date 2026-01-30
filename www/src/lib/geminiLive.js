@@ -214,6 +214,22 @@ export async function startGeminiLive() {
           const outputCtx = outputAudioContext;
           if (!outputCtx) return;
 
+          // DEBUG: Check for user transcript in message
+          const userText = msg.serverContent?.modelTurn?.parts?.find(p => p.text)?.text;
+          if (userText && onUserTranscriptUpdate) {
+            console.log('[Gemini Live] User said:', userText);
+            onUserTranscriptUpdate(userText);
+
+            // Show what Gemini heard visually
+            if (document.body) {
+              const heardDiv = document.createElement('div');
+              heardDiv.style.cssText = 'position:fixed;top:550px;left:10px;background:magenta;color:white;padding:10px;z-index:99999;font-size:14px;font-weight:bold;max-width:400px;';
+              heardDiv.innerHTML = `YOU SAID:<br>"${userText}"`;
+              document.body.appendChild(heardDiv);
+              setTimeout(() => heardDiv.remove(), 8000);
+            }
+          }
+
           // Debug: log tool calls only (not audio/text messages)
           if (msg.toolCall) {
             console.log('[Gemini Live] Tool call received:', msg.toolCall.functionCalls?.map(c => c.name).join(', '));
