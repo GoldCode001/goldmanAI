@@ -1040,6 +1040,15 @@ const executors = {
       return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
     }
 
+    // Show command execution visually
+    if (document.body) {
+      const cmdDiv = document.createElement('div');
+      cmdDiv.style.cssText = 'position:fixed;top:500px;left:10px;background:lime;color:black;padding:10px;z-index:99999;font-size:12px;font-weight:bold;max-width:300px;';
+      cmdDiv.innerHTML = `EXECUTING:<br>${command}`;
+      document.body.appendChild(cmdDiv);
+      setTimeout(() => cmdDiv.remove(), 5000);
+    }
+
     console.log('[Tools] Calling DesktopAgent.runShellCommand...');
     const result = await DesktopAgent.runShellCommand(command);
     console.log('[Tools] Result:', result);
