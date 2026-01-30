@@ -106,6 +106,31 @@ export async function runShellCommand(command) {
   }
 
   try {
+    // On Windows, if it's a "start appname" command, try adding .exe
+    if (platformInfo?.os === 'windows' && command.toLowerCase().startsWith('start ')) {
+      const appName = command.substring(6).trim(); // Remove "start "
+
+      // Try original command first
+      try {
+        const result = await invokeFunction('run_shell_command', { command });
+        return { success: true, output: result };
+      } catch (firstError) {
+        // If failed and doesn't have .exe, try adding it
+        if (!appName.toLowerCase().endsWith('.exe')) {
+          try {
+            const cmdWithExe = `start ${appName}.exe`;
+            const result = await invokeFunction('run_shell_command', { command: cmdWithExe });
+            return { success: true, output: result };
+          } catch (secondError) {
+            // Return original error
+            return { success: false, error: firstError.toString() };
+          }
+        }
+        return { success: false, error: firstError.toString() };
+      }
+    }
+
+    // For other commands, execute normally
     const result = await invokeFunction('run_shell_command', { command });
     return { success: true, output: result };
   } catch (error) {
