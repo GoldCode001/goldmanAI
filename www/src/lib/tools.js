@@ -70,11 +70,32 @@ export async function refreshAgentStatus() {
     else platformType = 'web';
 
     console.log('[Tools] Agent status refreshed - Platform:', platformType);
+    console.log('[Tools] desktopAgentAvailable:', desktopAgentAvailable);
+
+    // DEBUG: Show platform type visually
+    if (document.body) {
+      const platformDiv = document.createElement('div');
+      platformDiv.style.cssText = 'position:fixed;top:200px;left:10px;background:purple;color:white;padding:10px;z-index:99999;font-size:14px;font-weight:bold;max-width:300px;';
+      platformDiv.innerHTML = `Platform: ${platformType}<br>Desktop Available: ${desktopAgentAvailable}`;
+      document.body.appendChild(platformDiv);
+      setTimeout(() => platformDiv.remove(), 15000);
+    }
+
     return agentAvailable || desktopAgentAvailable;
   } catch (e) {
     agentAvailable = false;
     desktopAgentAvailable = false;
     platformType = 'web';
+
+    // DEBUG: Show error
+    if (document.body) {
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = 'position:fixed;top:200px;left:10px;background:orange;color:black;padding:10px;z-index:99999;font-size:12px;max-width:300px;';
+      errorDiv.innerHTML = `Platform detection ERROR:<br>${e.message}`;
+      document.body.appendChild(errorDiv);
+      setTimeout(() => errorDiv.remove(), 15000);
+    }
+
     return false;
   }
 }
