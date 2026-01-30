@@ -19,14 +19,15 @@ export async function initDesktopAgent() {
     if (tauriDetected === 'true' && platformStr) {
       platformInfo = JSON.parse(platformStr);
 
-      // Use invoke function from window (IPC persists after redirect)
-      if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
-        invokeFunction = window.__TAURI_INTERNALS__.invoke;
+      // Import Tauri API (now available on Railway since it's in dependencies)
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        invokeFunction = invoke;
         tauriAvailable = true;
-        console.log('[Desktop Agent] Tauri IPC available! Platform:', platformInfo);
+        console.log('[Desktop Agent] Tauri API imported! Platform:', platformInfo);
         return true;
-      } else {
-        console.error('[Desktop Agent] Loader detected Tauri but IPC not available');
+      } catch (importError) {
+        console.error('[Desktop Agent] Failed to import Tauri API:', importError);
         tauriAvailable = false;
         return false;
       }

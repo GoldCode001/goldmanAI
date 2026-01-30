@@ -19,6 +19,7 @@
     "@coinbase/wallet-sdk": "^4.3.7",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.39.7",
+    "@tauri-apps/api": "^2.9.1",
     "animejs": "^4.3.0",
     "ethers": "^6.16.0",
     "express": "^4.19.2"
@@ -26,7 +27,6 @@
   "devDependencies": {
     "@capacitor/cli": "^8.0.1",
     "@capacitor/core": "^8.0.1",
-    "@tauri-apps/api": "^2.9.1",
     "@tauri-apps/cli": "^2.9.6"
   }
 }
