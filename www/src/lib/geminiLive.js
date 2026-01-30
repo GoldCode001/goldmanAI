@@ -332,6 +332,18 @@ export async function startGeminiLive() {
         console.log('[Gemini Live] Registering tools:', tools.length, 'tools');
         console.log('[Gemini Live] Tool names:', tools.map(t => t.name).join(', '));
 
+        // DEBUG: Show registered tools visually
+        const toolNames = tools.map(t => t.name);
+        const hasDesktopTools = ['run_command', 'browser_open', 'keyboard_type'].some(name => toolNames.includes(name));
+
+        if (document.body) {
+          const toolsDiv = document.createElement('div');
+          toolsDiv.style.cssText = 'position:fixed;top:250px;left:10px;background:cyan;color:black;padding:10px;z-index:99999;font-size:11px;font-weight:bold;max-width:350px;max-height:200px;overflow-y:auto;';
+          toolsDiv.innerHTML = `GEMINI TOOLS (${tools.length}):<br>Desktop tools: ${hasDesktopTools ? 'YES' : 'NO'}<br><br>Tools: ${toolNames.join(', ')}`;
+          document.body.appendChild(toolsDiv);
+          setTimeout(() => toolsDiv.remove(), 20000); // 20 seconds
+        }
+
         return {
           responseModalities: [Modality.AUDIO],
           systemInstruction: customSystemPrompt || `You are PAL (Predictive Algorithmic Learning).
