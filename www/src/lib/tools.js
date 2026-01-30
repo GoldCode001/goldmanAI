@@ -346,11 +346,11 @@ export const toolDefinitions = [
 
   {
     name: 'run_command',
-    description: 'Run a shell command on the desktop. Use for terminal commands, scripts, file operations, etc. Available on desktop only.',
+    description: '**PRIMARY TOOL FOR SIMPLE TASKS** - Run ONE shell command on desktop. USE THIS to open apps (e.g., "start telegram"), run programs, execute commands. For SIMPLE single-step actions ONLY. If task needs multiple steps, use run_desktop_task instead. Available on desktop only.',
     parameters: {
       type: 'object',
       properties: {
-        command: { type: 'string', description: 'The shell command to run (e.g., "ls -la", "cd ~/Documents && pwd", "python script.py")' }
+        command: { type: 'string', description: 'Single shell command (e.g., "start telegram", "start chrome", "notepad", "python script.py")' }
       },
       required: ['command']
     }
@@ -422,11 +422,11 @@ export const toolDefinitions = [
   },
   {
     name: 'run_desktop_task',
-    description: 'Run a multi-step autonomous task on desktop. PAL will figure out the steps using shell commands and file operations. Available on desktop only.',
+    description: '**COMPLEX MULTI-STEP TASKS ONLY** - Run autonomous task requiring MULTIPLE commands/steps. DO NOT use for simple app opening (use run_command instead). ONLY use for complex goals like "create a script to organize downloads" or "set up a new project with npm". Available on desktop only.',
     parameters: {
       type: 'object',
       properties: {
-        goal: { type: 'string', description: 'The goal to achieve (e.g., "Create a Python script that sorts files by date")' },
+        goal: { type: 'string', description: 'Complex goal requiring multiple steps (e.g., "Create Python script to sort downloads by date and organize into folders")' },
         max_steps: { type: 'number', description: 'Maximum steps to try (default 20)' }
       },
       required: ['goal']
@@ -1038,6 +1038,15 @@ const executors = {
     if (!desktopAgentAvailable) {
       console.error('[Tools] run_command FAILED: Desktop agent not available');
       return { success: false, error: 'Desktop agent not available. This feature only works on desktop apps.' };
+    }
+
+    // Show command execution visually
+    if (document.body) {
+      const cmdDiv = document.createElement('div');
+      cmdDiv.style.cssText = 'position:fixed;top:500px;left:10px;background:lime;color:black;padding:10px;z-index:99999;font-size:12px;font-weight:bold;max-width:300px;';
+      cmdDiv.innerHTML = `EXECUTING:<br>${command}`;
+      document.body.appendChild(cmdDiv);
+      setTimeout(() => cmdDiv.remove(), 5000);
     }
 
     console.log('[Tools] Calling DesktopAgent.runShellCommand...');
