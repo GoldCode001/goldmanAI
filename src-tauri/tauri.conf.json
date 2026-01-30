@@ -4,8 +4,8 @@
   "identifier": "com.goldmanai.app",
   "build": {
     "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devUrl": "https://goldmanai-production.up.railway.app",
+    "beforeBuildCommand": "npm run build:www",
+    "devUrl": "http://localhost:3000",
     "frontendDist": "../www"
   },
   "bundle": {
@@ -37,7 +37,7 @@
         "decorations": true,
         "alwaysOnTop": false,
         "visible": false,
-        "url": "loader.html"
+        "url": "index.html"
       },
       {
         "label": "bubble",
@@ -51,12 +51,11 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": true,
-        "url": "loader-bubble.html"
+        "url": "bubble.html"
       }
     ],
     "security": {
-      "csp": null,
-      "capabilities": ["remote-api-access"]
+      "csp": null
     }
   },
   "plugins": {}

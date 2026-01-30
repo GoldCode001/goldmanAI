@@ -12,21 +12,6 @@ export async function initDesktopAgent() {
   try {
     console.log('[Desktop Agent] Checking for Tauri environment...');
 
-    // DEBUG: Show visible alert
-    const debugInfo = [];
-    debugInfo.push(`__TAURI__: ${!!window.__TAURI__}`);
-    debugInfo.push(`__TAURI_INTERNALS__: ${!!window.__TAURI_INTERNALS__}`);
-    debugInfo.push(`window keys with TAURI: ${Object.keys(window).filter(k => k.includes('TAURI')).join(', ')}`);
-
-    // Show debug info in page (remove after testing)
-    if (document.body) {
-      const debugDiv = document.createElement('div');
-      debugDiv.style.cssText = 'position:fixed;top:10px;left:10px;background:red;color:white;padding:10px;z-index:99999;font-size:12px;max-width:300px;';
-      debugDiv.innerHTML = debugInfo.join('<br>');
-      document.body.appendChild(debugDiv);
-      setTimeout(() => debugDiv.remove(), 10000); // Remove after 10s
-    }
-
     // Use global Tauri object (injected by Tauri v2)
     if (window.__TAURI__) {
       console.log('[Desktop Agent] Using window.__TAURI__');
@@ -35,7 +20,7 @@ export async function initDesktopAgent() {
       console.log('[Desktop Agent] Using window.__TAURI_INTERNALS__');
       invokeFunction = window.__TAURI_INTERNALS__.invoke;
     } else {
-      throw new Error('Tauri API not available - neither __TAURI__ nor __TAURI_INTERNALS__ found');
+      throw new Error('Tauri API not available');
     }
 
     // Get platform info
@@ -48,16 +33,6 @@ export async function initDesktopAgent() {
 
   } catch (error) {
     console.log('[Desktop Agent] Not running in Tauri:', error.message);
-
-    // Show error visibly
-    if (document.body) {
-      const errorDiv = document.createElement('div');
-      errorDiv.style.cssText = 'position:fixed;top:50px;left:10px;background:darkred;color:white;padding:10px;z-index:99999;font-size:12px;max-width:300px;';
-      errorDiv.innerHTML = `Tauri detection FAILED:<br>${error.message}`;
-      document.body.appendChild(errorDiv);
-      setTimeout(() => errorDiv.remove(), 10000);
-    }
-
     tauriAvailable = false;
     return false;
   }

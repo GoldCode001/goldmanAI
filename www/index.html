@@ -9,8 +9,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="src/styles/main.css">
 
-  <!-- Anime.js for smooth animations -->
-  <script src="https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js"></script>
+  <!-- Anime.js for smooth animations (hosted locally to avoid tracking prevention) -->
+  <script src="src/lib/anime.min.js"></script>
 
   <!-- Import Map for bare modules -->
   <script type="importmap">
@@ -116,6 +116,9 @@
 
   <!-- Settings Button (Top Right Corner) -->
   <button id="settingsBtn" class="settings-btn">⚙️</button>
+
+  <!-- Minimize to Bubble Button (Tauri only) -->
+  <button id="minimizeBubbleBtn" class="minimize-bubble-btn" style="display: none;">_</button>
 
   <!-- Settings Panel (Slides in from right) -->
   <aside id="settingsPanel" class="settings-panel hidden">
