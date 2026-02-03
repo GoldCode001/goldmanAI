@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "identifier": "com.goldmanai.app",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "python -m http.server 3000",
     "beforeBuildCommand": "npm run build:www",
     "devUrl": "http://localhost:3000",
     "frontendDist": "../www"
