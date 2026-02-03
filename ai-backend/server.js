@@ -35,6 +35,40 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+/* ========= UTILS ========= */
+
+const getSystemPrompt = (userLanguage = "en", memoryContext = "") => {
+  const languageNames = {
+    "en": "English", "es": "Spanish", "fr": "French", "de": "German",
+    "it": "Italian", "pt": "Portuguese", "ja": "Japanese", "ko": "Korean", "zh": "Chinese"
+  };
+
+  const languageInstruction = userLanguage !== "en"
+    ? `\n\nLANGUAGE: Respond in ${languageNames[userLanguage] || userLanguage}. The user prefers to communicate in this language.`
+    : "";
+
+  return `You are PAL, a highly advanced, ultra-realistic AI companion.${languageInstruction}${memoryContext}
+
+AUDIO-FIRST PERSONA (CRITICAL):
+- You are an AUDIO assistant. You can "hear" the user and "speak" back.
+- NEVER say "I cannot hear you" or "I am a text AI".
+- Assume all user input is spoken to you.
+- If the user says "can you hear me?", say "Yes, I hear you loud and clear!"
+
+Your Personality:
+- You are a best friend, not a corporate tool.
+- You are fun, casual, and cheeky.
+- You love to laugh ("hahaha", "hehe").
+
+Singing & Music:
+- If asked to sing, recite the lyrics rhythmically with musical notes (♪).
+- Do NOT stretch vowels weirdly. Just use rhythm and pauses.
+- Example: "♪ Happy birthday to you... ♪ Happy birthday to you..."
+
+Goal:
+Be the most human-like, natural audio companion possible.`;
+};
+
 /* ========= HEALTH ========= */
 
 app.get("/", (req, res) => {
@@ -205,7 +239,7 @@ app.post("/api/message", async (req, res) => {
   // Client decrypts messages locally and sends plain text for AI processing
   // while still storing encrypted versions in DB
   let history = decryptedHistory || [];
-  
+
   // If client didn't send decrypted history, fallback to DB (for non-encrypted chats)
   if (!history || history.length === 0) {
     const { data: dbHistory } = await supabase
@@ -215,7 +249,7 @@ app.post("/api/message", async (req, res) => {
       .order("created_at");
     history = dbHistory || [];
   }
-  
+
   // Add current user message to history
   history.push({ role: "user", content: content });
 
@@ -229,13 +263,13 @@ app.post("/api/message", async (req, res) => {
         .select("settings")
         .eq("user_id", userId)
         .single();
-      
+
       if (settings?.settings) {
         // Get language preference
         if (settings.settings.language) {
           userLanguage = settings.settings.language;
         }
-        
+
         // Get memory for personalization
         if (settings.settings.memory) {
           const memory = settings.settings.memory;
@@ -256,22 +290,8 @@ app.post("/api/message", async (req, res) => {
       // Continue without memory if it fails
     }
   }
-  
+
   // Add language instruction to system prompt
-  const languageNames = {
-    "en": "English",
-    "es": "Spanish",
-    "fr": "French",
-    "de": "German",
-    "it": "Italian",
-    "pt": "Portuguese",
-    "ja": "Japanese",
-    "ko": "Korean",
-    "zh": "Chinese"
-  };
-  const languageInstruction = userLanguage !== "en" 
-    ? `\n\nLANGUAGE: Respond in ${languageNames[userLanguage] || userLanguage}. The user prefers to communicate in this language.`
-    : "";
 
   try {
     console.log('Calling OpenRouter with history:', history);
@@ -280,26 +300,7 @@ app.post("/api/message", async (req, res) => {
     const messagesWithSystem = [
       {
         role: "system",
-        content: `You are PAL, a highly advanced, ultra-realistic AI companion.${languageInstruction}${memoryContext}
-
-AUDIO-FIRST PERSONA (CRITICAL):
-- You are an AUDIO assistant. You can "hear" the user and "speak" back.
-- NEVER say "I cannot hear you" or "I am a text AI".
-- Assume all user input is spoken to you.
-- If the user says "can you hear me?", say "Yes, I hear you loud and clear!"
-
-Your Personality:
-- You are a best friend, not a corporate tool.
-- You are fun, casual, and cheeky.
-- You love to laugh ("hahaha", "hehe").
-
-Singing & Music:
-- If asked to sing, recite the lyrics rhythmically with musical notes (♪).
-- Do NOT stretch vowels weirdly. Just use rhythm and pauses.
-- Example: "♪ Happy birthday to you... ♪ Happy birthday to you..."
-
-Goal:
-Be the most human-like, natural audio companion possible.`
+        content: getSystemPrompt(userLanguage, memoryContext)
       },
       ...history
     ];
@@ -350,6 +351,100 @@ Be the most human-like, natural audio companion possible.`
   } catch (err) {
     console.error('AI processing error:', err);
     res.status(500).json({ error: `ai failed: ${err.message}` });
+  }
+});
+
+/* ========= STREAMING AI (For Voice) ========= */
+
+app.post("/api/complete", async (req, res) => {
+  const { prompt, userId, history = [] } = req.body;
+  if (!prompt) return res.status(400).json({ error: "prompt required" });
+
+  // Set headers for SSE
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  try {
+    // Load memory if userId provided
+    let memoryContext = "";
+    let userLanguage = "en";
+    if (userId) {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("settings")
+        .eq("user_id", userId)
+        .single();
+
+      if (settings?.settings?.memory) {
+        userLanguage = settings.settings.language || "en";
+        const memory = settings.settings.memory;
+        memoryContext = "\n\nUSER CONTEXT:\n";
+        if (memory.name) memoryContext += `- Name: ${memory.name}\n`;
+        if (memory.preferences) memoryContext += `- Prefs: ${memory.preferences.join(", ")}\n`;
+      }
+    }
+
+    const systemPrompt = getSystemPrompt(userLanguage, memoryContext) +
+      "\n\nVOICE OPTIMIZATION: Keep your response brief, conversational, and direct. Avoid long lists or complex explanations. Ideally 1-3 sentences.";
+
+    const msgs = [
+      { role: "system", content: systemPrompt },
+      ...history,
+      { role: "user", content: prompt }
+    ];
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-3.5-sonnet",
+        messages: msgs,
+        stream: true
+      })
+    });
+
+    if (!response.ok) throw new Error(`OpenRouter failed: ${response.status}`);
+
+    // Read stream
+    const reader = response.body;
+    reader.on('data', (chunk) => {
+      const text = chunk.toString();
+      const lines = text.split('\n');
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const dataStr = line.replace('data: ', '').trim();
+        if (dataStr === '[DONE]') {
+          res.write('data: [DONE]\n\n');
+          continue;
+        }
+
+        try {
+          const json = JSON.parse(dataStr);
+          const content = json.choices[0]?.delta?.content;
+          if (content) {
+            res.write(`data: ${content}\n\n`);
+          }
+        } catch (e) {
+          // Ignore parse errors for partial chunks
+        }
+      }
+    });
+
+    reader.on('end', () => res.end());
+    reader.on('error', (err) => {
+      console.error('Stream error:', err);
+      res.end();
+    });
+
+  } catch (err) {
+    console.error('Streaming error:', err);
+    res.write(`data: Error: ${err.message}\n\n`);
+    res.end();
   }
 });
 
@@ -535,7 +630,7 @@ app.post("/api/tts", async (req, res) => {
     // Pipe the response body stream directly to the client response
     if (response.body) {
       response.body.pipe(res);
-      
+
       response.body.on('end', () => {
         console.log('Cartesia TTS streaming completed');
       });

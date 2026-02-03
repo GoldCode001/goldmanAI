@@ -21,46 +21,40 @@ export function initCartesia(apiKey) {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
         analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
         analyser.connect(audioContext.destination);
-        console.log('[Cartesia] Initialized');
-    } catch (error) {
-        console.error('[Cartesia] Failed to initialize AudioContext:', error);
+    } catch (e) {
+        console.error('[Cartesia] Failed to init AudioContext:', e);
     }
 }
 
 /**
- * Base64 decode to Float32Array
- */
-function decodeBase64ToFloat32(base64) {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return new Float32Array(bytes.buffer);
-}
-
-/**
- * Check if currently speaking
- */
-export function isCartesiaSpeaking() {
-    return isSpeaking;
-}
-
-/**
- * Stop current speech
+ * Stop any current audio and clear everything
  */
 export function stopSpeaking() {
-    // Stop all scheduled sources
-    for (const source of scheduledSources) {
-        try {
-            source.stop();
-        } catch (e) { }
-    }
-    scheduledSources = [];
-    audioQueue = [];
     isSpeaking = false;
+    audioQueue = [];
     nextStartTime = 0;
+
+    scheduledSources.forEach(source => {
+        try { source.stop(); } catch (e) { }
+    });
+    scheduledSources = [];
+
+    closeSocket();
+
+    if (window.updateFaceMouth) window.updateFaceMouth(0);
+}
+
+function closeSocket() {
+    if (cartesiaSocket) {
+        try {
+            if (cartesiaSocket.readyState === WebSocket.OPEN || cartesiaSocket.readyState === WebSocket.CONNECTING) {
+                cartesiaSocket.close();
+            }
+        } catch (e) { }
+        cartesiaSocket = null;
+    }
 }
 
 /**
@@ -81,12 +75,12 @@ export async function startStreamingSession(voiceId = 'f786b574-daa5-4673-aa0c-c
         await audioContext.resume();
     }
 
-    return new Promise((resolve, reject) => {
-        const socket = new WebSocket(
-            `wss://api.cartesia.ai/tts/websocket?api_key=${cartesiaApiKey}&cartesia_version=2024-06-10`
-        );
+    const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${cartesiaApiKey}&cartesia_version=2024-06-10`;
 
+    return new Promise((resolve, reject) => {
+        const socket = new WebSocket(wsUrl);
         cartesiaSocket = socket;
+        socket.binaryType = 'arraybuffer';
 
         socket.onopen = () => {
             console.log('[Cartesia] Streaming socket connected');
@@ -96,11 +90,11 @@ export async function startStreamingSession(voiceId = 'f786b574-daa5-4673-aa0c-c
         socket.onmessage = (event) => {
             if (socket !== cartesiaSocket) return;
 
-            console.log('[Cartesia] 📩 Raw message received, type:', typeof event.data, 'isArrayBuffer:', event.data instanceof ArrayBuffer);
+            console.log('[Cartesia] 📩 Message received, type:', typeof event.data, 'instanceof ArrayBuffer:', event.data instanceof ArrayBuffer);
 
             if (event.data instanceof ArrayBuffer) {
                 const audioData = new Float32Array(event.data);
-                console.log('[Cartesia] ✅ Received RAW audio chunk:', audioData.length, 'samples');
+                console.log('[Cartesia] ✅ RAW AUDIO:', audioData.length, 'samples');
                 if (audioData.length > 0) {
                     audioQueue.push(audioData);
                     schedulePlayback();
@@ -108,25 +102,25 @@ export async function startStreamingSession(voiceId = 'f786b574-daa5-4673-aa0c-c
             } else {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log('[Cartesia] 📨 Received JSON message:', JSON.stringify(data));
+                    console.log('[Cartesia] 📨 JSON:', JSON.stringify(data).substring(0, 200));
 
                     if (data.type === 'chunk' && data.data) {
                         const audioData = decodeBase64ToFloat32(data.data);
-                        console.log('[Cartesia] ✅ Decoded base64 audio:', audioData.length, 'samples');
+                        console.log('[Cartesia] ✅ Decoded audio:', audioData.length, 'samples');
                         if (audioData.length > 0) {
                             audioQueue.push(audioData);
                             schedulePlayback();
                         }
                     } else if (data.done) {
-                        console.log('[Cartesia] ✅ Generation done signal received');
+                        console.log('[Cartesia] ✅ Done signal');
                     } else if (data.error) {
-                        console.error('[Cartesia] ❌ API Error:', data.error);
+                        console.error('[Cartesia] ❌ ERROR:', data.error);
                     } else {
-                        console.warn('[Cartesia] ⚠️ Unknown message type:', data);
+                        console.warn('[Cartesia] ⚠️ Unknown message:', data);
                     }
                 } catch (e) {
-                    console.error('[Cartesia] ❌ Failed to parse message:', e);
-                    console.log('[Cartesia] Raw data:', event.data);
+                    console.error('[Cartesia] ❌ Parse error:', e);
+                    console.log('[Cartesia] Raw:', event.data.substring(0, 200));
                 }
             }
         };
@@ -154,7 +148,7 @@ export function sendTranscriptFragment(text, voiceId, isFinal = false) {
 
     const request = {
         model_id: 'sonic-english',
-        voice: { mode: 'id', id: voiceId || '69267136-1bdc-412f-ad78-0caad210fb40' },
+        voice: { mode: 'id', id: voiceId || '69267136-1bdc-412f-ad78-0caad210fb40' }, // Friendly Reading Man
         transcript: text,
         output_format: {
             container: 'raw',
@@ -162,7 +156,8 @@ export function sendTranscriptFragment(text, voiceId, isFinal = false) {
             sample_rate: 24000
         },
         context_id: currentContextId,
-        continue: !isFinal
+        continue: !isFinal,
+        add_timestamps: true
     };
 
     console.log('[Cartesia] Sending fragment:', text.substring(0, 30), 'isFinal:', isFinal);
@@ -177,43 +172,78 @@ export function sendTranscriptFragment(text, voiceId, isFinal = false) {
  * Manually signal end of stream
  */
 export function endStreamingSession() {
-    if (cartesiaSocket && cartesiaSocket.readyState === WebSocket.OPEN) {
-        // Optionally close the socket or leave it open for reuse
-        // cartesiaSocket.close();
-    }
+    closeSocket();
 }
 
 /**
- * Schedule playback of queued audio chunks
+ * Backward compatibility function
  */
+export async function speak(text, voiceId) {
+    await startStreamingSession(voiceId);
+    sendTranscriptFragment(text, voiceId, true);
+}
+
+function decodeBase64ToFloat32(base64) {
+    const binary = atob(base64);
+    const buffer = new ArrayBuffer(binary.length);
+    const bytes = new Uint8Array(buffer);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const alignedLength = Math.floor(buffer.byteLength / 4) * 4;
+    return new Float32Array(buffer, 0, alignedLength / 4);
+}
+
+function updateFaceFromAnalyser() {
+    if (!isSpeaking || !analyser) return;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < dataArray.length; i++) {
+        const val = (dataArray[i] - 128) / 128;
+        sum += val * val;
+    }
+    const rms = Math.sqrt(sum / dataArray.length);
+    if (window.updateFaceMouth) window.updateFaceMouth(rms * 6.0);
+    if (isSpeaking) requestAnimationFrame(updateFaceFromAnalyser);
+}
+
 function schedulePlayback() {
-    // We only wait for 1 chunk (approx 100ms) to ensure we have something to play
-    // This reduces latency while still maintaining smooth playback
+    // START IMMEDIATELY for ultra-low latency. 
+    // We only wait for 1 chunk (approx 100ms) to ensure we have something to skip gaps.
     if (!isSpeaking && audioQueue.length >= 1) {
         isSpeaking = true;
         // Ultra-low lead-in: 50ms (previously 80ms)
         nextStartTime = audioContext.currentTime + 0.05;
+        updateFaceFromAnalyser();
     }
 
-    while (audioQueue.length > 0) {
-        const chunk = audioQueue.shift();
-        const buffer = audioContext.createBuffer(1, chunk.length, 24000);
-        buffer.getChannelData(0).set(chunk);
+    if (isSpeaking) {
+        while (audioQueue.length > 0) {
+            const audioData = audioQueue.shift();
+            const audioBuffer = audioContext.createBuffer(1, audioData.length, 24000);
+            audioBuffer.getChannelData(0).set(audioData);
 
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(analyser);
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(analyser);
 
-        source.onended = () => {
-            scheduledSources = scheduledSources.filter(s => s !== source);
-            if (scheduledSources.length === 0 && audioQueue.length === 0) {
-                isSpeaking = false;
+            const currentTime = audioContext.currentTime;
+            // If we're behind, push forward slightly to avoid "broken" sound
+            if (nextStartTime < currentTime) {
+                nextStartTime = currentTime + 0.02;
             }
-        };
 
-        source.start(nextStartTime);
-        scheduledSources.push(source);
+            source.start(nextStartTime);
+            scheduledSources.push(source);
+            nextStartTime += audioBuffer.duration;
 
-        nextStartTime += buffer.duration;
+            source.onended = () => {
+                scheduledSources = scheduledSources.filter(s => s !== source);
+                // If everything is done and socket is gone, we are officially silent
+                if (scheduledSources.length === 0 && audioQueue.length === 0 && !cartesiaSocket) {
+                    isSpeaking = false;
+                    if (window.updateFaceMouth) window.updateFaceMouth(0);
+                }
+            };
+        }
     }
 }
