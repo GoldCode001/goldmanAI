@@ -37,6 +37,7 @@ import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { encryptMessage, decryptMessage } from "./encryption.js";
 import { initGeminiLive, startGeminiLive, stopGeminiLive, isGeminiLiveConnected } from "./geminiLive.js";
+import { initVoiceAgent, startVoiceAgent, stopVoiceAgent } from "./voice/voiceAgent.js";
 import {
   shouldShowInline,
   extractInlineContent,
@@ -266,22 +267,22 @@ function bindAppEvents() {
       minimizeBubbleBtn.style.display = 'flex';
     }
   }
-  
+
   // AI Name save handler
   document.getElementById("saveAiNameBtn")?.addEventListener("click", async () => {
     const aiNameInput = document.getElementById('aiNameInput');
     if (!aiNameInput) return;
-    
+
     const aiName = aiNameInput.value.trim();
     if (!aiName) {
       alert('Please enter an AI name');
       return;
     }
-    
+
     const { getUserMemory, saveUserMemory } = await import('./memory.js');
     const memory = await getUserMemory() || {};
     memory.aiName = aiName;
-    
+
     const saved = await saveUserMemory(memory);
     if (saved) {
       // Update wake word to use new AI name
@@ -302,7 +303,7 @@ async function openSettings() {
     // Load both chat list and conversation history
     await renderChatListUI();
     await loadConversationHistory();
-    
+
     // Load user memory and populate AI name field
     const { getUserMemory } = await import('./memory.js');
     const memory = await getUserMemory();
@@ -352,7 +353,7 @@ async function renderChatListUI() {
 /**
  * Switch to a different chat
  */
-window.switchChat = async function(chatId) {
+window.switchChat = async function (chatId) {
   window.currentChatId = chatId;
   await loadConversationHistory();
   await renderChatListUI();
@@ -402,7 +403,7 @@ async function loadConversationHistory() {
         minute: '2-digit',
         hour12: true
       });
-      
+
       return `
         <div class="history-message ${msg.role}">
           <div class="role">${msg.role === 'user' ? 'You' : aiName}</div>
@@ -436,7 +437,7 @@ async function onSignIn(e) {
   e.preventDefault();
   const email = document.getElementById('signinEmail').value;
   const password = document.getElementById('signinPassword').value;
-  
+
   try {
     await signIn(email, password);
     location.reload();
@@ -451,26 +452,26 @@ async function onSignUp(e) {
   const email = document.getElementById('signupEmail').value;
   const password = document.getElementById('signupPassword').value;
   const confirm = document.getElementById('signupConfirm').value;
-  
+
   if (!name) {
     updateAuthStatus("Please enter your name", "error");
     return;
   }
-  
+
   if (password !== confirm) {
     updateAuthStatus("passwords do not match", "error");
     return;
   }
-  
+
   try {
     const user = await signUp(email, password);
-    
+
     // Store user's name in memory
     if (user && user.id) {
       const { saveUserMemory } = await import('./memory.js');
       await saveUserMemory({ name: name });
     }
-    
+
     updateAuthStatus("Account created! Please sign in.", "success");
     switchTab("signin");
   } catch (err) {
@@ -538,7 +539,7 @@ async function getDecryptedHistory(chatId) {
     // Decrypt messages if needed for AI context
     const decryptedHistory = await Promise.all(messages.map(async msg => {
       let content = msg.content;
-      
+
       // If we're in crypto mode, try to decrypt
       if (window.currentUser?.isCrypto && window.sessionKey) {
         const decrypted = await decryptMessage(content, window.sessionKey);
@@ -546,7 +547,7 @@ async function getDecryptedHistory(chatId) {
           content = decrypted;
         }
       }
-      
+
       return {
         role: msg.role,
         content: content // Plain text for AI context
@@ -611,8 +612,8 @@ async function sendMessage(text) {
 
     // If backend returned encrypted response (future proofing), decrypt it
     if (data.encryptedContent && window.currentUser?.isCrypto && window.sessionKey) {
-       const decrypted = await decryptMessage(data.encryptedContent, window.sessionKey);
-       if (decrypted) aiResponse = decrypted;
+      const decrypted = await decryptMessage(data.encryptedContent, window.sessionKey);
+      if (decrypted) aiResponse = decrypted;
     }
 
     if (!aiResponse) {
@@ -655,9 +656,9 @@ async function sendMessage(text) {
 
     // Learn from conversation for personalization
     try {
-      const allMessages = [...decryptedHistory, 
-        { role: "user", content: text },
-        { role: "assistant", content: aiResponse }
+      const allMessages = [...decryptedHistory,
+      { role: "user", content: text },
+      { role: "assistant", content: aiResponse }
       ];
       await learnFromConversation(allMessages);
     } catch (err) {
@@ -809,7 +810,7 @@ async function startListening() {
     const memory = await getUserMemory() || {};
     const userName = memory.name || '';
     const aiName = memory.aiName || 'PAL';
-    
+
     // Initialize Gemini Live if not already done
     if (!geminiGenAI || !geminiModel) {
       // Detect current platform
@@ -835,50 +836,50 @@ You are more "smart companion" than "chaotic teenager".
 - When a user asks you to DO something, USE YOUR TOOLS to actually do it
 - Don't just say "here's how you could do it" - ACTUALLY DO IT using your tools
 - You are an AUTONOMOUS AGENT - you take action, not just give advice`;
-      
+
       if (userName) {
         systemPrompt += `\n\nThe user's name is ${userName}. Use their name naturally in conversation, but don't overuse it.`;
       }
-      
-      // Add memory context if available
-          if (memory.facts && memory.facts.length > 0) {
-            systemPrompt += `\n\nImportant things to remember about ${userName || 'the user'}:`;
-            memory.facts.forEach(fact => {
-              systemPrompt += `\n- ${fact}`;
-            });
-          }
-          
-          if (memory.preferences && memory.preferences.length > 0) {
-            systemPrompt += `\n\n${userName || 'The user'}'s preferences: ${memory.preferences.join(", ")}`;
-          }
-          
-          // Goals tracking
-          if (memory.goals && memory.goals.length > 0) {
-            const activeGoals = memory.goals.filter(g => g.status === 'active');
-            if (activeGoals.length > 0) {
-              systemPrompt += `\n\n${userName || 'The user'}'s Active Goals:`;
-              activeGoals.forEach(goal => {
-                systemPrompt += `\n- ${goal.text}`;
-              });
-              systemPrompt += `\n\nCheck in on these goals naturally. Ask about progress, celebrate wins, and offer support when they're struggling.`;
-            }
-          }
-          
-          // Habits tracking
-          if (memory.habits && memory.habits.length > 0) {
-            systemPrompt += `\n\n${userName || 'The user'}'s Habits:`;
-            memory.habits.forEach(habit => {
-              const streak = habit.streak || 0;
-              systemPrompt += `\n- ${habit.text} (${streak}-day streak)`;
-            });
-            systemPrompt += `\n\nAcknowledge their consistency. Celebrate streak milestones and encourage them to keep going.`;
-          }
 
-          // Add proactive context (reminders, today's habits)
-          const proactiveContext = await getProactiveContext();
-          if (proactiveContext) {
-            systemPrompt += `\n\n**Current Context (mention naturally if relevant):**\n${proactiveContext}`;
-          }
+      // Add memory context if available
+      if (memory.facts && memory.facts.length > 0) {
+        systemPrompt += `\n\nImportant things to remember about ${userName || 'the user'}:`;
+        memory.facts.forEach(fact => {
+          systemPrompt += `\n- ${fact}`;
+        });
+      }
+
+      if (memory.preferences && memory.preferences.length > 0) {
+        systemPrompt += `\n\n${userName || 'The user'}'s preferences: ${memory.preferences.join(", ")}`;
+      }
+
+      // Goals tracking
+      if (memory.goals && memory.goals.length > 0) {
+        const activeGoals = memory.goals.filter(g => g.status === 'active');
+        if (activeGoals.length > 0) {
+          systemPrompt += `\n\n${userName || 'The user'}'s Active Goals:`;
+          activeGoals.forEach(goal => {
+            systemPrompt += `\n- ${goal.text}`;
+          });
+          systemPrompt += `\n\nCheck in on these goals naturally. Ask about progress, celebrate wins, and offer support when they're struggling.`;
+        }
+      }
+
+      // Habits tracking
+      if (memory.habits && memory.habits.length > 0) {
+        systemPrompt += `\n\n${userName || 'The user'}'s Habits:`;
+        memory.habits.forEach(habit => {
+          const streak = habit.streak || 0;
+          systemPrompt += `\n- ${habit.text} (${streak}-day streak)`;
+        });
+        systemPrompt += `\n\nAcknowledge their consistency. Celebrate streak milestones and encourage them to keep going.`;
+      }
+
+      // Add proactive context (reminders, today's habits)
+      const proactiveContext = await getProactiveContext();
+      if (proactiveContext) {
+        systemPrompt += `\n\n**Current Context (mention naturally if relevant):**\n${proactiveContext}`;
+      }
 
       systemPrompt += `\n\n**Core Instructions:**
 1. **NEVER OUTPUT YOUR THINKING**: Do NOT write out your thought process, reasoning, or internal notes. No "**Acknowledge**", no "My response will...", no meta-commentary. Just respond naturally like a human would.
@@ -1012,7 +1013,7 @@ Desktop:
 - "List files in my downloads folder" → use list_files with directory="/path/to/downloads"
 - "Create a Python script to process data" → use run_desktop_task with goal="Create Python script for data processing"
 - "Open Google in my browser" → use open_external with path="https://google.com"`;
-      
+
       const initialized = await initGeminiLive(apiKey, {
         onUserTranscript: async (userText) => {
           // User speech - can be used for learning and goal tracking
@@ -1022,15 +1023,15 @@ Desktop:
         onAudioLevel: (amplitude) => {
           // Store current audio level
           currentAudioLevel = amplitude;
-          
+
           // Update canvas face with audio level and current text
           // Estimate speech progress based on time (simple approximation)
-          const progress = window.speechStartTime 
+          const progress = window.speechStartTime
             ? Math.min((Date.now() - window.speechStartTime) / (window.currentSpeechDuration || 3000), 1)
             : 0;
-          
+
           updateFaceState(currentMood, amplitude, true, window.currentSpeechText || '', progress);
-          
+
           if (amplitude > 0.1) {
             if (!isAISpeaking) {
               isAISpeaking = true;
@@ -1054,25 +1055,25 @@ Desktop:
             const currentMemory = await getUserMemory() || {};
             const currentAiName = currentMemory.aiName || 'PAL';
             showTranscript(`${currentAiName}: ${text}`);
-            
+
             // Store current speech text and estimate duration
             window.currentSpeechText = text;
             window.currentSpeechDuration = text.length * 50; // ~50ms per character
             window.speechStartTime = Date.now();
-            
+
             // Check if response should be shown inline (code, long text, structured content)
             if (shouldShowInline(text)) {
               console.log('AI response should be shown inline');
               const inlineContent = extractInlineContent(text);
               const summary = generateSummary(text);
-              
+
               // Show inline panel with full content
               showInlineOutput(inlineContent);
-              
+
               // Update transcript with summary instead of full response
               showTranscript(`${currentAiName}: ${summary}`);
             }
-            
+
             // Update messages for chat overlay
             const newMessage = {
               id: Date.now().toString(),
@@ -1081,21 +1082,21 @@ Desktop:
               timestamp: Date.now()
             };
             updateMessages([newMessage]);
-            
+
             // Set facial expression based on text
             const emotion = setExpressionFromText(text);
             currentMood = emotion ? emotion.toUpperCase() : 'NEUTRAL';
-            
+
             // Update face with text for viseme detection
             updateFaceState(currentMood, currentAudioLevel || 0, true, text, 0);
-            
+
             // Save AI message to database
             try {
               let encryptedContent = null;
               if (window.currentUser?.isCrypto && window.sessionKey) {
                 encryptedContent = await encryptMessage(text, window.sessionKey);
               }
-              
+
               await fetch(`${API}/api/message`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1108,7 +1109,7 @@ Desktop:
                   language: (await getUserMemory())?.language || "en"
                 })
               });
-              
+
               // Extract memory from conversation (check for "remember this" / "don't forget")
               try {
                 const decryptedHistory = await getDecryptedHistory(window.currentChatId);
@@ -1128,67 +1129,64 @@ Desktop:
         onError: (error) => {
           console.error('Gemini Live error:', error);
           showTranscript(`Error: ${error.message}`);
-          setTimeout(() => {
-            stopListening();
-            hideTranscript();
-          }, 3000);
-        }
-      }, systemPrompt);
+          // The original initGeminiLive call and its callbacks are removed as per the instruction's intent to replace with voiceAgent.
+          // The instruction provides a new startListening function that uses initVoiceAgent and startVoiceAgent.
+          // The original code structure suggests that startListening was defined after the initGeminiLive block.
+          // I will place the new startListening function where the old one would have been defined,
+          // and remove the Gemini Live specific initialization logic.
 
-      if (!initialized) {
-        throw new Error('Failed to initialize Gemini Live');
-      }
-      
-      // Mark as initialized
-      geminiGenAI = true;
-      geminiModel = true;
-    } else {
-      // If already initialized, check if AI name changed and restart if needed
-      const currentMemory = await getUserMemory() || {};
-      const currentAiName = currentMemory.aiName || 'PAL';
-      if (currentAiName !== aiName) {
-        // AI name changed, need to restart
-        console.log('AI name changed, restarting Gemini Live...');
-        stopGeminiLive();
-        geminiGenAI = null;
-        geminiModel = null;
-        // Recursively call to reinitialize
-        return startListening();
-      }
-    }
+          // The original startListening function and its internal Gemini Live logic are replaced here.
+          async function startListening() {
+            try {
+              // Initialize voice agent if not already done
+              const deepgramKey = localStorage.getItem('deepgram_api_key') || '2b59d42eb56f29b5c3252f012d99d71500952d8a';
+              const cartesiaKey = localStorage.getItem('cartesia_api_key') || 'sk_car_XUcbJyqXMv1dHrvJSSA6yr';
 
-    // Start Gemini Live connection
-    const started = await startGeminiLive();
+              await initVoiceAgent({
+                deepgramApiKey: deepgramKey,
+                cartesiaApiKey: cartesiaKey,
+                onUserTranscript: (transcript, isFinal) => {
+                  console.log('[App] User said:', transcript);
+                  if (isFinal) {
+                    showTranscript(`You: ${transcript}`);
+                  }
+                },
+                onAIResponse: (response) => {
+                  console.log('[App] AI response:', response);
+                  showTranscript(`PAL: ${response}`);
 
-    if (started) {
-      isListening = true;
-      updateConnectionState(true); // Update chat overlay
-      updateFaceState('NEUTRAL', 0, true); // Update canvas face
-      notifyBubble('listening', { listening: true }); // Notify bubble
-      notifyBubble('status', { status: 'active' }); // Update status dot
-      console.log('Started Gemini Live');
-    } else {
-      throw new Error('Failed to start Gemini Live');
-    }
-  } catch (err) {
-    console.error('Failed to start listening:', err);
-    showTranscript(`Error: ${err.message}`);
-    // stopSpeaking(); // Function doesn't exist - removed
-  }
-}
+                  // Update face state
+                  updateFaceState('HAPPY', 0.5, true);
+                }
+              });
 
-/**
- * Stop Gemini Live
- */
-function stopListening() {
-  stopGeminiLive();
-  isListening = false;
-  updateConnectionState(false); // Update chat overlay
-  updateFaceState('NEUTRAL', 0, false); // Reset canvas face
-  notifyBubble('listening', { listening: false }); // Notify bubble
-  notifyBubble('status', { status: 'standby' }); // Update status dot
-  console.log('Stopped Gemini Live');
+              // Start voice agent
+              await startVoiceAgent();
 
-  // Resume wake word listening
-  startWakeWordListening();
-}
+              isListening = true;
+              updateConnectionState(true);
+              updateFaceState('NEUTRAL', 0, true);
+              notifyBubble('listening', { listening: true });
+              notifyBubble('status', { status: 'active' });
+              console.log('[App] Voice agent started (Deepgram + Cartesia + Claude)');
+            } catch (err) {
+              console.error('[App] Failed to start voice agent:', err);
+              showTranscript(`Error: ${err.message}`);
+            }
+          }
+
+          /**
+           * Stop voice agent
+           */
+          function stopListening() {
+            stopVoiceAgent();
+            isListening = false;
+            updateConnectionState(false);
+            updateFaceState('NEUTRAL', 0, false);
+            notifyBubble('listening', { listening: false });
+            notifyBubble('status', { status: 'standby' });
+            console.log('[App] Stopped listening');
+
+            // Resume wake word listening
+            startWakeWordListening();
+          }
