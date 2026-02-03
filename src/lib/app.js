@@ -1129,64 +1129,68 @@ Desktop:
         onError: (error) => {
           console.error('Gemini Live error:', error);
           showTranscript(`Error: ${error.message}`);
-          // The original initGeminiLive call and its callbacks are removed as per the instruction's intent to replace with voiceAgent.
-          // The instruction provides a new startListening function that uses initVoiceAgent and startVoiceAgent.
-          // The original code structure suggests that startListening was defined after the initGeminiLive block.
-          // I will place the new startListening function where the old one would have been defined,
-          // and remove the Gemini Live specific initialization logic.
+        }
+      }, systemPrompt);
+    }
+  } catch (err) {
+    console.error('Error in initialization:', err);
+  }
+}
 
-          // The original startListening function and its internal Gemini Live logic are replaced here.
-          async function startListening() {
-            try {
-              // Initialize voice agent if not already done
-              const deepgramKey = localStorage.getItem('deepgram_api_key') || '2b59d42eb56f29b5c3252f012d99d71500952d8a';
-              const cartesiaKey = localStorage.getItem('cartesia_api_key') || 'sk_car_XUcbJyqXMv1dHrvJSSA6yr';
+/**
+ * Start voice agent
+ */
+async function startListening() {
+  try {
+    // Initialize voice agent if not already done
+    const deepgramKey = localStorage.getItem('deepgram_api_key') || '2b59d42eb56f29b5c3252f012d99d71500952d8a';
+    const cartesiaKey = localStorage.getItem('cartesia_api_key') || 'sk_car_XUcbJyqXMv1dHrvJSSA6yr';
 
-              await initVoiceAgent({
-                deepgramApiKey: deepgramKey,
-                cartesiaApiKey: cartesiaKey,
-                onUserTranscript: (transcript, isFinal) => {
-                  console.log('[App] User said:', transcript);
-                  if (isFinal) {
-                    showTranscript(`You: ${transcript}`);
-                  }
-                },
-                onAIResponse: (response) => {
-                  console.log('[App] AI response:', response);
-                  showTranscript(`PAL: ${response}`);
+    await initVoiceAgent({
+      deepgramApiKey: deepgramKey,
+      cartesiaApiKey: cartesiaKey,
+      onUserTranscript: (transcript, isFinal) => {
+        console.log('[App] User said:', transcript);
+        if (isFinal) {
+          showTranscript(`You: ${transcript}`);
+        }
+      },
+      onAIResponse: (response) => {
+        console.log('[App] AI response:', response);
+        showTranscript(`PAL: ${response}`);
 
-                  // Update face state
-                  updateFaceState('HAPPY', 0.5, true);
-                }
-              });
+        // Update face state
+        updateFaceState('HAPPY', 0.5, true);
+      }
+    });
 
-              // Start voice agent
-              await startVoiceAgent();
+    // Start voice agent
+    await startVoiceAgent();
 
-              isListening = true;
-              updateConnectionState(true);
-              updateFaceState('NEUTRAL', 0, true);
-              notifyBubble('listening', { listening: true });
-              notifyBubble('status', { status: 'active' });
-              console.log('[App] Voice agent started (Deepgram + Cartesia + Claude)');
-            } catch (err) {
-              console.error('[App] Failed to start voice agent:', err);
-              showTranscript(`Error: ${err.message}`);
-            }
-          }
+    isListening = true;
+    updateConnectionState(true);
+    updateFaceState('NEUTRAL', 0, true);
+    notifyBubble('listening', { listening: true });
+    notifyBubble('status', { status: 'active' });
+    console.log('[App] Voice agent started (Deepgram + Cartesia + Claude)');
+  } catch (err) {
+    console.error('[App] Failed to start voice agent:', err);
+    showTranscript(`Error: ${err.message}`);
+  }
+}
 
-          /**
-           * Stop voice agent
-           */
-          function stopListening() {
-            stopVoiceAgent();
-            isListening = false;
-            updateConnectionState(false);
-            updateFaceState('NEUTRAL', 0, false);
-            notifyBubble('listening', { listening: false });
-            notifyBubble('status', { status: 'standby' });
-            console.log('[App] Stopped listening');
+/**
+ * Stop voice agent
+ */
+function stopListening() {
+  stopVoiceAgent();
+  isListening = false;
+  updateConnectionState(false);
+  updateFaceState('NEUTRAL', 0, false);
+  notifyBubble('listening', { listening: false });
+  notifyBubble('status', { status: 'standby' });
+  console.log('[App] Stopped listening');
 
-            // Resume wake word listening
-            startWakeWordListening();
-          }
+  // Resume wake word listening
+  startWakeWordListening();
+}
