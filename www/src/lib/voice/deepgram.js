@@ -44,7 +44,8 @@ export async function startListening() {
 
         // Connect to Deepgram WebSocket
         // Using nova-3 model for high accuracy and low latency
-        const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=true&interim_results=true&smart_format=true`;
+        // endpointing=800 means wait 800ms of silence before finalizing (prevents cutting off user mid-sentence)
+        const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-3&language=en&punctuate=true&interim_results=true&smart_format=true&endpointing=800`;
 
         console.log('[Deepgram] Connecting...');
         deepgramSocket = new WebSocket(wsUrl, ['token', deepgramApiKey]);

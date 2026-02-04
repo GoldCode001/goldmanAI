@@ -38,7 +38,7 @@ export function approveCommand(command) {
  */
 function hasTauri() {
     return typeof window !== 'undefined' &&
-           (window.__TAURI__ || window.__TAURI_INTERNALS__);
+        (window.__TAURI__ || window.__TAURI_INTERNALS__);
 }
 
 /**
@@ -176,15 +176,13 @@ async function executeShell({ command, workingDir }) {
 
 async function executeReadFile({ path }) {
     if (hasTauri()) {
-        const invoke = await getTauriInvoke();
+        // Use PowerShell to read file (more reliable than Tauri plugin)
         try {
-            const { readTextFile } = await import('@tauri-apps/plugin-fs');
-            const content = await readTextFile(path);
-            return { success: true, result: content };
-        } catch (e) {
-            // Fallback to shell
-            const result = await executeShell({ command: `cat "${path}"` });
+            const command = `powershell -Command "Get-Content -Path '${path}' -Raw"`;
+            const result = await executeShell({ command });
             return result;
+        } catch (e) {
+            return { success: false, error: e.message };
         }
     }
     return { success: false, error: 'File read requires Tauri desktop app' };
@@ -192,10 +190,24 @@ async function executeReadFile({ path }) {
 
 async function executeWriteFile({ path, content }) {
     if (hasTauri()) {
+        // Use PowerShell to write file (more reliable than Tauri plugin)
         try {
-            const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-            await writeTextFile(path, content);
-            return { success: true, result: `Written to ${path}` };
+            // Escape content for PowerShell - handle quotes and special chars
+            const escapedContent = content
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '`"')
+                .replace(/\$/g, '`$')
+                .replace(/`/g, '``');
+
+            // Use PowerShell Set-Content which handles encoding well
+            const command = `powershell -Command "Set-Content -Path '${path}' -Value \\"${escapedContent}\\""`;
+            const result = await executeShell({ command });
+
+            if (result.success) {
+                return { success: true, result: `Written to ${path}` };
+            } else {
+                return { success: false, error: result.error };
+            }
         } catch (e) {
             return { success: false, error: e.message };
         }
@@ -205,15 +217,12 @@ async function executeWriteFile({ path, content }) {
 
 async function executeListDir({ path }) {
     if (hasTauri()) {
+        // Use dir command directly (works on Windows)
         try {
-            const { readDir } = await import('@tauri-apps/plugin-fs');
-            const entries = await readDir(path);
-            return { success: true, result: entries };
+            const command = `dir /b "${path}"`;
+            return await executeShell({ command });
         } catch (e) {
-            // Fallback to shell
-            const isWindows = navigator.platform.includes('Win');
-            const cmd = isWindows ? `dir /b "${path}"` : `ls -la "${path}"`;
-            return await executeShell({ command: cmd });
+            return { success: false, error: e.message };
         }
     }
     return { success: false, error: 'List dir requires Tauri desktop app' };
@@ -239,7 +248,7 @@ async function executeOpenBrowser({ url }) {
     return { success: true, result: `Opened ${url} in new tab` };
 }
 
-async function executeOpenApp({ app }) {
+async function executeOpenApp({ app, file }) {
     if (!hasTauri()) {
         return { success: false, error: 'Opening apps requires Tauri desktop app' };
     }
@@ -291,12 +300,28 @@ async function executeOpenApp({ app }) {
         command = `start ${app}`;
     }
 
+    // If a file path is provided, append it to the command
+    if (file) {
+        // For apps that support file arguments
+        if (appLower === 'notepad' || appLower === 'code' || appLower === 'vscode') {
+            command = `${command} "${file}"`;
+        } else if (appLower === 'explorer' || appLower === 'file explorer' || appLower === 'files') {
+            command = `explorer "${file}"`;
+        } else {
+            // Generic: try to open file with the app
+            command = `${command} "${file}"`;
+        }
+    }
+
     console.log(`[Executor] Opening app "${app}" with command: ${command}`);
 
     try {
         const result = await executeShell({ command });
         if (result.success) {
-            return { success: true, result: `Opened ${app}` };
+            // Wait 2 seconds for app to launch and focus
+            await new Promise(r => setTimeout(r, 2000));
+            const msg = file ? `Opened ${app} with ${file}` : `Opened ${app}`;
+            return { success: true, result: msg };
         } else {
             return { success: false, error: `Failed to open ${app}: ${result.error}` };
         }
@@ -306,9 +331,16 @@ async function executeOpenApp({ app }) {
 }
 
 async function executeSystemInfo() {
+    // Detect platform from userAgent (navigator.platform is deprecated)
+    const ua = navigator.userAgent;
+    let platform = 'unknown';
+    if (ua.includes('Win')) platform = 'windows';
+    else if (ua.includes('Mac')) platform = 'macos';
+    else if (ua.includes('Linux')) platform = 'linux';
+
     const info = {
-        platform: navigator.platform,
-        userAgent: navigator.userAgent,
+        platform,
+        userAgent: ua,
         language: navigator.language,
         online: navigator.onLine,
         memory: navigator.deviceMemory || 'unknown',
@@ -320,7 +352,7 @@ async function executeSystemInfo() {
         try {
             const platformInfo = await invoke('get_platform_info');
             info.tauri = platformInfo;
-        } catch (e) {}
+        } catch (e) { }
     }
 
     return { success: true, result: info };
@@ -344,12 +376,27 @@ async function executeClipboardWrite({ text }) {
     }
 }
 
-async function executeScreenshot({ region }) {
+async function executeScreenshot() {
     if (!hasTauri()) {
         return { success: false, error: 'Screenshot requires Tauri desktop app' };
     }
-    // TODO: Implement with Tauri screenshot plugin
-    return { success: false, error: 'Screenshot not yet implemented' };
+
+    // Use PowerShell to take screenshot
+    try {
+        const timestamp = Date.now();
+        const screenshotPath = `C:/Users/Public/pal_screenshot_${timestamp}.png`;
+
+        // PowerShell screenshot command
+        const command = `powershell -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen | ForEach-Object { $bitmap = New-Object System.Drawing.Bitmap($_.Bounds.Width, $_.Bounds.Height); $graphics = [System.Drawing.Graphics]::FromImage($bitmap); $graphics.CopyFromScreen($_.Bounds.Location, [System.Drawing.Point]::Empty, $_.Bounds.Size); $bitmap.Save('${screenshotPath}'); }"`;
+
+        const result = await executeShell({ command });
+        if (result.success) {
+            return { success: true, result: { path: screenshotPath } };
+        }
+        return result;
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
 }
 
 async function executeMouseClick({ x, y, button = 'left' }) {
@@ -424,7 +471,7 @@ async function executeRemember({ key, value }) {
         const stored = JSON.parse(localStorage.getItem('pal_memory') || '{}');
         stored[key] = { value, timestamp: Date.now() };
         localStorage.setItem('pal_memory', JSON.stringify(stored));
-    } catch (e) {}
+    } catch (e) { }
 
     return { success: true, result: `Remembered: ${key}` };
 }
@@ -439,7 +486,7 @@ async function executeRecall({ key }) {
         try {
             const stored = JSON.parse(localStorage.getItem('pal_memory') || '{}');
             Object.keys(stored).forEach(k => all[k] = stored[k].value);
-        } catch (e) {}
+        } catch (e) { }
 
         return { success: true, result: all };
     }
@@ -454,7 +501,7 @@ async function executeRecall({ key }) {
         if (stored[key]) {
             return { success: true, result: stored[key].value };
         }
-    } catch (e) {}
+    } catch (e) { }
 
     return { success: false, error: `No memory found for key: ${key}` };
 }

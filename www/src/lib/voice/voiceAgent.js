@@ -91,7 +91,7 @@ async function defaultApprovalHandler(toolName, params) {
 // Text buffer for smoother TTS (send sentences, not words)
 let textBuffer = '';
 let flushTimeout = null;
-const VOICE_ID = '69267136-1bdc-412f-ad78-0caad210fb40';
+const VOICE_ID = 'e07c00bc-4134-4eae-9ea4-1a55fb45746b';
 const MIN_CHARS_TO_SEND = 40; // Buffer at least 40 chars before sending
 const FLUSH_DELAY_MS = 150; // Or flush after 150ms of no new content
 

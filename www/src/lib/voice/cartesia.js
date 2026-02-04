@@ -90,11 +90,8 @@ export async function startStreamingSession(voiceId = 'f786b574-daa5-4673-aa0c-c
         socket.onmessage = (event) => {
             if (socket !== cartesiaSocket) return;
 
-            console.log('[Cartesia] 📩 Message received, type:', typeof event.data, 'instanceof ArrayBuffer:', event.data instanceof ArrayBuffer);
-
             if (event.data instanceof ArrayBuffer) {
                 const audioData = new Float32Array(event.data);
-                console.log('[Cartesia] ✅ RAW AUDIO:', audioData.length, 'samples');
                 if (audioData.length > 0) {
                     audioQueue.push(audioData);
                     schedulePlayback();
@@ -102,21 +99,19 @@ export async function startStreamingSession(voiceId = 'f786b574-daa5-4673-aa0c-c
             } else {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log('[Cartesia] 📨 JSON:', JSON.stringify(data).substring(0, 200));
 
                     if (data.type === 'chunk' && data.data) {
                         const audioData = decodeBase64ToFloat32(data.data);
-                        console.log('[Cartesia] ✅ Decoded audio:', audioData.length, 'samples');
                         if (audioData.length > 0) {
                             audioQueue.push(audioData);
                             schedulePlayback();
                         }
-                    } else if (data.done) {
-                        console.log('[Cartesia] ✅ Done signal');
+                    } else if (data.type === 'timestamps') {
+                        // Ignore timestamp messages - they're just metadata
+                    } else if (data.done || data.type === 'done') {
+                        console.log('[Cartesia] ✅ Done');
                     } else if (data.error) {
                         console.error('[Cartesia] ❌ ERROR:', data.error);
-                    } else {
-                        console.warn('[Cartesia] ⚠️ Unknown message:', data);
                     }
                 } catch (e) {
                     console.error('[Cartesia] ❌ Parse error:', e);
@@ -208,10 +203,10 @@ function updateFaceFromAnalyser() {
 
 function schedulePlayback() {
     // Buffer more audio before starting for smoother playback
-    // Wait for 3 chunks (~300ms of audio) to handle network variance
-    const MIN_CHUNKS_TO_START = 3;
-    const LEAD_IN_TIME = 0.12; // 120ms lead-in for smoother start
-    const GAP_RECOVERY_TIME = 0.08; // 80ms gap recovery
+    // Wait for 5 chunks (~500ms of audio) to handle network variance
+    const MIN_CHUNKS_TO_START = 5;
+    const LEAD_IN_TIME = 0.15; // 150ms lead-in for smoother start
+    const GAP_RECOVERY_TIME = 0.1; // 100ms gap recovery
 
     if (!isSpeaking && audioQueue.length >= MIN_CHUNKS_TO_START) {
         isSpeaking = true;
@@ -234,7 +229,6 @@ function schedulePlayback() {
             // If we're behind, push forward to avoid gaps/stuttering
             if (nextStartTime < currentTime) {
                 nextStartTime = currentTime + GAP_RECOVERY_TIME;
-                console.log('[Cartesia] ⚠️ Catching up, added gap recovery');
             }
 
             source.start(nextStartTime);
