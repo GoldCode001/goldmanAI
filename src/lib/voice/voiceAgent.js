@@ -166,8 +166,8 @@ async function handleWithTools(transcript) {
 
         console.log('[VoiceAgent] ⚡ Agent response received. Latency:', Date.now() - startTime, 'ms');
 
-        // Now speak the response
-        startStreamingSession(VOICE_ID);
+        // Now speak the response - MUST await for socket to connect first!
+        await startStreamingSession(VOICE_ID);
 
         // Notify callback with full response
         if (onAIResponseCallback) onAIResponseCallback(response);
@@ -187,7 +187,7 @@ async function handleWithTools(transcript) {
     } catch (error) {
         console.error('[VoiceAgent] Tool agent error:', error);
         // Speak error message
-        startStreamingSession(VOICE_ID);
+        await startStreamingSession(VOICE_ID);
         sendTranscriptFragment("Sorry, I encountered an error. " + error.message, VOICE_ID, true);
     }
 }
