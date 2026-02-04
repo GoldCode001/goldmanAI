@@ -36,8 +36,7 @@ import {
 import { checkAuth } from "./supabase.js";
 import { signIn, signUp, signOut } from "./auth.js";
 import { encryptMessage, decryptMessage } from "./encryption.js";
-import { initGeminiLive, startGeminiLive, stopGeminiLive, isGeminiLiveConnected } from "./geminiLive.js";
-import { initVoiceAgent, startVoiceAgent, stopVoiceAgent } from "./voice/voiceAgent.js";
+import { initVoiceAgent, startVoiceAgent, stopVoiceAgent, isVoiceAgentActive } from "./voice/voiceAgent.js";
 import {
   shouldShowInline,
   extractInlineContent,
@@ -89,13 +88,11 @@ async function notifyBubble(type, data) {
   }
 }
 
-// Voice state (Gemini Live)
+// Voice state
 let isListening = false;
 let isAISpeaking = false; // Track if AI is speaking
 let currentMood = 'NEUTRAL'; // For canvas face
 let currentAudioLevel = 0; // Current audio amplitude for face animation
-let geminiGenAI = null; // Track if Gemini is initialized
-let geminiModel = null;
 
 /* ================= BOOT ================= */
 
@@ -145,6 +142,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize autonomous agent (Android + Desktop)
   await initAutonomousAgent();
+
+  // Initialize Voice Agent
+  const cartesiaKey = localStorage.getItem('cartesia_api_key') || 'sk_car_XUcbJyqXMv1dHrvJSSA6yr';
+  const deepgramKey = localStorage.getItem('deepgram_api_key') || '2b59d42eb56f29b5c3252f012d99d71500952d8a';
+
+  await initVoiceAgent({
+    deepgramApiKey: deepgramKey,
+    cartesiaApiKey: cartesiaKey,
+    onUserTranscript: (transcript, isFinal) => {
+      if (isFinal) {
+        showTranscript(`You: ${transcript}`);
+      }
+    },
+    onAIResponse: (content) => {
+      // Update face state or other UI elements if needed
+      isAISpeaking = true;
+      updateFaceState('HAPPY', 0.5, true);
+    }
+  });
 });
 
 /**
@@ -791,59 +807,41 @@ async function handleFaceTap() {
   }
 }
 
-
 /**
- * Start voice agent
+ * Start listening mode using Deepgram + Cartesia pipeline
  */
 async function startListening() {
   try {
-    // Initialize voice agent if not already done
-    const deepgramKey = localStorage.getItem('deepgram_api_key') || '2b59d42eb56f29b5c3252f012d99d71500952d8a';
-    const cartesiaKey = localStorage.getItem('cartesia_api_key') || 'sk_car_XUcbJyqXMv1dHrvJSSA6yr';
+    // Stop wake word listening while PAL is active
+    stopWakeWordListening();
 
-    await initVoiceAgent({
-      deepgramApiKey: deepgramKey,
-      cartesiaApiKey: cartesiaKey,
-      onUserTranscript: (transcript, isFinal) => {
-        console.log('[App] User said:', transcript);
-        if (isFinal) {
-          showTranscript(`You: ${transcript}`);
-        }
-      },
-      onAIResponse: (response) => {
-        console.log('[App] AI response:', response);
-        showTranscript(`PAL: ${response}`);
-
-        // Update face state
-        updateFaceState('HAPPY', 0.5, true);
-      }
-    });
-
-    // Start voice agent
+    // Start Voice Agent
     await startVoiceAgent();
 
     isListening = true;
-    updateConnectionState(true);
-    updateFaceState('NEUTRAL', 0, true);
-    notifyBubble('listening', { listening: true });
-    notifyBubble('status', { status: 'active' });
-    console.log('[App] Voice agent started (Deepgram + Cartesia + Claude)');
+    updateConnectionState(true); // Update chat overlay
+    updateFaceState('NEUTRAL', 0, true); // Update canvas face
+    notifyBubble('listening', { listening: true }); // Notify bubble
+    notifyBubble('status', { status: 'active' }); // Update status dot
+    console.log('[App] Voice agent started');
+
   } catch (err) {
-    console.error('[App] Failed to start voice agent:', err);
+    console.error('Failed to start listening:', err);
     showTranscript(`Error: ${err.message}`);
+    startWakeWordListening(); // Resume wake word if failed
   }
 }
 
 /**
- * Stop voice agent
+ * Stop listening mode
  */
 function stopListening() {
   stopVoiceAgent();
   isListening = false;
-  updateConnectionState(false);
-  updateFaceState('NEUTRAL', 0, false);
-  notifyBubble('listening', { listening: false });
-  notifyBubble('status', { status: 'standby' });
+  updateConnectionState(false); // Update chat overlay
+  updateFaceState('NEUTRAL', 0, false); // Reset canvas face
+  notifyBubble('listening', { listening: false }); // Notify bubble
+  notifyBubble('status', { status: 'standby' }); // Update status dot
   console.log('[App] Stopped listening');
 
   // Resume wake word listening

@@ -448,6 +448,244 @@ app.post("/api/complete", async (req, res) => {
   }
 });
 
+/* ========= AGENT WITH TOOLS ========= */
+
+// Tool definitions for Claude
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'shell',
+      description: 'Execute a shell command on the user\'s computer',
+      parameters: {
+        type: 'object',
+        properties: {
+          command: { type: 'string', description: 'Shell command to execute' }
+        },
+        required: ['command']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_file',
+      description: 'Read contents of a file',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'File path to read' }
+        },
+        required: ['path']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'write_file',
+      description: 'Write content to a file',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'File path' },
+          content: { type: 'string', description: 'Content to write' }
+        },
+        required: ['path', 'content']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_dir',
+      description: 'List files in a directory',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: 'Directory path' }
+        },
+        required: ['path']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'web_search',
+      description: 'Search the internet',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query' }
+        },
+        required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'open_browser',
+      description: 'Open URL in browser',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'URL to open' }
+        },
+        required: ['url']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remember',
+      description: 'Save information to memory',
+      parameters: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'Memory key' },
+          value: { type: 'string', description: 'Value to remember' }
+        },
+        required: ['key', 'value']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'recall',
+      description: 'Recall information from memory',
+      parameters: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'Memory key or "all"' }
+        },
+        required: ['key']
+      }
+    }
+  }
+];
+
+const AGENT_SYSTEM_PROMPT = `You are PAL, an autonomous AI assistant running on the user's computer.
+
+You have access to tools that let you interact with the user's system:
+- Execute shell commands
+- Read and write files
+- Search the web
+- Open URLs
+- Remember information
+
+IMPORTANT RULES:
+1. Use tools when the user asks you to DO something (not just talk about it)
+2. For complex tasks, break them into steps and use tools sequentially
+3. Always explain what you're doing before using a tool
+4. If a command might be destructive, warn the user first
+5. Be concise in voice responses
+
+You are the user's helpful, capable assistant. Take action when asked!`;
+
+app.post("/api/agent", async (req, res) => {
+  const { prompt, userId, history = [], toolResults } = req.body;
+
+  if (!prompt && !toolResults) {
+    return res.status(400).json({ error: "prompt or toolResults required" });
+  }
+
+  try {
+    // Load user memory
+    let memoryContext = "";
+    if (userId) {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("settings")
+        .eq("user_id", userId)
+        .single();
+
+      if (settings?.settings?.memory) {
+        const memory = settings.settings.memory;
+        memoryContext = "\n\nUser info: ";
+        if (memory.name) memoryContext += `Name: ${memory.name}. `;
+        if (memory.preferences) memoryContext += `Preferences: ${memory.preferences.join(", ")}.`;
+      }
+    }
+
+    // Build messages
+    let messages = [
+      { role: "system", content: AGENT_SYSTEM_PROMPT + memoryContext },
+      ...history
+    ];
+
+    // Add new prompt or tool results
+    if (prompt) {
+      messages.push({ role: "user", content: prompt });
+    }
+
+    if (toolResults && Array.isArray(toolResults)) {
+      // Add tool results to messages
+      for (const result of toolResults) {
+        messages.push({
+          role: "tool",
+          tool_call_id: result.tool_call_id,
+          content: JSON.stringify(result.output)
+        });
+      }
+    }
+
+    // Call Claude with tools
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "anthropic/claude-3.5-sonnet",
+        messages,
+        tools: TOOLS,
+        tool_choice: "auto"
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('OpenRouter error:', errText);
+      throw new Error(`OpenRouter failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const choice = data.choices[0];
+    const message = choice.message;
+
+    // Check if Claude wants to use tools
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      // Return tool calls for frontend to execute
+      res.json({
+        type: 'tool_calls',
+        tool_calls: message.tool_calls.map(tc => ({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments)
+        })),
+        // Include the assistant message for history
+        assistantMessage: message
+      });
+    } else {
+      // Regular text response
+      res.json({
+        type: 'response',
+        content: message.content,
+        assistantMessage: message
+      });
+    }
+
+  } catch (err) {
+    console.error('Agent error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ========= PORT ========= */
 
 const PORT = process.env.PORT || 3000;

@@ -46,7 +46,10 @@
       "Bash(wmic process where \"name=''goldman-ai.exe''\" get ProcessId,CommandLine)",
       "Bash(del /F \"c:\\\\Users\\\\goldc\\\\Desktop\\\\ai-assistant-full\\\\src-tauri\\\\target\\\\debug\\\\goldman-ai.exe\")",
       "Bash(dir:*)",
-      "WebFetch(domain:v2.tauri.app)"
+      "WebFetch(domain:v2.tauri.app)",
+      "Bash(curl.exe:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:www:*)"
     ]
   }
 }
