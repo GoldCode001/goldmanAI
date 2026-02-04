@@ -301,29 +301,14 @@ async function executeOpenApp({ app, file }) {
         }
     }
 
-    // Map common app names to Windows commands
-    // IMPORTANT: "start" command needs empty quotes for window title: start "" "app"
-    const appCommands = {
-        'telegram': 'start "" telegram:',  // Use protocol handler
-        'discord': 'start "" discord:',
-        'spotify': 'start "" spotify:',
-        'slack': 'start "" slack:',
+    // Built-in Windows apps that don't need searching
+    const builtInApps = {
         'notepad': 'notepad.exe',
         'calculator': 'calc.exe',
         'calc': 'calc.exe',
         'explorer': 'explorer.exe',
         'file explorer': 'explorer.exe',
         'files': 'explorer.exe',
-        'chrome': 'start "" chrome',
-        'google chrome': 'start "" chrome',
-        'firefox': 'start "" firefox',
-        'edge': 'start "" msedge',
-        'vscode': 'code',
-        'visual studio code': 'code',
-        'word': 'start "" winword',
-        'excel': 'start "" excel',
-        'powerpoint': 'start "" powerpnt',
-        'outlook': 'start "" outlook',
         'terminal': 'wt.exe',
         'windows terminal': 'wt.exe',
         'cmd': 'cmd.exe',
@@ -331,33 +316,98 @@ async function executeOpenApp({ app, file }) {
         'settings': 'start "" ms-settings:',
         'task manager': 'taskmgr.exe',
         'paint': 'mspaint.exe',
-        'snipping tool': 'snippingtool.exe',
-        'obs': 'start "" obs64',
-        'steam': 'start "" steam:',
-        'vlc': 'start "" vlc',
-        'zoom': 'start "" zoommtg:',
-        'teams': 'start "" msteams:',
-        'whatsapp': 'start "" whatsapp:'
+        'snipping tool': 'snippingtool.exe'
     };
 
-    // Find command or try to locate the app
-    let command = appCommands[appLower];
+    let command = builtInApps[appLower];
 
+    // If not a built-in app, SEARCH for it
     if (!command) {
-        // Try to find the app using 'where' command first
-        const whereResult = await executeShell({ command: `where ${app} 2>nul` });
-        if (whereResult.success && whereResult.result && whereResult.result.trim()) {
-            // Found the executable path
-            command = whereResult.result.trim().split('\n')[0];
-        } else {
-            // Last resort: try start with empty title
-            command = `start "" "${app}"`;
+        console.log('[Executor] Searching for app:', app);
+
+        // Known app paths (checked first - fastest)
+        const knownPaths = {
+            'telegram': '%APPDATA%\\Telegram Desktop\\Telegram.exe',
+            'discord': '%LOCALAPPDATA%\\Discord\\Update.exe',
+            'spotify': '%APPDATA%\\Spotify\\Spotify.exe',
+            'chrome': '%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe',
+            'google chrome': '%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe',
+            'firefox': '%ProgramFiles%\\Mozilla Firefox\\firefox.exe',
+            'edge': '%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe',
+            'vscode': 'code',
+            'code': 'code',
+            'visual studio code': 'code',
+            'steam': '%ProgramFiles(x86)%\\Steam\\steam.exe',
+            'vlc': '%ProgramFiles%\\VideoLAN\\VLC\\vlc.exe',
+            'obs': '%ProgramFiles%\\obs-studio\\bin\\64bit\\obs64.exe',
+            'slack': '%LOCALAPPDATA%\\slack\\slack.exe',
+            'zoom': '%APPDATA%\\Zoom\\bin\\Zoom.exe',
+            'whatsapp': '%LOCALAPPDATA%\\WhatsApp\\WhatsApp.exe'
+        };
+
+        // Check known path first
+        if (knownPaths[appLower]) {
+            const knownPath = knownPaths[appLower];
+            if (!knownPath.includes('%')) {
+                // It's a command like 'code', just use it
+                command = knownPath;
+            } else {
+                // Expand and verify the path exists
+                const expandCmd = 'powershell -Command "[Environment]::ExpandEnvironmentVariables(\'' + knownPath + '\')"';
+                const expandResult = await executeShell({ command: expandCmd });
+                if (expandResult.success && expandResult.result) {
+                    const expandedPath = expandResult.result.trim();
+                    const testCmd = 'powershell -Command "if (Test-Path \'' + expandedPath + '\') { \'YES\' } else { \'NO\' }"';
+                    const testResult = await executeShell({ command: testCmd });
+                    if (testResult.success && testResult.result && testResult.result.includes('YES')) {
+                        command = '"' + expandedPath + '"';
+                        console.log('[Executor] Found at known path:', command);
+                    }
+                }
+            }
+        }
+
+        // If not found via known path, search Start Menu shortcuts
+        if (!command) {
+            const searchCmd = 'powershell -Command "Get-ChildItem -Path $env:ProgramData\'\\Microsoft\\Windows\\Start Menu\\Programs\',$env:APPDATA\'\\Microsoft\\Windows\\Start Menu\\Programs\' -Filter \'*' + app + '*.lnk\' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName"';
+            const searchResult = await executeShell({ command: searchCmd });
+
+            if (searchResult.success && searchResult.result && searchResult.result.trim()) {
+                const shortcutPath = searchResult.result.trim();
+                console.log('[Executor] Found shortcut:', shortcutPath);
+
+                // Get the target of the shortcut
+                const targetCmd = 'powershell -Command "$shell = New-Object -ComObject WScript.Shell; $shell.CreateShortcut(\'' + shortcutPath.replace(/'/g, "''") + '\').TargetPath"';
+                const targetResult = await executeShell({ command: targetCmd });
+
+                if (targetResult.success && targetResult.result && targetResult.result.trim()) {
+                    const targetPath = targetResult.result.trim();
+                    console.log('[Executor] Shortcut target:', targetPath);
+                    command = '"' + targetPath + '"';
+                }
+            }
+        }
+
+        // If still not found, search Program Files for exe
+        if (!command) {
+            const searchExeCmd = 'powershell -Command "Get-ChildItem -Path $env:ProgramFiles,${env:ProgramFiles(x86)},$env:LOCALAPPDATA\'\\Programs\' -Filter \'*' + app + '*.exe\' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName"';
+            const searchExeResult = await executeShell({ command: searchExeCmd });
+
+            if (searchExeResult.success && searchExeResult.result && searchExeResult.result.trim()) {
+                command = '"' + searchExeResult.result.trim() + '"';
+                console.log('[Executor] Found exe:', command);
+            }
+        }
+
+        // Last resort: just try start command
+        if (!command) {
+            command = 'start "" "' + app + '"';
+            console.log('[Executor] Using fallback start command');
         }
     }
 
     // Build final command with file if provided
     if (file) {
-        // Normalize file path (forward slashes to backslashes for Windows)
         const normalizedFile = file.replace(/\//g, '\\');
 
         if (appLower === 'notepad' || command === 'notepad.exe') {
@@ -366,29 +416,25 @@ async function executeOpenApp({ app, file }) {
             command = `code "${normalizedFile}"`;
         } else if (appLower === 'explorer' || command === 'explorer.exe') {
             command = `explorer.exe /select,"${normalizedFile}"`;
-        } else {
-            // Generic: append file to command
+        } else if (command.includes('.exe"') || command.endsWith('.exe')) {
+            // Add file to exe command
             command = `${command} "${normalizedFile}"`;
         }
     }
 
-    console.log(`[Executor] Opening app "${app}" with command: ${command}`);
+    console.log(`[Executor] Final command: ${command}`);
 
     try {
         const result = await executeShell({ command });
-        // Give app time to launch
         await new Promise(r => setTimeout(r, 1500));
 
         if (result.success || result.error === '') {
             const msg = file ? `Opened ${app} with ${file}` : `Opened ${app}`;
             return { success: true, result: msg };
         } else {
-            // Some apps return non-zero but still launch successfully
-            // Check if error is actually critical
-            if (result.error && result.error.includes('not recognized')) {
-                return { success: false, error: `App not found: ${app}. Try the exact executable name.` };
+            if (result.error && (result.error.includes('not recognized') || result.error.includes('cannot find'))) {
+                return { success: false, error: `App not found: ${app}. Make sure it's installed.` };
             }
-            // Assume success if no critical error
             const msg = file ? `Opened ${app} with ${file}` : `Opened ${app}`;
             return { success: true, result: msg };
         }
