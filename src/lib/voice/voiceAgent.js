@@ -1,13 +1,20 @@
 /**
  * VoiceAgent - Orchestrates STT, LLM Streaming, and TTS
+ * Now with tool execution support!
  */
 
 import { initDeepgram, startListening as startSTT, stopListening as stopSTT, isDeepgramListening } from './deepgram.js';
 import { initCartesia, startStreamingSession, sendTranscriptFragment, stopSpeaking } from './cartesia.js';
+import { initAgent, sendMessage } from '../tools/agentClient.js';
+import { setApprovalCallback, setAutonomyLevel } from '../tools/executor.js';
 
 let isInitialized = false;
 let onUserTranscriptCallback = null;
 let onAIResponseCallback = null;
+let onToolCallCallback = null;
+let onToolResultCallback = null;
+let useToolsMode = true; // Enable tools by default
+let currentUserId = null;
 
 const API_BASE = "https://aibackend-production-a44f.up.railway.app"; // Optimized primary backend
 
@@ -15,8 +22,20 @@ const API_BASE = "https://aibackend-production-a44f.up.railway.app"; // Optimize
  * Initialize the Voice Agent
  */
 export async function initVoiceAgent(config) {
-    const { deepgramApiKey, cartesiaApiKey, onUserTranscript, onAIResponse } = config;
+    const {
+        deepgramApiKey,
+        cartesiaApiKey,
+        onUserTranscript,
+        onAIResponse,
+        onToolCall,
+        onToolResult,
+        onApproval,
+        userId,
+        autonomyLevel = 'ask', // 'ask', 'allowlist', 'full'
+        enableTools = true
+    } = config;
 
+    // Initialize STT
     initDeepgram(deepgramApiKey, async (transcript, isFinal) => {
         if (onUserTranscript) onUserTranscript(transcript, isFinal);
 
@@ -25,12 +44,48 @@ export async function initVoiceAgent(config) {
         }
     });
 
+    // Initialize TTS
     initCartesia(cartesiaApiKey);
+
+    // Initialize tool system
+    if (enableTools) {
+        initAgent({
+            autonomyLevel,
+            onToolCallCb: (toolCall) => {
+                console.log('[VoiceAgent] 🔧 Tool call:', toolCall.name);
+                if (onToolCall) onToolCall(toolCall);
+            },
+            onToolResultCb: (name, result) => {
+                console.log('[VoiceAgent] ✅ Tool result:', name, result.success);
+                if (onToolResult) onToolResult(name, result);
+            },
+            onApprovalCb: onApproval || defaultApprovalHandler,
+            onThinkingCb: (thinking, status) => {
+                if (thinking) console.log('[VoiceAgent] 💭', status);
+            }
+        });
+    }
 
     onUserTranscriptCallback = onUserTranscript;
     onAIResponseCallback = onAIResponse;
+    onToolCallCallback = onToolCall;
+    onToolResultCallback = onToolResult;
+    useToolsMode = enableTools;
+    currentUserId = userId;
+
     isInitialized = true;
-    console.log('[VoiceAgent] Initialized');
+    console.log('[VoiceAgent] Initialized with tools:', enableTools, 'autonomy:', autonomyLevel);
+}
+
+/**
+ * Default approval handler - speaks the request
+ */
+async function defaultApprovalHandler(toolName, params) {
+    // For voice, we could speak "Should I run this command?" and wait for yes/no
+    // For now, just log and approve (dangerous tools still blocked by default)
+    console.log('[VoiceAgent] 🔐 Approval requested for:', toolName, params);
+    // TODO: Implement voice-based approval
+    return true; // Auto-approve for now (dangerous tools still require explicit approval setup)
 }
 
 // Text buffer for smoother TTS (send sentences, not words)
@@ -89,6 +144,81 @@ async function handleFinalTranscript(transcript) {
         flushTimeout = null;
     }
 
+    // Use tool-enabled agent or simple streaming
+    if (useToolsMode) {
+        await handleWithTools(transcript);
+    } else {
+        await handleStreaming(transcript);
+    }
+}
+
+/**
+ * Handle with tool-enabled agent (can execute commands)
+ */
+async function handleWithTools(transcript) {
+    console.log('[VoiceAgent] 🔧 Using tool-enabled agent');
+
+    try {
+        const startTime = Date.now();
+
+        // Send to agent and wait for response (handles tool loop internally)
+        const response = await sendMessage(transcript, currentUserId);
+
+        console.log('[VoiceAgent] ⚡ Agent response received. Latency:', Date.now() - startTime, 'ms');
+
+        // Now speak the response
+        startStreamingSession(VOICE_ID);
+
+        // Notify callback with full response
+        if (onAIResponseCallback) onAIResponseCallback(response);
+
+        // Send to TTS in chunks for smooth speech
+        const chunks = splitIntoSpeakableChunks(response);
+        for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const isFinal = (i === chunks.length - 1);
+            sendTranscriptFragment(chunk, VOICE_ID, isFinal);
+            // Small delay between chunks for processing
+            if (!isFinal) await new Promise(r => setTimeout(r, 50));
+        }
+
+        console.log('[VoiceAgent] ✅ Tool response spoken. Length:', response.length);
+
+    } catch (error) {
+        console.error('[VoiceAgent] Tool agent error:', error);
+        // Speak error message
+        startStreamingSession(VOICE_ID);
+        sendTranscriptFragment("Sorry, I encountered an error. " + error.message, VOICE_ID, true);
+    }
+}
+
+/**
+ * Split text into speakable chunks (sentences or ~100 chars)
+ */
+function splitIntoSpeakableChunks(text) {
+    const chunks = [];
+    // Split on sentence boundaries
+    const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+
+    for (const sentence of sentences) {
+        if (sentence.length <= 100) {
+            chunks.push(sentence);
+        } else {
+            // Split long sentences on commas or at ~100 char boundaries
+            const parts = sentence.match(/.{1,100}(?:\s|$)/g) || [sentence];
+            chunks.push(...parts);
+        }
+    }
+
+    return chunks.filter(c => c.trim().length > 0);
+}
+
+/**
+ * Handle with simple streaming (no tools, just conversation)
+ */
+async function handleStreaming(transcript) {
+    console.log('[VoiceAgent] 📡 Using streaming mode');
+
     try {
         // Start TTS stream session
         startStreamingSession(VOICE_ID);
@@ -99,6 +229,7 @@ async function handleFinalTranscript(transcript) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompt: transcript,
+                userId: currentUserId,
                 stream: true
             })
         });
@@ -175,4 +306,28 @@ export function stopVoiceAgent() {
  */
 export function isVoiceAgentActive() {
     return isDeepgramListening();
+}
+
+/**
+ * Enable or disable tool mode
+ */
+export function setToolsMode(enabled) {
+    useToolsMode = enabled;
+    console.log('[VoiceAgent] Tools mode:', enabled);
+}
+
+/**
+ * Set current user ID (for personalization)
+ */
+export function setUserId(userId) {
+    currentUserId = userId;
+}
+
+/**
+ * Set autonomy level for tools
+ * @param {'ask' | 'allowlist' | 'full'} level
+ */
+export function setVoiceAutonomy(level) {
+    setAutonomyLevel(level);
+    console.log('[VoiceAgent] Autonomy level:', level);
 }
