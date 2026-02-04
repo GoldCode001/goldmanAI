@@ -122,6 +122,8 @@ export async function executeTool(name, params) {
                 return await executeListDir(params);
             case 'open_browser':
                 return await executeOpenBrowser(params);
+            case 'open_app':
+                return await executeOpenApp(params);
             case 'system_info':
                 return await executeSystemInfo(params);
             case 'clipboard_read':
@@ -218,6 +220,11 @@ async function executeListDir({ path }) {
 }
 
 async function executeOpenBrowser({ url }) {
+    // Validate URL
+    if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        return { success: false, error: `Invalid URL: ${url}. Use open_app for desktop applications.` };
+    }
+
     if (hasTauri()) {
         const invoke = await getTauriInvoke();
         try {
@@ -230,6 +237,72 @@ async function executeOpenBrowser({ url }) {
     // Fallback: open in new tab
     window.open(url, '_blank');
     return { success: true, result: `Opened ${url} in new tab` };
+}
+
+async function executeOpenApp({ app }) {
+    if (!hasTauri()) {
+        return { success: false, error: 'Opening apps requires Tauri desktop app' };
+    }
+
+    // Normalize app name
+    const appLower = app.toLowerCase().trim();
+
+    // Map common app names to Windows commands
+    const appCommands = {
+        'telegram': 'start telegram',
+        'discord': 'start discord',
+        'spotify': 'start spotify',
+        'slack': 'start slack',
+        'notepad': 'notepad',
+        'calculator': 'calc',
+        'calc': 'calc',
+        'explorer': 'explorer',
+        'file explorer': 'explorer',
+        'files': 'explorer',
+        'chrome': 'start chrome',
+        'google chrome': 'start chrome',
+        'firefox': 'start firefox',
+        'edge': 'start msedge',
+        'vscode': 'code',
+        'visual studio code': 'code',
+        'word': 'start winword',
+        'excel': 'start excel',
+        'powerpoint': 'start powerpnt',
+        'outlook': 'start outlook',
+        'terminal': 'start wt',
+        'cmd': 'start cmd',
+        'powershell': 'start powershell',
+        'settings': 'start ms-settings:',
+        'task manager': 'taskmgr',
+        'paint': 'mspaint',
+        'snipping tool': 'snippingtool',
+        'obs': 'start obs64',
+        'steam': 'start steam',
+        'vlc': 'start vlc',
+        'zoom': 'start zoom',
+        'teams': 'start msteams',
+        'whatsapp': 'start whatsapp'
+    };
+
+    // Find command or use generic start
+    let command = appCommands[appLower];
+    if (!command) {
+        // Try generic start command
+        command = `start ${app}`;
+    }
+
+    console.log(`[Executor] Opening app "${app}" with command: ${command}`);
+
+    try {
+        const result = await executeShell({ command });
+        if (result.success) {
+            return { success: true, result: `Opened ${app}` };
+        } else {
+            return { success: false, error: `Failed to open ${app}: ${result.error}` };
+        }
+    } catch (e) {
+        return { success: false, error: `Failed to open ${app}: ${e.message}` };
+    }
 }
 
 async function executeSystemInfo() {

@@ -100,17 +100,34 @@ export const TOOLS = {
     // Open URL in browser
     open_browser: {
         name: 'open_browser',
-        description: 'Open a URL in the default web browser',
+        description: 'Open a URL in the default web browser. Only use for web URLs (http/https).',
         dangerous: false,
         parameters: {
             type: 'object',
             properties: {
                 url: {
                     type: 'string',
-                    description: 'URL to open'
+                    description: 'URL to open (must start with http:// or https://)'
                 }
             },
             required: ['url']
+        }
+    },
+
+    // Open desktop application
+    open_app: {
+        name: 'open_app',
+        description: 'Open a desktop application by name. Examples: telegram, notepad, spotify, discord, chrome, vscode, explorer',
+        dangerous: false,
+        parameters: {
+            type: 'object',
+            properties: {
+                app: {
+                    type: 'string',
+                    description: 'Application name (e.g., telegram, notepad, spotify, discord)'
+                }
+            },
+            required: ['app']
         }
     },
 

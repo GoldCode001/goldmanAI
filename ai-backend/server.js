@@ -527,13 +527,27 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'open_browser',
-      description: 'Open URL in browser',
+      description: 'Open a web URL in the browser. Only for http/https URLs.',
       parameters: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: 'URL to open' }
+          url: { type: 'string', description: 'Web URL to open (must start with http:// or https://)' }
         },
         required: ['url']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'open_app',
+      description: 'Open a desktop application by name. Examples: telegram, notepad, spotify, discord, chrome, vscode, calculator',
+      parameters: {
+        type: 'object',
+        properties: {
+          app: { type: 'string', description: 'Application name (e.g., telegram, notepad, spotify)' }
+        },
+        required: ['app']
       }
     }
   },

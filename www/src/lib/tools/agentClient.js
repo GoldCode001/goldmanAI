@@ -62,6 +62,9 @@ export async function sendMessage(message, userId = null) {
 
     if (onThinking) onThinking(true, 'Thinking...');
 
+    // Track executed tools for fallback response
+    const executedTools = [];
+
     try {
         // Add user message to history
         conversationHistory.push({ role: 'user', content: message });
@@ -92,6 +95,14 @@ export async function sendMessage(message, userId = null) {
                 console.log('[AgentClient] Tool result:', result);
                 if (onToolResult) onToolResult(toolCall.name, result);
 
+                // Track what we executed
+                executedTools.push({
+                    name: toolCall.name,
+                    args: toolCall.arguments,
+                    success: result.success,
+                    result: result.result || result.error
+                });
+
                 toolResults.push({
                     tool_call_id: toolCall.id,
                     output: result
@@ -100,7 +111,16 @@ export async function sendMessage(message, userId = null) {
 
             // Send tool results back to get next response
             if (onThinking) onThinking(true, 'Processing results...');
-            response = await continueWithToolResults(toolResults, userId);
+            try {
+                response = await continueWithToolResults(toolResults, userId);
+            } catch (apiError) {
+                // API failed but tools executed - generate summary response
+                console.warn('[AgentClient] API failed after tools executed, generating summary');
+                const summary = generateToolSummary(executedTools);
+                if (onResponse) onResponse(summary);
+                if (onThinking) onThinking(false);
+                return summary;
+            }
         }
 
         // Got final response
@@ -115,17 +135,60 @@ export async function sendMessage(message, userId = null) {
             if (onResponse) onResponse(response.content);
             return response.content;
         } else {
-            // Exceeded max iterations
-            const fallback = "I've completed several steps. Let me know if you need anything else!";
-            if (onResponse) onResponse(fallback);
-            return fallback;
+            // Exceeded max iterations - generate summary of what was done
+            const summary = generateToolSummary(executedTools);
+            if (onResponse) onResponse(summary);
+            return summary;
         }
 
     } catch (error) {
         console.error('[AgentClient] Error:', error);
         if (onThinking) onThinking(false);
+
+        // If tools were executed, return summary instead of error
+        if (executedTools.length > 0) {
+            const summary = generateToolSummary(executedTools);
+            return summary;
+        }
+
         throw error;
     }
+}
+
+/**
+ * Generate a human-readable summary of executed tools
+ */
+function generateToolSummary(executedTools) {
+    if (executedTools.length === 0) {
+        return "I couldn't complete the task.";
+    }
+
+    const successful = executedTools.filter(t => t.success);
+    const failed = executedTools.filter(t => !t.success);
+
+    let summary = "";
+
+    if (successful.length > 0) {
+        const actions = successful.map(t => {
+            switch (t.name) {
+                case 'open_app': return `opened ${t.args.app}`;
+                case 'open_browser': return `opened ${t.args.url}`;
+                case 'shell': return `ran a command`;
+                case 'write_file': return `saved a file`;
+                case 'read_file': return `read a file`;
+                case 'remember': return `remembered ${t.args.key}`;
+                case 'web_search': return `searched the web`;
+                default: return `completed ${t.name}`;
+            }
+        });
+        summary = "Done! I " + actions.join(", then ") + ".";
+    }
+
+    if (failed.length > 0 && successful.length === 0) {
+        summary = "Sorry, I couldn't complete that. " + failed[0].result;
+    }
+
+    return summary || "Task completed.";
 }
 
 /**
