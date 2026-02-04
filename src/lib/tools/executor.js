@@ -190,21 +190,56 @@ async function executeReadFile({ path }) {
 
 async function executeWriteFile({ path, content }) {
     if (hasTauri()) {
-        // Use PowerShell to write file (more reliable than Tauri plugin)
         try {
-            // Escape content for PowerShell - handle quotes and special chars
-            const escapedContent = content
-                .replace(/\\/g, '\\\\')
-                .replace(/"/g, '`"')
-                .replace(/\$/g, '`$')
-                .replace(/`/g, '``');
+            // Use base64 encoding to avoid ALL escaping issues
+            // Convert to UTF-8 bytes then base64
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(content);
+            const base64Content = btoa(String.fromCharCode(...bytes));
 
-            // Use PowerShell Set-Content which handles encoding well
-            const command = `powershell -Command "Set-Content -Path '${path}' -Value \\"${escapedContent}\\""`;
+            // Ensure PAL directory exists
+            const palDir = 'C:\\Users\\Public\\PAL';
+            await executeShell({
+                command: `powershell -Command "if (!(Test-Path '${palDir}')) { New-Item -ItemType Directory -Path '${palDir}' -Force }"`
+            });
+
+            // Also ensure subdirectories exist
+            const subdirs = ['Stories', 'Notes', 'Scripts', 'Downloads'];
+            for (const subdir of subdirs) {
+                await executeShell({
+                    command: `powershell -Command "if (!(Test-Path '${palDir}\\${subdir}')) { New-Item -ItemType Directory -Path '${palDir}\\${subdir}' -Force }"`
+                });
+            }
+
+            // Normalize path - if user gives a simple filename, put it in the right folder
+            let finalPath = path;
+            if (!path.includes(':') && !path.includes('\\') && !path.includes('/')) {
+                // Just a filename - put in appropriate PAL subfolder
+                if (path.endsWith('.txt') || path.endsWith('.md')) {
+                    finalPath = `${palDir}\\Stories\\${path}`;
+                } else if (path.endsWith('.ps1') || path.endsWith('.py') || path.endsWith('.js')) {
+                    finalPath = `${palDir}\\Scripts\\${path}`;
+                } else {
+                    finalPath = `${palDir}\\Notes\\${path}`;
+                }
+            }
+
+            // Ensure parent directory of the file exists
+            const parentDir = finalPath.replace(/[/\\][^/\\]+$/, '');
+            if (parentDir && parentDir !== finalPath) {
+                await executeShell({
+                    command: `powershell -Command "if (!(Test-Path '${parentDir.replace(/\//g, '\\\\')}')) { New-Item -ItemType Directory -Path '${parentDir.replace(/\//g, '\\\\')}' -Force }"`
+                });
+            }
+
+            // Write file using base64 decode - no escaping needed!
+            const normalizedPath = finalPath.replace(/\//g, '\\\\');
+            const command = `powershell -Command "[System.IO.File]::WriteAllText('${normalizedPath}', [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${base64Content}')))"`;
+
             const result = await executeShell({ command });
 
-            if (result.success) {
-                return { success: true, result: `Written to ${path}` };
+            if (result.success || result.error === '') {
+                return { success: true, result: `Written to ${finalPath}` };
             } else {
                 return { success: false, error: result.error };
             }
