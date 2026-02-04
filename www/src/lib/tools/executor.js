@@ -321,85 +321,63 @@ async function executeOpenApp({ app, file }) {
 
     let command = builtInApps[appLower];
 
-    // If not a built-in app, SEARCH for it
+    // If not a built-in app, SEARCH THE ENTIRE PC for it
     if (!command) {
-        console.log('[Executor] Searching for app:', app);
+        console.log('[Executor] Searching entire PC for:', app);
 
-        // Known app paths (checked first - fastest)
-        const knownPaths = {
-            'telegram': '%APPDATA%\\Telegram Desktop\\Telegram.exe',
-            'discord': '%LOCALAPPDATA%\\Discord\\Update.exe',
-            'spotify': '%APPDATA%\\Spotify\\Spotify.exe',
-            'chrome': '%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe',
-            'google chrome': '%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe',
-            'firefox': '%ProgramFiles%\\Mozilla Firefox\\firefox.exe',
-            'edge': '%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe',
-            'vscode': 'code',
-            'code': 'code',
-            'visual studio code': 'code',
-            'steam': '%ProgramFiles(x86)%\\Steam\\steam.exe',
-            'vlc': '%ProgramFiles%\\VideoLAN\\VLC\\vlc.exe',
-            'obs': '%ProgramFiles%\\obs-studio\\bin\\64bit\\obs64.exe',
-            'slack': '%LOCALAPPDATA%\\slack\\slack.exe',
-            'zoom': '%APPDATA%\\Zoom\\bin\\Zoom.exe',
-            'whatsapp': '%LOCALAPPDATA%\\WhatsApp\\WhatsApp.exe'
-        };
+        // Search directories array - check ALL of these
+        const searchDirs = [
+            '$env:APPDATA',
+            '$env:LOCALAPPDATA',
+            '$env:ProgramFiles',
+            '${env:ProgramFiles(x86)}',
+            '$env:LOCALAPPDATA\\Programs',
+            '$env:ProgramData\\Microsoft\\Windows\\Start Menu\\Programs',
+            '$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs'
+        ];
 
-        // Check known path first
-        if (knownPaths[appLower]) {
-            const knownPath = knownPaths[appLower];
-            if (!knownPath.includes('%')) {
-                // It's a command like 'code', just use it
-                command = knownPath;
-            } else {
-                // Expand and verify the path exists
-                const expandCmd = 'powershell -Command "[Environment]::ExpandEnvironmentVariables(\'' + knownPath + '\')"';
-                const expandResult = await executeShell({ command: expandCmd });
-                if (expandResult.success && expandResult.result) {
-                    const expandedPath = expandResult.result.trim();
-                    const testCmd = 'powershell -Command "if (Test-Path \'' + expandedPath + '\') { \'YES\' } else { \'NO\' }"';
-                    const testResult = await executeShell({ command: testCmd });
-                    if (testResult.success && testResult.result && testResult.result.includes('YES')) {
-                        command = '"' + expandedPath + '"';
-                        console.log('[Executor] Found at known path:', command);
-                    }
-                }
-            }
+        // 1. FIRST: Search for the actual .exe file across all directories
+        const searchExeCmd = `powershell -Command "$dirs = @(${searchDirs.join(',')}); $found = $null; foreach ($dir in $dirs) { if (Test-Path $dir) { $exe = Get-ChildItem -Path $dir -Filter '*${app}*.exe' -Recurse -Depth 5 -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'uninstall|setup|update' } | Select-Object -First 1; if ($exe) { $found = $exe.FullName; break } } }; if ($found) { Write-Output $found } else { Write-Output 'NOT_FOUND' }"`;
+
+        console.log('[Executor] Searching for exe...');
+        const exeResult = await executeShell({ command: searchExeCmd });
+
+        if (exeResult.success && exeResult.result && !exeResult.result.includes('NOT_FOUND')) {
+            const exePath = exeResult.result.trim();
+            console.log('[Executor] Found exe at:', exePath);
+            command = '"' + exePath + '"';
         }
 
-        // If not found via known path, search Start Menu shortcuts
+        // 2. If no exe found, try Start Menu shortcuts
         if (!command) {
-            const searchCmd = 'powershell -Command "Get-ChildItem -Path $env:ProgramData\'\\Microsoft\\Windows\\Start Menu\\Programs\',$env:APPDATA\'\\Microsoft\\Windows\\Start Menu\\Programs\' -Filter \'*' + app + '*.lnk\' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName"';
-            const searchResult = await executeShell({ command: searchCmd });
+            console.log('[Executor] No exe found, searching shortcuts...');
+            const shortcutCmd = `powershell -Command "$lnk = Get-ChildItem -Path $env:ProgramData'\\Microsoft\\Windows\\Start Menu\\Programs',$env:APPDATA'\\Microsoft\\Windows\\Start Menu\\Programs' -Filter '*${app}*.lnk' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1; if ($lnk) { $shell = New-Object -ComObject WScript.Shell; $target = $shell.CreateShortcut($lnk.FullName).TargetPath; if ($target) { Write-Output $target } else { Write-Output 'NO_TARGET' } } else { Write-Output 'NO_SHORTCUT' }"`;
 
-            if (searchResult.success && searchResult.result && searchResult.result.trim()) {
-                const shortcutPath = searchResult.result.trim();
-                console.log('[Executor] Found shortcut:', shortcutPath);
+            const shortcutResult = await executeShell({ command: shortcutCmd });
 
-                // Get the target of the shortcut
-                const targetCmd = 'powershell -Command "$shell = New-Object -ComObject WScript.Shell; $shell.CreateShortcut(\'' + shortcutPath.replace(/'/g, "''") + '\').TargetPath"';
-                const targetResult = await executeShell({ command: targetCmd });
-
-                if (targetResult.success && targetResult.result && targetResult.result.trim()) {
-                    const targetPath = targetResult.result.trim();
-                    console.log('[Executor] Shortcut target:', targetPath);
-                    command = '"' + targetPath + '"';
-                }
+            if (shortcutResult.success && shortcutResult.result &&
+                !shortcutResult.result.includes('NO_TARGET') &&
+                !shortcutResult.result.includes('NO_SHORTCUT')) {
+                const targetPath = shortcutResult.result.trim();
+                console.log('[Executor] Found via shortcut:', targetPath);
+                command = '"' + targetPath + '"';
             }
         }
 
-        // If still not found, search Program Files for exe
+        // 3. Special handling for common apps (as backup)
         if (!command) {
-            const searchExeCmd = 'powershell -Command "Get-ChildItem -Path $env:ProgramFiles,${env:ProgramFiles(x86)},$env:LOCALAPPDATA\'\\Programs\' -Filter \'*' + app + '*.exe\' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName"';
-            const searchExeResult = await executeShell({ command: searchExeCmd });
-
-            if (searchExeResult.success && searchExeResult.result && searchExeResult.result.trim()) {
-                command = '"' + searchExeResult.result.trim() + '"';
-                console.log('[Executor] Found exe:', command);
+            const specialCommands = {
+                'vscode': 'code',
+                'code': 'code',
+                'visual studio code': 'code'
+            };
+            if (specialCommands[appLower]) {
+                command = specialCommands[appLower];
+                console.log('[Executor] Using special command:', command);
             }
         }
 
-        // Last resort: just try start command
+        // 4. Last resort: try start command
         if (!command) {
             command = 'start "" "' + app + '"';
             console.log('[Executor] Using fallback start command');
