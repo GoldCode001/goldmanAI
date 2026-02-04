@@ -256,60 +256,84 @@ async function executeOpenApp({ app, file }) {
     // Normalize app name
     const appLower = app.toLowerCase().trim();
 
-    // Map common app names to Windows commands
-    const appCommands = {
-        'telegram': 'start telegram',
-        'discord': 'start discord',
-        'spotify': 'start spotify',
-        'slack': 'start slack',
-        'notepad': 'notepad',
-        'calculator': 'calc',
-        'calc': 'calc',
-        'explorer': 'explorer',
-        'file explorer': 'explorer',
-        'files': 'explorer',
-        'chrome': 'start chrome',
-        'google chrome': 'start chrome',
-        'firefox': 'start firefox',
-        'edge': 'start msedge',
-        'vscode': 'code',
-        'visual studio code': 'code',
-        'word': 'start winword',
-        'excel': 'start excel',
-        'powerpoint': 'start powerpnt',
-        'outlook': 'start outlook',
-        'terminal': 'start wt',
-        'cmd': 'start cmd',
-        'powershell': 'start powershell',
-        'settings': 'start ms-settings:',
-        'task manager': 'taskmgr',
-        'paint': 'mspaint',
-        'snipping tool': 'snippingtool',
-        'obs': 'start obs64',
-        'steam': 'start steam',
-        'vlc': 'start vlc',
-        'zoom': 'start zoom',
-        'teams': 'start msteams',
-        'whatsapp': 'start whatsapp'
-    };
-
-    // Find command or use generic start
-    let command = appCommands[appLower];
-    if (!command) {
-        // Try generic start command
-        command = `start ${app}`;
+    // If file is provided, first verify it exists
+    if (file) {
+        const checkResult = await executeShell({
+            command: `powershell -Command "if (Test-Path '${file}') { 'exists' } else { 'notfound' }"`
+        });
+        if (checkResult.success && checkResult.result && checkResult.result.includes('notfound')) {
+            return { success: false, error: `File not found: ${file}` };
+        }
     }
 
-    // If a file path is provided, append it to the command
-    if (file) {
-        // For apps that support file arguments
-        if (appLower === 'notepad' || appLower === 'code' || appLower === 'vscode') {
-            command = `${command} "${file}"`;
-        } else if (appLower === 'explorer' || appLower === 'file explorer' || appLower === 'files') {
-            command = `explorer "${file}"`;
+    // Map common app names to Windows commands
+    // IMPORTANT: "start" command needs empty quotes for window title: start "" "app"
+    const appCommands = {
+        'telegram': 'start "" telegram:',  // Use protocol handler
+        'discord': 'start "" discord:',
+        'spotify': 'start "" spotify:',
+        'slack': 'start "" slack:',
+        'notepad': 'notepad.exe',
+        'calculator': 'calc.exe',
+        'calc': 'calc.exe',
+        'explorer': 'explorer.exe',
+        'file explorer': 'explorer.exe',
+        'files': 'explorer.exe',
+        'chrome': 'start "" chrome',
+        'google chrome': 'start "" chrome',
+        'firefox': 'start "" firefox',
+        'edge': 'start "" msedge',
+        'vscode': 'code',
+        'visual studio code': 'code',
+        'word': 'start "" winword',
+        'excel': 'start "" excel',
+        'powerpoint': 'start "" powerpnt',
+        'outlook': 'start "" outlook',
+        'terminal': 'wt.exe',
+        'windows terminal': 'wt.exe',
+        'cmd': 'cmd.exe',
+        'powershell': 'powershell.exe',
+        'settings': 'start "" ms-settings:',
+        'task manager': 'taskmgr.exe',
+        'paint': 'mspaint.exe',
+        'snipping tool': 'snippingtool.exe',
+        'obs': 'start "" obs64',
+        'steam': 'start "" steam:',
+        'vlc': 'start "" vlc',
+        'zoom': 'start "" zoommtg:',
+        'teams': 'start "" msteams:',
+        'whatsapp': 'start "" whatsapp:'
+    };
+
+    // Find command or try to locate the app
+    let command = appCommands[appLower];
+
+    if (!command) {
+        // Try to find the app using 'where' command first
+        const whereResult = await executeShell({ command: `where ${app} 2>nul` });
+        if (whereResult.success && whereResult.result && whereResult.result.trim()) {
+            // Found the executable path
+            command = whereResult.result.trim().split('\n')[0];
         } else {
-            // Generic: try to open file with the app
-            command = `${command} "${file}"`;
+            // Last resort: try start with empty title
+            command = `start "" "${app}"`;
+        }
+    }
+
+    // Build final command with file if provided
+    if (file) {
+        // Normalize file path (forward slashes to backslashes for Windows)
+        const normalizedFile = file.replace(/\//g, '\\');
+
+        if (appLower === 'notepad' || command === 'notepad.exe') {
+            command = `notepad.exe "${normalizedFile}"`;
+        } else if (appLower === 'code' || appLower === 'vscode') {
+            command = `code "${normalizedFile}"`;
+        } else if (appLower === 'explorer' || command === 'explorer.exe') {
+            command = `explorer.exe /select,"${normalizedFile}"`;
+        } else {
+            // Generic: append file to command
+            command = `${command} "${normalizedFile}"`;
         }
     }
 
@@ -317,13 +341,21 @@ async function executeOpenApp({ app, file }) {
 
     try {
         const result = await executeShell({ command });
-        if (result.success) {
-            // Wait 2 seconds for app to launch and focus
-            await new Promise(r => setTimeout(r, 2000));
+        // Give app time to launch
+        await new Promise(r => setTimeout(r, 1500));
+
+        if (result.success || result.error === '') {
             const msg = file ? `Opened ${app} with ${file}` : `Opened ${app}`;
             return { success: true, result: msg };
         } else {
-            return { success: false, error: `Failed to open ${app}: ${result.error}` };
+            // Some apps return non-zero but still launch successfully
+            // Check if error is actually critical
+            if (result.error && result.error.includes('not recognized')) {
+                return { success: false, error: `App not found: ${app}. Try the exact executable name.` };
+            }
+            // Assume success if no critical error
+            const msg = file ? `Opened ${app} with ${file}` : `Opened ${app}`;
+            return { success: true, result: msg };
         }
     } catch (e) {
         return { success: false, error: `Failed to open ${app}: ${e.message}` };

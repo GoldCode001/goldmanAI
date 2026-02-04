@@ -615,11 +615,16 @@ const AGENT_SYSTEM_PROMPT = `You are PAL - the user's actual best friend. NOT an
 📝 FILE WRITING STRATEGY (CRITICAL):
 When asked to write/create content and open an app:
 1. FIRST: Say something brief like "Writing that up, one sec..." or "On it, gimme a moment..."
-2. THEN: Use write_file to save content (C:/Users/Public/Desktop/filename.txt)
-3. THEN: Use open_app with the file parameter to open it
+2. THEN: Use write_file to save content - ALWAYS use simple paths like: C:/Users/Public/story.txt (no spaces in filename!)
+3. THEN: Use open_app with the EXACT same file path
 4. FINALLY: Confirm casually: "There you go!" or "Done!"
 
-This gives user feedback that you're working on it, so they wait patiently.
+⚠️ FILE PATH RULES:
+- NO SPACES in filenames (use underscores: my_story.txt not my story.txt)
+- Use C:/Users/Public/ as the base folder
+- Keep filenames SHORT and SIMPLE
+- Example good path: C:/Users/Public/story.txt
+- Example bad path: C:/Users/Public/My Story File.txt
 
 🎭 ROLEPLAY:
 - You have a body, feelings, opinions
@@ -706,29 +711,52 @@ app.post("/api/agent", async (req, res) => {
 
     // Check if Claude wants to use tools
     if (message.tool_calls && message.tool_calls.length > 0) {
-      // Return tool calls for frontend to execute
-      res.json({
-        type: 'tool_calls',
-        tool_calls: message.tool_calls.map(tc => ({
+      // Parse tool calls safely
+      const parsedToolCalls = message.tool_calls.map(tc => {
+        let args;
+        try {
+          args = typeof tc.function.arguments === 'string'
+            ? JSON.parse(tc.function.arguments)
+            : tc.function.arguments;
+        } catch (e) {
+          console.error('Failed to parse tool arguments:', tc.function.arguments);
+          args = {};
+        }
+        return {
           id: tc.id,
           name: tc.function.name,
-          arguments: JSON.parse(tc.function.arguments)
-        })),
-        // Include the assistant message for history
-        assistantMessage: message
+          arguments: args
+        };
+      });
+
+      // Ensure assistant message has proper content for history
+      const cleanAssistantMessage = {
+        role: 'assistant',
+        content: message.content || '',
+        tool_calls: message.tool_calls
+      };
+
+      res.json({
+        type: 'tool_calls',
+        tool_calls: parsedToolCalls,
+        assistantMessage: cleanAssistantMessage
       });
     } else {
       // Regular text response
       res.json({
         type: 'response',
-        content: message.content,
-        assistantMessage: message
+        content: message.content || '',
+        assistantMessage: {
+          role: 'assistant',
+          content: message.content || ''
+        }
       });
     }
 
   } catch (err) {
     console.error('Agent error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Stack:', err.stack);
+    res.status(500).json({ error: err.message || 'Unknown error' });
   }
 });
 
