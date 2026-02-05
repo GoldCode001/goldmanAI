@@ -322,37 +322,32 @@ async function executeOpenApp({ app, file }) {
     let command = builtInApps[appLower];
     let exePath = null;
 
-    // If not a built-in app, SEARCH for it
+    // If not a built-in app, SEARCH for it using dir /s /b
     if (!command) {
         console.log('[Executor] Searching for:', app);
 
-        // Simple search using dir command - find any exe matching the app name
-        // Search common locations one by one
+        // Use %APPDATA% etc directly - cmd.exe expands these automatically
         const searchLocations = [
-            process.env.APPDATA,
-            process.env.LOCALAPPDATA,
-            process.env.ProgramFiles,
-            process.env['ProgramFiles(x86)'],
-            'C:\\Program Files',
-            'C:\\Program Files (x86)'
+            '%APPDATA%',
+            '%LOCALAPPDATA%',
+            '%ProgramFiles%',
+            '%ProgramFiles(x86)%',
+            '%LOCALAPPDATA%\\Programs'
         ];
 
         for (const loc of searchLocations) {
-            if (!loc) continue;
-
-            // Use dir to find the exe - simple and reliable
-            const searchCmd = `dir /s /b "${loc}\\*${app}*.exe" 2>nul`;
+            const searchCmd = 'dir /s /b "' + loc + '\\*' + app + '*.exe" 2>nul';
             console.log('[Executor] Searching in:', loc);
 
             const result = await executeShell({ command: searchCmd });
 
             if (result.success && result.result && result.result.trim()) {
-                // Get first result that's not uninstall/setup
                 const lines = result.result.trim().split('\n');
                 for (const line of lines) {
-                    const path = line.trim();
-                    if (path && !path.toLowerCase().includes('uninstall') && !path.toLowerCase().includes('setup')) {
-                        exePath = path;
+                    const p = line.trim();
+                    const pLower = p.toLowerCase();
+                    if (p && !pLower.includes('uninstall') && !pLower.includes('setup') && !pLower.includes('updater')) {
+                        exePath = p;
                         console.log('[Executor] FOUND:', exePath);
                         break;
                     }
@@ -361,17 +356,12 @@ async function executeOpenApp({ app, file }) {
             }
         }
 
-        // If found, use the path directly
         if (exePath) {
-            command = `"${exePath}"`;
+            command = '"' + exePath + '"';
+        } else if (appLower === 'vscode' || appLower === 'code') {
+            command = 'code';
         } else {
-            // Fallback for special apps
-            if (appLower === 'vscode' || appLower === 'code') {
-                command = 'code';
-            } else {
-                // Last resort - let Windows figure it out
-                command = `start "" "${app}"`;
-            }
+            command = 'start "" "' + app + '"';
         }
     }
 
